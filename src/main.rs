@@ -71,6 +71,7 @@ fn run() -> Result<ExitCode> {
             tspec,
             release,
             strip,
+            args,
         } => {
             // Resolve package: --all > -p PKG > cwd > all
             let resolved = if all {
@@ -80,7 +81,7 @@ fn run() -> Result<ExitCode> {
             };
             match resolved {
                 None => {
-                    // Run all apps
+                    // Run all apps (args not supported for --all)
                     let workspace = WorkspaceInfo::discover()?;
                     let results = run_all(&workspace, tspec.as_deref(), release, strip);
                     return Ok(print_run_summary(&results));
@@ -91,7 +92,7 @@ fn run() -> Result<ExitCode> {
                     if strip {
                         strip_binary(&result.binary_path)?;
                     }
-                    let exit_code = run_binary(&result.binary_path)?;
+                    let exit_code = run_binary(&result.binary_path, &args)?;
                     std::process::exit(exit_code);
                 }
             }

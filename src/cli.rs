@@ -48,6 +48,9 @@ pub enum Commands {
         /// Strip symbols from binary before running
         #[arg(short, long)]
         strip: bool,
+        /// Arguments to pass to the binary (after --)
+        #[arg(last = true)]
+        args: Vec<String>,
     },
     /// Test package(s) with a translation spec
     Test {

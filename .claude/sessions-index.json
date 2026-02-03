@@ -1,5 +1,19 @@
 {
   "version": 1,
-  "entries": [],
+  "entries": [
+    {
+      "sessionId": "cb77c662-d0c4-4dee-ba90-64dd83a5c22c",
+      "fullPath": "/home/wink/.claude/projects/-home-wink-data-prgs-rust-tspec/cb77c662-d0c4-4dee-ba90-64dd83a5c22c.jsonl",
+      "fileMtime": 1770088829588,
+      "firstPrompt": "let's call it a day for now, txs!",
+      "summary": "Rust CLI Tool Migration and Feature Implementation",
+      "messageCount": 4,
+      "created": "2026-02-03T02:28:29.011Z",
+      "modified": "2026-02-03T02:28:51.793Z",
+      "gitBranch": "main",
+      "projectPath": "/home/wink/data/prgs/rust/tspec",
+      "isSidechain": false
+    }
+  ],
   "originalPath": "/home/wink/data/prgs/rust/tspec"
 }

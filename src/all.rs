@@ -85,7 +85,7 @@ pub fn run_all(
                 if strip && let Err(e) = strip_binary(&build_result.binary_path) {
                     eprintln!("  warning: strip failed: {}", e);
                 }
-                match run_binary(&build_result.binary_path) {
+                match run_binary(&build_result.binary_path, &[]) {
                     Ok(exit_code) => OpResult {
                         name: member.name.clone(),
                         success: true, // We don't treat non-zero exit as failure
@@ -209,7 +209,7 @@ pub fn test_all(
 
             print!("  Running {}... ", bin_name);
 
-            let result = match run_binary(&path) {
+            let result = match run_binary(&path, &[]) {
                 Ok(exit_code) => {
                     if exit_code == 0 {
                         println!("ok");
