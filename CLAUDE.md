@@ -89,3 +89,14 @@ Remember to commit .claude/ session files.
 ```
 
 **On next prompt after a commit+reminder:** Check `git log -1 --name-only` to see if `.claude/` was included in a commit after the code commit. If not, ask: "Did you forget to commit .claude sessions?"
+
+## Git Operations Claude Cannot Perform
+
+Due to circular references with `.claude/` session files (which record Claude's behavior), Claude cannot perform these git operations:
+
+- `git checkout` - switching branches affects session files
+- `git merge` - merging affects session files
+- `git rebase` - rebasing affects session files
+- Amending commits with `.claude/` files
+
+The user must perform these operations manually. Claude can only make commits (excluding `.claude/` files) and remind the user to handle the rest.
