@@ -50,7 +50,7 @@ Should become:
 Ts { ... }
 ```
 
-**Status:** Todo
+**Status:** Done
 
 ### Improve classify_crate
 

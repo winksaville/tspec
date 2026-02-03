@@ -5,7 +5,7 @@ use std::process::ExitCode;
 use tspec::all::{build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all};
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
-use tspec::cli::{Cli, Commands, TspecCommands};
+use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::compare::compare_specs;
 use tspec::find_paths::{find_package_dir, find_tspecs, find_project_root, get_crate_name};
 use tspec::run::run_binary;
@@ -141,32 +141,32 @@ fn run() -> Result<ExitCode> {
             println!("incompat add: package={package} spec={spec}");
             // TODO: implement
         }
-        Commands::Tspec { command } => match command {
-            TspecCommands::List { package, all } => {
+        Commands::Ts { command } => match command {
+            TsCommands::List { package, all } => {
                 ts_cmd::list_tspecs(package.as_deref(), all)?;
             }
-            TspecCommands::Show {
+            TsCommands::Show {
                 package,
                 all,
                 tspec,
             } => {
                 ts_cmd::show_tspec(package.as_deref(), all, tspec.as_deref())?;
             }
-            TspecCommands::Hash {
+            TsCommands::Hash {
                 package,
                 all,
                 tspec,
             } => {
                 ts_cmd::hash_tspec(package.as_deref(), all, tspec.as_deref())?;
             }
-            TspecCommands::New {
+            TsCommands::New {
                 name,
                 package,
                 from,
             } => {
                 ts_cmd::new_tspec(package.as_deref(), &name, from.as_deref())?;
             }
-            TspecCommands::Set {
+            TsCommands::Set {
                 assignment,
                 package,
                 tspec,

@@ -98,16 +98,15 @@ pub enum Commands {
         /// Spec to add to incompat list
         spec: String,
     },
-    /// Manage translation specs (alias: ts)
-    #[command(alias = "ts")]
-    Tspec {
+    /// Manage translation specs
+    Ts {
         #[command(subcommand)]
-        command: TspecCommands,
+        command: TsCommands,
     },
 }
 
 #[derive(Subcommand)]
-pub enum TspecCommands {
+pub enum TsCommands {
     /// List tspec files in workspace or for a specific package
     List {
         /// Package to list specs for (defaults to current directory or all packages)
