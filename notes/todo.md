@@ -4,6 +4,7 @@
 
 ## Todo
 
+- Add `CargoPassthrough` trait for wrapper commands (clippy, fmt, check, doc) [10]
 - Improve `classify_crate` - using name alone is brittle [4]
 
 ## Done
@@ -27,3 +28,4 @@
 [7]: chores-1.md#rename-package-and-binary
 [8]: chores-1.md#test-in-isolation
 [9]: chores-1.md#add-tspec-install---path
+[10]: chores-1.md#cargopassthrough-trait-for-wrapper-commands

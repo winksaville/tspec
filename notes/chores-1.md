@@ -46,6 +46,100 @@ Wraps `cargo install --path` with path resolution:
 
 **Status:** Done
 
+### CargoPassthrough Trait for Wrapper Commands
+
+After adding `install`, noticed pattern: many commands just wrap cargo subcommands (clean, install, clippy, fmt, check, doc). A trait with default implementation could reduce boilerplate.
+
+**Approaches Considered:**
+
+**1. Builder/Helper struct:**
+```rust
+struct CargoWrapper {
+    command: &'static str,
+    package: Option<String>,
+    release: bool,
+    apply_tspec: bool,
+}
+
+impl CargoWrapper {
+    fn new(command: &'static str) -> Self { ... }
+    fn package(mut self, p: Option<String>) -> Self { ... }
+    fn with_tspec(mut self, tspec: Option<&str>) -> Self { ... }
+    fn run(self) -> Result<ExitCode> { ... }
+}
+
+// Usage:
+CargoWrapper::new("clippy")
+    .package(package)
+    .run()?;
+```
+
+**2. Trait with default implementation (preferred):**
+```rust
+trait CargoPassthrough {
+    fn subcommand(&self) -> &str;
+    fn args(&self) -> Vec<OsString>;
+    fn execute(&self) -> Result<ExitCode> { /* default impl */ }
+}
+```
+
+**3. Macro:**
+```rust
+cargo_passthrough!(Clippy, "clippy");
+cargo_passthrough!(Fmt, "fmt");
+```
+
+**Selected Design (Trait):**
+
+```rust
+trait CargoPassthrough {
+    fn subcommand(&self) -> &str;
+    fn args(&self) -> Vec<OsString>;
+    fn workdir(&self) -> Option<&Path> { None }
+
+    // Default implementation - shared by all
+    fn execute(&self) -> Result<ExitCode> {
+        let mut cmd = Command::new("cargo");
+        cmd.arg(self.subcommand());
+        cmd.args(self.args());
+        if let Some(dir) = self.workdir() {
+            cmd.current_dir(dir);
+        }
+        let status = cmd.status()
+            .with_context(|| format!("failed to run cargo {}", self.subcommand()))?;
+        if status.success() {
+            Ok(ExitCode::SUCCESS)
+        } else {
+            bail!("cargo {} failed", self.subcommand());
+        }
+    }
+}
+```
+
+Each wrapper command implements the trait with minimal code:
+
+```rust
+struct ClippyCmd { package: Option<String> }
+
+impl CargoPassthrough for ClippyCmd {
+    fn subcommand(&self) -> &str { "clippy" }
+    fn args(&self) -> Vec<OsString> {
+        match &self.package {
+            Some(p) => vec!["-p".into(), p.into()],
+            None => vec![],
+        }
+    }
+}
+```
+
+**Considerations:**
+- Shared code is ~10 lines (execute), each wrapper ~10 lines
+- Worth doing if adding several wrappers (clippy, fmt, check, doc)
+- Two categories of commands: simple passthrough vs tspec-aware (build/run/test)
+- Could also use builder pattern or macro, but trait is idiomatic Rust
+
+**Status:** Todo
+
 ### Rename tspec Subcommand to ts
 
 The `tspec` subcommand creates awkward `tspec tspec list` invocations. Should rename to just `ts` so it becomes `tspec ts list`.
