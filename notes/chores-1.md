@@ -143,7 +143,7 @@ impl CargoPassthrough for ClippyCmd {
 - Converted `clean` command from 14 lines imperative to 3-7 lines declarative
 - Each new command needs: struct + impl (~20 lines) in cargo_cmd.rs, 3-7 lines in main.rs
 
-**Status:** Done - Expanded to build, test, clean, clippy, fmt. Reorganized into `src/cmd/` with one file per command.
+**Status:** In Progress - Expanded to build, test, clean, clippy, fmt. Reorganized into `src/cmd/` with one file per command. Run command still needs conversion.
 
 ### Rename tspec Subcommand to ts
 
@@ -221,3 +221,45 @@ Both specs use the same custom target JSON with `"dynamic-linking": false`, yet 
 - The size difference is consistent and reproducible
 
 **Status:** Todo - needs deeper investigation into rustc/linker behavior
+
+### Per-Spec Target Directories
+
+**Problem:** When using different specs with the same target triple, builds overwrite each other:
+```
+tspec build -t tspec.static-opt.ts.toml  → target/x86_64-unknown-linux-tspec/release/
+tspec build -t tspec.dyn-opt.ts.toml     → target/x86_64-unknown-linux-tspec/release/  (overwrites!)
+```
+
+**Solution:** Add `target_dir` field to `[cargo]` section with template placeholder support:
+
+```toml
+[cargo]
+# Explicit path (no substitution)
+target_dir = "my-builds/static"
+
+# Template with placeholders
+target_dir = "<name>"           # spec name sans .ts.toml (DEFAULT)
+target_dir = "<hash>"           # spec content hash
+target_dir = "<name>-<hash>"    # combine both
+target_dir = "builds/<hash>"    # custom prefix + hash
+```
+
+**Path structure:** Insert between target triple and profile:
+```
+target/{triple}/{target_dir}/{profile}/{binary}
+target/x86_64-unknown-linux-tspec/static-opt/release/tspec
+target/x86_64-unknown-linux-tspec/a1b2c3d4/release/tspec
+```
+
+**Behavior:**
+- No `target_dir` specified → defaults to `<name>` (spec name sans .ts.toml)
+- Empty `target_dir = ""` → no subdirectory (current behavior, backwards compat)
+- Placeholders `<name>` and `<hash>` expanded at build time
+
+**Implementation:**
+1. Add `target_dir: Option<String>` to `CargoConfig` in types.rs
+2. Update `get_binary_path()` in find_paths.rs to incorporate target_dir
+3. Update cargo_build.rs to pass appropriate `--target-dir` or use CARGO_TARGET_DIR
+4. Update compare.rs if needed
+
+**Status:** Todo

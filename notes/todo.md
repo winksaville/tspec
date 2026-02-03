@@ -2,14 +2,16 @@
 
 ## In Progress
 
+- Convert remaining commands to CargoPassthrough pattern (Run remaining) [10]
+
 ## Todo
 
+- Add `cargo.target_dir` spec field for per-spec target directories [12]
 - Investigate `-static` vs `dynamic-linking=false` size difference (3.3%) [11]
 - Improve `classify_crate` - using name alone is brittle [4]
 
 ## Done
 
-- Add `CargoPassthrough` trait for wrapper commands (build, test, clean, clippy, fmt) [10]
 - Add `tspec install --path <path>` command [9]
 - Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test
 - Set up CI/CD [5]
@@ -31,3 +33,4 @@
 [9]: chores-1.md#add-tspec-install---path
 [10]: chores-1.md#cargopassthrough-trait-for-wrapper-commands
 [11]: chores-1.md#investigate--static-vs-dynamic-linkingfalse-size-difference
+[12]: chores-1.md#per-spec-target-directories
