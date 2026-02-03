@@ -114,10 +114,10 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
 
     // For POPs, check if name matches the root package
     if is_pop(project_root) {
-        if let Ok(pkg_name) = get_crate_name(project_root) {
-            if pkg_name == name {
-                return Ok(project_root.to_path_buf());
-            }
+        if let Ok(pkg_name) = get_crate_name(project_root)
+            && pkg_name == name
+        {
+            return Ok(project_root.to_path_buf());
         }
         bail!(
             "package '{}' not found (this is a single-package project with package '{}')",

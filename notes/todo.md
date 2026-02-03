@@ -5,10 +5,10 @@
 ## Todo
 
 - Improve `classify_crate` - using name alone is brittle [4]
-- Set up CI/CD [5]
 
 ## Done
 
+- Set up CI/CD [5]
 - Rename `tspec` subcommand to `ts` (avoid `tspec tspec list`) [3]
 - Update README for standalone usage [6]
 - Add POP (Plain Old Package) support [1]

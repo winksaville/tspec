@@ -2,12 +2,14 @@ use anyhow::Result;
 use clap::Parser;
 use std::process::ExitCode;
 
-use tspec::all::{build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all};
+use tspec::all::{
+    build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all,
+};
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
 use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::compare::compare_specs;
-use tspec::find_paths::{find_package_dir, find_tspecs, find_project_root, get_crate_name};
+use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs, get_crate_name};
 use tspec::run::run_binary;
 use tspec::testing::test_crate;
 use tspec::ts_cmd;

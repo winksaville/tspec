@@ -79,6 +79,11 @@ These ensure tspec works correctly when used in workspaces that still have an `x
 
 ### CICD
 
-Set up GitHub Actions or similar for automated testing.
+Set up GitHub Actions for automated testing.
 
-**Status:** Todo
+Created `.github/workflows/ci.yml` with three jobs:
+- `test` - builds and runs tests
+- `clippy` - runs clippy with `-D warnings`
+- `fmt` - checks formatting
+
+**Status:** Done

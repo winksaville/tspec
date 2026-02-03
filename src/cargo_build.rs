@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::find_paths::{
-    find_package_dir, find_tspec, find_project_root, get_binary_path, get_binary_path_simple,
+    find_package_dir, find_project_root, find_tspec, get_binary_path, get_binary_path_simple,
     get_crate_name,
 };
 use crate::tspec::load_spec;

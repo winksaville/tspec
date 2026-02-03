@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_tspec, find_project_root, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_project_root, find_tspec, get_crate_name, resolve_package_dir};
 
 use super::list::find_tspec_files;
 

@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::find_paths::{find_tspec, find_project_root, resolve_package_dir};
+use crate::find_paths::{find_project_root, find_tspec, resolve_package_dir};
 use crate::options::{PanicMode, StripMode};
 use crate::tspec::{load_spec, save_spec_snapshot};
 use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
