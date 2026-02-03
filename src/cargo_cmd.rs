@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
+use clap::Args;
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
 
 /// Trait for commands that wrap cargo subcommands with minimal logic.
@@ -11,19 +12,12 @@ pub trait CargoPassthrough {
     /// Arguments to pass to the cargo subcommand
     fn args(&self) -> Vec<OsString>;
 
-    /// Working directory for the command (defaults to current directory)
-    fn workdir(&self) -> Option<&Path> {
-        None
-    }
-
     /// Execute the cargo command with default implementation
-    fn execute(&self) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
         let mut cmd = std::process::Command::new("cargo");
         cmd.arg(self.subcommand());
         cmd.args(self.args());
-        if let Some(dir) = self.workdir() {
-            cmd.current_dir(dir);
-        }
+        cmd.current_dir(project_root);
         let status = cmd
             .status()
             .with_context(|| format!("failed to run cargo {}", self.subcommand()))?;
@@ -36,9 +30,13 @@ pub trait CargoPassthrough {
 }
 
 /// Clean build artifacts
+#[derive(Args)]
 pub struct CleanCmd {
-    pub workspace: PathBuf,
+    /// Package to clean (defaults to entire workspace/project)
+    #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
+    /// Only clean release artifacts
+    #[arg(short, long)]
     pub release: bool,
 }
 
@@ -57,9 +55,5 @@ impl CargoPassthrough for CleanCmd {
             args.push("--release".into());
         }
         args
-    }
-
-    fn workdir(&self) -> Option<&Path> {
-        Some(&self.workspace)
     }
 }

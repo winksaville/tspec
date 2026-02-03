@@ -26,6 +26,19 @@
       "gitBranch": "main",
       "projectPath": "/home/wink/data/prgs/rust/tspec",
       "isSidechain": false
+    },
+    {
+      "sessionId": "6a2fae4d-e5f3-4e31-9bad-0cabab5b1e70",
+      "fullPath": "/home/wink/.claude/projects/-home-wink-data-prgs-rust-tspec/6a2fae4d-e5f3-4e31-9bad-0cabab5b1e70.jsonl",
+      "fileMtime": 1770141646359,
+      "firstPrompt": "commit",
+      "summary": "Cargo Wrapper Trait Implementation Committed",
+      "messageCount": 6,
+      "created": "2026-02-03T06:17:29.806Z",
+      "modified": "2026-02-03T06:19:30.401Z",
+      "gitBranch": "cargo-wrapper-trait",
+      "projectPath": "/home/wink/data/prgs/rust/tspec",
+      "isSidechain": false
     }
   ],
   "originalPath": "/home/wink/data/prgs/rust/tspec"

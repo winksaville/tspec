@@ -7,7 +7,7 @@ use tspec::all::{
 };
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
-use tspec::cargo_cmd::{CargoPassthrough, CleanCmd};
+use tspec::cargo_cmd::CargoPassthrough;
 use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::compare::compare_specs;
 use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs, get_crate_name};
@@ -123,13 +123,8 @@ fn run() -> Result<ExitCode> {
                 }
             }
         }
-        Commands::Clean { package, release } => {
-            CleanCmd {
-                workspace: find_project_root()?,
-                package,
-                release,
-            }
-            .execute()?;
+        Commands::Clean(cmd) => {
+            cmd.execute(&find_project_root()?)?;
         }
         Commands::Compare {
             package,

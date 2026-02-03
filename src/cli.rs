@@ -1,3 +1,4 @@
+use crate::cargo_cmd::CleanCmd;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -71,14 +72,7 @@ pub enum Commands {
         fail_fast: bool,
     },
     /// Clean build artifacts
-    Clean {
-        /// Package to clean (defaults to entire workspace/project)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Only clean release artifacts
-        #[arg(short, long)]
-        release: bool,
-    },
+    Clean(CleanCmd),
     /// Compare specs for a package (size only)
     Compare {
         /// Package to compare (required)
