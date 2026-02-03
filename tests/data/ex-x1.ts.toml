@@ -1,0 +1,3 @@
+# Test fixture: rlibc-x1 style linker args
+[linker]
+args = ["-static", "-nostartfiles"]

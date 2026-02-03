@@ -2,15 +2,16 @@ use anyhow::Result;
 use clap::Parser;
 use std::process::ExitCode;
 
-use xt::all::{build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all};
-use xt::binary::strip_binary;
-use xt::cargo_build::build_crate;
-use xt::cli::{Cli, Commands, TspecCommands};
-use xt::compare::compare_specs;
-use xt::find_paths::{find_package_dir, find_tspecs, find_workspace_root, get_crate_name};
-use xt::run::run_binary;
-use xt::testing::test_crate;
-use xt::workspace::WorkspaceInfo;
+use tspec::all::{build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all};
+use tspec::binary::strip_binary;
+use tspec::cargo_build::build_crate;
+use tspec::cli::{Cli, Commands, TspecCommands};
+use tspec::compare::compare_specs;
+use tspec::find_paths::{find_package_dir, find_tspecs, find_project_root, get_crate_name};
+use tspec::run::run_binary;
+use tspec::testing::test_crate;
+use tspec::ts_cmd;
+use tspec::workspace::WorkspaceInfo;
 
 fn main() -> ExitCode {
     match run() {
@@ -124,7 +125,7 @@ fn run() -> Result<ExitCode> {
             release,
             strip,
         } => {
-            let workspace = find_workspace_root()?;
+            let workspace = find_project_root()?;
             let package_dir = find_package_dir(&workspace, &package)?;
             let spec_paths = find_tspecs(&package_dir, &tspec)?;
             compare_specs(&package, &spec_paths, release, strip)?;
@@ -142,28 +143,28 @@ fn run() -> Result<ExitCode> {
         }
         Commands::Tspec { command } => match command {
             TspecCommands::List { package, all } => {
-                xt::ts_cmd::list_tspecs(package.as_deref(), all)?;
+                ts_cmd::list_tspecs(package.as_deref(), all)?;
             }
             TspecCommands::Show {
                 package,
                 all,
                 tspec,
             } => {
-                xt::ts_cmd::show_tspec(package.as_deref(), all, tspec.as_deref())?;
+                ts_cmd::show_tspec(package.as_deref(), all, tspec.as_deref())?;
             }
             TspecCommands::Hash {
                 package,
                 all,
                 tspec,
             } => {
-                xt::ts_cmd::hash_tspec(package.as_deref(), all, tspec.as_deref())?;
+                ts_cmd::hash_tspec(package.as_deref(), all, tspec.as_deref())?;
             }
             TspecCommands::New {
                 name,
                 package,
                 from,
             } => {
-                xt::ts_cmd::new_tspec(package.as_deref(), &name, from.as_deref())?;
+                ts_cmd::new_tspec(package.as_deref(), &name, from.as_deref())?;
             }
             TspecCommands::Set {
                 assignment,
@@ -173,7 +174,7 @@ fn run() -> Result<ExitCode> {
                 let (key, value) = assignment.split_once('=').ok_or_else(|| {
                     anyhow::anyhow!("invalid assignment '{}': expected key=value", assignment)
                 })?;
-                xt::ts_cmd::set_value(package.as_deref(), key, value, tspec.as_deref())?;
+                ts_cmd::set_value(package.as_deref(), key, value, tspec.as_deref())?;
             }
         },
     }

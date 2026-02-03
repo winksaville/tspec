@@ -4,12 +4,12 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_workspace_root, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_project_root, get_crate_name, resolve_package_dir};
 use crate::workspace::WorkspaceInfo;
 
 /// List all tspec files in workspace or for a specific package
 pub fn list_tspecs(package: Option<&str>, all: bool) -> Result<()> {
-    let workspace = find_workspace_root()?;
+    let workspace = find_project_root()?;
 
     // Check if we're in a package directory (has Cargo.toml with [package], not just workspace)
     let cwd = std::env::current_dir()?;

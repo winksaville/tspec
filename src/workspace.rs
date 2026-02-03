@@ -102,7 +102,7 @@ fn classify_crate(path: &Path, name: &str) -> CrateKind {
     let path_str = path.to_string_lossy();
 
     // Build tools at workspace root level
-    if name == "xt" || name == "xtask" {
+    if name == "tspec" || name == "xt" || name == "xtask" {
         return CrateKind::BuildTool;
     }
 
@@ -172,10 +172,10 @@ mod tests {
 
     #[test]
     fn discover_works() {
-        // This test requires being run from workspace root
+        // This test works for both workspaces and POPs
         let info = WorkspaceInfo::discover();
         if let Ok(info) = info {
-            // Should have some members
+            // Should have some members (at least 1 for POP, more for workspace)
             assert!(!info.members.is_empty());
 
             // xt and xtask should be excluded from buildable
@@ -186,10 +186,11 @@ mod tests {
                     .all(|m| m.name != "xt" && m.name != "xtask")
             );
 
-            // Should have some apps
-            let runnable = info.runnable_members();
-            assert!(!runnable.is_empty());
+            // For workspaces with apps/, should have runnable members
+            // For POPs or workspaces without apps/, runnable may be empty
+            let _runnable = info.runnable_members();
+            // Just verify it doesn't panic - count depends on project structure
         }
-        // If cargo metadata fails (e.g., not in workspace), that's OK for CI
+        // If cargo metadata fails (e.g., not in a Rust project), that's OK for CI
     }
 }

@@ -1,0 +1,10 @@
+# Test fixture: rlibc-x2 style linker args
+[linker]
+args = [
+    "-static",
+    "-nostdlib",
+    "-nodefaultlibs",
+    "-e_start",
+    "-Wl,--undefined=_start",
+    "-Wl,--undefined=__libc_start_main",
+]

@@ -4,14 +4,14 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_tspec, find_workspace_root, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_tspec, find_project_root, get_crate_name, resolve_package_dir};
 use crate::tspec::{hash_spec, load_spec};
 
 use super::list::find_tspec_files;
 
 /// Show hash of a tspec file
 pub fn hash_tspec(package: Option<&str>, all: bool, tspec: Option<&str>) -> Result<()> {
-    let workspace = find_workspace_root()?;
+    let workspace = find_project_root()?;
 
     // Check if we're in a package directory
     let cwd = std::env::current_dir()?;

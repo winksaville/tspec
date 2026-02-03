@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::find_paths::{
-    find_package_dir, find_tspec, find_workspace_root, get_binary_path, get_binary_path_simple,
+    find_package_dir, find_tspec, find_project_root, get_binary_path, get_binary_path_simple,
     get_crate_name,
 };
 use crate::tspec::load_spec;
@@ -18,7 +18,7 @@ pub struct BuildResult {
 
 /// Build a crate with a spec, returns the binary path on success
 pub fn build_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Result<BuildResult> {
-    let workspace = find_workspace_root()?;
+    let workspace = find_project_root()?;
     let crate_dir = find_package_dir(&workspace, crate_name)?;
     let tspec_path = find_tspec(&crate_dir, tspec)?;
 

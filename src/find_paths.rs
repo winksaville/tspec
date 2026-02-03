@@ -5,6 +5,13 @@ use std::path::{Path, PathBuf};
 use crate::TSPEC_SUFFIX;
 use crate::types::{Profile, Spec};
 
+/// Check if TOML content has an exact section header like `[workspace]` or `[package]`
+/// Only matches lines where the trimmed content equals `[section]` exactly
+fn has_toml_section_exact(content: &str, section: &str) -> bool {
+    let header = format!("[{}]", section);
+    content.lines().any(|line| line.trim() == header)
+}
+
 /// Extract crate name from Cargo.toml
 pub fn get_crate_name(crate_dir: &Path) -> Result<String> {
     let cargo_toml = crate_dir.join("Cargo.toml");
@@ -35,20 +42,45 @@ pub fn get_crate_name(crate_dir: &Path) -> Result<String> {
     bail!("could not find package name in {}", cargo_toml.display());
 }
 
-/// Find the workspace root by looking for Cargo.toml with [workspace]
-pub fn find_workspace_root() -> Result<PathBuf> {
+/// Find the project root by looking for Cargo.toml with [workspace] or [package]
+/// For workspaces, returns the directory containing the workspace Cargo.toml
+/// For POPs (Plain Old Packages), returns the directory containing the package Cargo.toml
+pub fn find_project_root() -> Result<PathBuf> {
     let mut dir = std::env::current_dir()?;
+    let mut package_root: Option<PathBuf> = None;
+
     loop {
         let cargo_toml = dir.join("Cargo.toml");
         if cargo_toml.exists() {
             let content = std::fs::read_to_string(&cargo_toml)?;
-            if content.contains("[workspace]") {
+            // Workspace takes precedence
+            if has_toml_section_exact(&content, "workspace") {
                 return Ok(dir);
+            }
+            // Remember the first (deepest) package we find as potential POP root
+            if package_root.is_none() && has_toml_section_exact(&content, "package") {
+                package_root = Some(dir.clone());
             }
         }
         if !dir.pop() {
-            bail!("could not find workspace root");
+            // No workspace found, use the POP root if we found one
+            if let Some(root) = package_root {
+                return Ok(root);
+            }
+            bail!("could not find project root (no Cargo.toml with [workspace] or [package])");
         }
+    }
+}
+
+/// Check if a project root is a POP (Plain Old Package) vs a workspace
+pub fn is_pop(project_root: &Path) -> bool {
+    let cargo_toml = project_root.join("Cargo.toml");
+    if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
+        // POP has [package] but no [workspace]
+        has_toml_section_exact(&content, "package")
+            && !has_toml_section_exact(&content, "workspace")
+    } else {
+        false
     }
 }
 
@@ -72,16 +104,31 @@ pub fn resolve_package_dir(workspace: &Path, package: Option<&str>) -> Result<Pa
 }
 
 /// Find a package's directory - tries as path first, then searches standard locations
-pub fn find_package_dir(workspace: &Path, name: &str) -> Result<PathBuf> {
+/// For POPs, checks if name matches the root package
+pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
     // Try as path first (relative or absolute)
     let as_path = PathBuf::from(name);
     if as_path.join("Cargo.toml").exists() {
         return Ok(as_path.canonicalize().unwrap_or(as_path));
     }
 
-    // Fallback: search libs/, apps/, tools/
+    // For POPs, check if name matches the root package
+    if is_pop(project_root) {
+        if let Ok(pkg_name) = get_crate_name(project_root) {
+            if pkg_name == name {
+                return Ok(project_root.to_path_buf());
+            }
+        }
+        bail!(
+            "package '{}' not found (this is a single-package project with package '{}')",
+            name,
+            get_crate_name(project_root).unwrap_or_else(|_| "unknown".to_string())
+        );
+    }
+
+    // Workspace: search libs/, apps/, tools/
     for prefix in ["libs", "apps", "tools"] {
-        let path = workspace.join(prefix).join(name);
+        let path = project_root.join(prefix).join(name);
         if path.join("Cargo.toml").exists() {
             return Ok(path);
         }
@@ -89,7 +136,7 @@ pub fn find_package_dir(workspace: &Path, name: &str) -> Result<PathBuf> {
 
     // Special case: nested test crates like libs/rlibc-x2/tests
     for prefix in ["libs", "apps"] {
-        for entry in std::fs::read_dir(workspace.join(prefix))
+        for entry in std::fs::read_dir(project_root.join(prefix))
             .into_iter()
             .flatten()
             .flatten()

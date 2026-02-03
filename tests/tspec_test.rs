@@ -1,7 +1,6 @@
 use std::path::PathBuf;
-use xt::TSPEC_SUFFIX;
-use xt::tspec::{hash_spec, load_spec};
-use xt::types::*;
+use tspec::tspec::{hash_spec, load_spec};
+use tspec::types::*;
 
 fn test_data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -42,16 +41,9 @@ fn loaded_spec_hash_is_stable() {
     assert_eq!(hash1, hash2);
 }
 
-fn app_tspec(app_name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../apps")
-        .join(app_name)
-        .join(format!("tspec{}", TSPEC_SUFFIX))
-}
-
 #[test]
 fn load_ex_x1_spec() {
-    let spec = load_spec(&app_tspec("ex-x1")).unwrap();
+    let spec = load_spec(&test_data("ex-x1.ts.toml")).unwrap();
 
     assert_eq!(spec.cargo, CargoConfig::default());
     assert_eq!(spec.rustc, RustcConfig::default());
@@ -64,7 +56,7 @@ fn load_ex_x1_spec() {
 
 #[test]
 fn load_ex_x2_spec() {
-    let spec = load_spec(&app_tspec("ex-x2")).unwrap();
+    let spec = load_spec(&test_data("ex-x2.ts.toml")).unwrap();
 
     assert_eq!(spec.cargo, CargoConfig::default());
     assert_eq!(spec.rustc, RustcConfig::default());
