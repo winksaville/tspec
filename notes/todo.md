@@ -8,10 +8,8 @@
 
 ## Done
 
+- Add `tspec install --path <path>` command [9]
 - Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test
-
-## Done
-
 - Set up CI/CD [5]
 - Rename `tspec` subcommand to `ts` (avoid `tspec tspec list`) [3]
 - Update README for standalone usage [6]
@@ -28,3 +26,4 @@
 [6]: chores-1.md#update-readme
 [7]: chores-1.md#rename-package-and-binary
 [8]: chores-1.md#test-in-isolation
+[9]: chores-1.md#add-tspec-install---path

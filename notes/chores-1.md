@@ -35,6 +35,17 @@ Verify all tests pass without rlibc-x workspace context.
 
 **Status:** Done - 79 tests pass
 
+### Add tspec install --path
+
+Add `tspec install --path <path>` command where path can be relative or absolute.
+
+Wraps `cargo install --path` with path resolution:
+- Add `Install` variant to `Commands` enum in cli.rs with `PathBuf` path arg
+- Add handler in main.rs using `canonicalize()` for path resolution
+- Optional `--force` flag for reinstall
+
+**Status:** Done
+
 ### Rename tspec Subcommand to ts
 
 The `tspec` subcommand creates awkward `tspec tspec list` invocations. Should rename to just `ts` so it becomes `tspec ts list`.

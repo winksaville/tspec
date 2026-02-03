@@ -199,6 +199,20 @@ fn run() -> Result<ExitCode> {
         Commands::Version => {
             println!("tspec {}", env!("CARGO_PKG_VERSION"));
         }
+        Commands::Install { path, force } => {
+            let resolved = path
+                .canonicalize()
+                .with_context(|| format!("path not found: {}", path.display()))?;
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.arg("install").arg("--path").arg(&resolved);
+            if force {
+                cmd.arg("--force");
+            }
+            let status = cmd.status().context("failed to run cargo install")?;
+            if !status.success() {
+                anyhow::bail!("cargo install failed");
+            }
+        }
     }
 
     Ok(ExitCode::SUCCESS)

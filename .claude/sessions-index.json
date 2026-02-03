@@ -13,6 +13,19 @@
       "gitBranch": "main",
       "projectPath": "/home/wink/data/prgs/rust/tspec",
       "isSidechain": false
+    },
+    {
+      "sessionId": "90c34bf3-84ef-4ccd-8e2d-a0c1d0656009",
+      "fullPath": "/home/wink/.claude/projects/-home-wink-data-prgs-rust-tspec/90c34bf3-84ef-4ccd-8e2d-a0c1d0656009.jsonl",
+      "fileMtime": 1770089998913,
+      "firstPrompt": "reaquaint",
+      "summary": "tspec: Add argument passthrough to run command",
+      "messageCount": 21,
+      "created": "2026-02-03T03:20:28.277Z",
+      "modified": "2026-02-03T03:30:49.776Z",
+      "gitBranch": "main",
+      "projectPath": "/home/wink/data/prgs/rust/tspec",
+      "isSidechain": false
     }
   ],
   "originalPath": "/home/wink/data/prgs/rust/tspec"

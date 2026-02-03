@@ -117,6 +117,15 @@ pub enum Commands {
     },
     /// Print version information
     Version,
+    /// Install a package from a local path
+    Install {
+        /// Path to package (relative or absolute)
+        #[arg(long)]
+        path: std::path::PathBuf,
+        /// Force reinstall even if already installed
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 #[derive(Subcommand)]
