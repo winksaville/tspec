@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::process::ExitCode;
 
-use tspec::all::{build_all, print_run_summary, print_summary, run_all};
+use tspec::all::{print_run_summary, run_all};
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
 use tspec::cli::{Cli, Commands, TsCommands};
@@ -33,35 +33,8 @@ fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Build {
-            package,
-            all,
-            tspec,
-            release,
-            strip,
-            fail_fast,
-        } => {
-            // Resolve package: --all > -p PKG > cwd > all
-            let resolved = if all {
-                None
-            } else {
-                package.or_else(current_package_name)
-            };
-            match resolved {
-                None => {
-                    // Build all packages
-                    let workspace = WorkspaceInfo::discover()?;
-                    let results =
-                        build_all(&workspace, tspec.as_deref(), release, strip, fail_fast);
-                    return Ok(print_summary(&results));
-                }
-                Some(name) => {
-                    let result = build_crate(&name, tspec.as_deref(), release)?;
-                    if strip {
-                        strip_binary(&result.binary_path)?;
-                    }
-                }
-            }
+        Commands::Build(cmd) => {
+            return cmd.execute(&find_project_root()?);
         }
         Commands::Run {
             package,

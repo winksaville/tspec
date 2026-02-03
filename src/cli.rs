@@ -1,4 +1,4 @@
-use crate::cmd::{CleanCmd, ClippyCmd, FmtCmd, TestCmd};
+use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -12,26 +12,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Build package(s) with a translation spec
-    Build {
-        /// Package to build (defaults to current directory or all packages)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Build all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-        /// Translation spec to use (defaults to package's tspec file)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-        /// Release build
-        #[arg(short, long)]
-        release: bool,
-        /// Strip symbols from binary after build
-        #[arg(short, long)]
-        strip: bool,
-        /// Stop on first failure (for all-packages mode)
-        #[arg(short, long)]
-        fail_fast: bool,
-    },
+    Build(BuildCmd),
     /// Build and run package(s) with a translation spec
     Run {
         /// Package to run (defaults to current directory or all apps)

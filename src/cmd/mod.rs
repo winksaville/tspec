@@ -1,8 +1,10 @@
+mod build;
 mod clean;
 mod clippy;
 mod fmt;
 mod test;
 
+pub use build::BuildCmd;
 pub use clean::CleanCmd;
 pub use clippy::ClippyCmd;
 pub use fmt::FmtCmd;

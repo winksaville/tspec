@@ -51,7 +51,7 @@ enum Commands {
 
 - `cmd/` - Command implementations (one file per command)
   - `mod.rs` - CargoPassthrough trait and re-exports
-  - `clean.rs`, `clippy.rs`, `fmt.rs`, `test.rs` - Individual commands
+  - `build.rs`, `clean.rs`, `clippy.rs`, `fmt.rs`, `test.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
 - `tspec.rs` - Spec loading/saving/hashing
