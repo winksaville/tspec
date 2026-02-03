@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "tspec")]
-#[command(about = "Translation spec based build system")]
+#[command(name = "tspec", version, about = "Translation spec based build system")]
+#[command(before_help = concat!("tspec ", env!("CARGO_PKG_VERSION")))]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -112,6 +112,8 @@ pub enum Commands {
         #[command(subcommand)]
         command: TsCommands,
     },
+    /// Print version information
+    Version,
 }
 
 #[derive(Subcommand)]

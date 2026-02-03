@@ -195,6 +195,9 @@ fn run() -> Result<ExitCode> {
                 ts_cmd::set_value(package.as_deref(), key, value, tspec.as_deref())?;
             }
         },
+        Commands::Version => {
+            println!("tspec {}", env!("CARGO_PKG_VERSION"));
+        }
     }
 
     Ok(ExitCode::SUCCESS)
