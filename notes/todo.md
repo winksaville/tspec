@@ -2,9 +2,10 @@
 
 ## In Progress
 
+- Add `CargoPassthrough` trait for wrapper commands (clippy, fmt, check, doc) [10]
+
 ## Todo
 
-- Add `CargoPassthrough` trait for wrapper commands (clippy, fmt, check, doc) [10]
 - Improve `classify_crate` - using name alone is brittle [4]
 
 ## Done

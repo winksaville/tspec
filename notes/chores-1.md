@@ -138,7 +138,12 @@ impl CargoPassthrough for ClippyCmd {
 - Two categories of commands: simple passthrough vs tspec-aware (build/run/test)
 - Could also use builder pattern or macro, but trait is idiomatic Rust
 
-**Status:** Todo
+**Implementation (proof of concept):**
+- Added `src/cargo_cmd.rs` with `CargoPassthrough` trait and `CleanCmd`
+- Converted `clean` command from 14 lines imperative to 3-7 lines declarative
+- Each new command needs: struct + impl (~20 lines) in cargo_cmd.rs, 3-7 lines in main.rs
+
+**Status:** In Progress - evaluating if worth expanding to other commands
 
 ### Rename tspec Subcommand to ts
 
