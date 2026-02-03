@@ -1,4 +1,4 @@
-use crate::cargo_cmd::{CleanCmd, TestCmd};
+use crate::cmd::{CleanCmd, ClippyCmd, FmtCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -57,6 +57,10 @@ pub enum Commands {
     Test(TestCmd),
     /// Clean build artifacts
     Clean(CleanCmd),
+    /// Run clippy lints
+    Clippy(ClippyCmd),
+    /// Format source code
+    Fmt(FmtCmd),
     /// Compare specs for a package (size only)
     Compare {
         /// Package to compare (required)
@@ -71,22 +75,6 @@ pub enum Commands {
         /// Strip symbols before comparing sizes
         #[arg(short, long)]
         strip: bool,
-    },
-    /// Manage package compatibility with specs
-    Compat {
-        /// Package name
-        #[arg(short = 'p', long = "package")]
-        package: String,
-        /// Spec to add to compat list (omit to show current state)
-        spec: Option<String>,
-    },
-    /// Mark a spec as incompatible with a package
-    Incompat {
-        /// Package name
-        #[arg(short = 'p', long = "package")]
-        package: String,
-        /// Spec to add to incompat list
-        spec: String,
     },
     /// Manage translation specs
     Ts {

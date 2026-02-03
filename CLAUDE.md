@@ -13,12 +13,12 @@ Ensure a recent tspec is installed:
 cargo install --path .         # Install from local source
 ```
 
-Development workflow (using tspec where available):
+Development workflow:
 ```bash
 tspec test -p tspec            # Run tests
 tspec clean                    # Clean build artifacts
-cargo clippy                   # Lints (until tspec clippy exists)
-cargo fmt --check              # Formatting (until tspec fmt exists)
+tspec clippy                   # Run lints
+tspec fmt --check              # Check formatting
 ```
 
 ## Architecture
@@ -49,7 +49,9 @@ enum Commands {
 
 ### Key Modules
 
-- `cargo_cmd.rs` - CargoPassthrough trait and command implementations
+- `cmd/` - Command implementations (one file per command)
+  - `mod.rs` - CargoPassthrough trait and re-exports
+  - `clean.rs`, `clippy.rs`, `fmt.rs`, `test.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
 - `tspec.rs` - Spec loading/saving/hashing
@@ -75,8 +77,8 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 **Before committing, run verification:**
 ```bash
 tspec test -p tspec
-cargo clippy
-cargo fmt --check
+tspec clippy
+tspec fmt --check
 ```
 
 **After committing code, remind about .claude/ files:**

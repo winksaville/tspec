@@ -5,8 +5,8 @@ use std::process::ExitCode;
 use tspec::all::{build_all, print_run_summary, print_summary, run_all};
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
-use tspec::cargo_cmd::CargoPassthrough;
 use tspec::cli::{Cli, Commands, TsCommands};
+use tspec::cmd::CargoPassthrough;
 use tspec::compare::compare_specs;
 use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs, get_crate_name};
 use tspec::run::run_binary;
@@ -101,6 +101,12 @@ fn run() -> Result<ExitCode> {
         Commands::Clean(cmd) => {
             cmd.execute(&find_project_root()?)?;
         }
+        Commands::Clippy(cmd) => {
+            cmd.execute(&find_project_root()?)?;
+        }
+        Commands::Fmt(cmd) => {
+            cmd.execute(&find_project_root()?)?;
+        }
         Commands::Compare {
             package,
             tspec,
@@ -111,17 +117,6 @@ fn run() -> Result<ExitCode> {
             let package_dir = find_package_dir(&workspace, &package)?;
             let spec_paths = find_tspecs(&package_dir, &tspec)?;
             compare_specs(&package, &spec_paths, release, strip)?;
-        }
-        Commands::Compat { package, spec } => {
-            match spec {
-                Some(s) => println!("compat add: package={package} spec={s}"),
-                None => println!("compat show: package={package}"),
-            }
-            // TODO: implement
-        }
-        Commands::Incompat { package, spec } => {
-            println!("incompat add: package={package} spec={spec}");
-            // TODO: implement
         }
         Commands::Ts { command } => match command {
             TsCommands::List { package, all } => {
