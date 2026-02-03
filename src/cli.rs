@@ -1,4 +1,4 @@
-use crate::cargo_cmd::CleanCmd;
+use crate::cargo_cmd::{CleanCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -54,23 +54,7 @@ pub enum Commands {
         args: Vec<String>,
     },
     /// Test package(s) with a translation spec
-    Test {
-        /// Package to test (defaults to current directory or all packages)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Test all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-        /// Translation spec to use (defaults to package's tspec file)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-        /// Release build
-        #[arg(short, long)]
-        release: bool,
-        /// Stop on first failure
-        #[arg(short, long)]
-        fail_fast: bool,
-    },
+    Test(TestCmd),
     /// Clean build artifacts
     Clean(CleanCmd),
     /// Compare specs for a package (size only)

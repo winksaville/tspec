@@ -2,9 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::process::ExitCode;
 
-use tspec::all::{
-    build_all, print_run_summary, print_summary, print_test_summary, run_all, test_all,
-};
+use tspec::all::{build_all, print_run_summary, print_summary, run_all};
 use tspec::binary::strip_binary;
 use tspec::cargo_build::build_crate;
 use tspec::cargo_cmd::CargoPassthrough;
@@ -12,7 +10,6 @@ use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::compare::compare_specs;
 use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs, get_crate_name};
 use tspec::run::run_binary;
-use tspec::testing::test_crate;
 use tspec::ts_cmd;
 use tspec::workspace::WorkspaceInfo;
 
@@ -98,30 +95,8 @@ fn run() -> Result<ExitCode> {
                 }
             }
         }
-        Commands::Test {
-            package,
-            all,
-            tspec,
-            release,
-            fail_fast,
-        } => {
-            // Resolve package: --all > -p PKG > cwd > all
-            let resolved = if all {
-                None
-            } else {
-                package.or_else(current_package_name)
-            };
-            match resolved {
-                None => {
-                    // Test all packages
-                    let workspace = WorkspaceInfo::discover()?;
-                    let results = test_all(&workspace, tspec.as_deref(), release, fail_fast);
-                    return Ok(print_test_summary(&results));
-                }
-                Some(name) => {
-                    test_crate(&name, tspec.as_deref(), release)?;
-                }
-            }
+        Commands::Test(cmd) => {
+            return cmd.execute(&find_project_root()?);
         }
         Commands::Clean(cmd) => {
             cmd.execute(&find_project_root()?)?;
