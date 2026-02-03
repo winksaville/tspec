@@ -4,11 +4,12 @@
 
 ## Todo
 
-- Update README for standalone usage [2]
+- Rename `tspec` subcommand to `ts` (avoid `tspec tspec list`) [2]
 - Set up CI/CD [2]
 
 ## Done
 
+- Update README for standalone usage [2]
 - Add POP (Plain Old Package) support [1]
 - Rename package and binary from `xt` to `tspec` [2]
 - Verify tests pass in isolation [2]

@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "xt")]
+#[command(name = "tspec")]
 #[command(about = "Translation spec based build system")]
 pub struct Cli {
     #[command(subcommand)]
