@@ -6,16 +6,79 @@ General maintenance tasks and considerations for the project.
 
 Migrated xt from rlibc-x to standalone tspec repo using `git subtree split`.
 
-### Chores
+### POP Support
 
-1. **POP Support** - Make xt work with Plain Old Packages (single Cargo.toml without workspace). Currently errors with "could not find workspace root". [design](tspec-design.md#20260202---augment-vs-replace-cargo)
+Make tspec work with Plain Old Packages (single Cargo.toml without workspace). Previously errored with "could not find workspace root".
 
-2. **Rename binary** - Consider renaming from `xt` to `tspec` to match repo name. Affects CLI invocation (`cargo xt` vs `cargo tspec` or standalone `tspec`).
+**Status:** Done - added `find_project_root()` and `is_pop()` helpers.
 
-3. **Update README** - Remove rlibc-x specific references, update for standalone usage.
+See [tspec-design.md](tspec-design.md#20260202---augment-vs-replace-cargo) for design decision.
 
-4. **Package name** - Cargo.toml still has `name = "xt"`. Consider changing to `tspec`.
+### Rename Package and Binary
 
-5. **Test in isolation** - Verify all tests pass without rlibc-x workspace context.
+Renamed from `xt` to `tspec`:
+- Cargo.toml `name = "tspec"`
+- Binary is now `tspec` instead of `xt`
+- CLI command name updated
 
-6. **CI/CD** - Set up GitHub Actions or similar for automated testing.
+**Status:** Done
+
+### Update README
+
+Remove rlibc-x specific references, update for standalone usage.
+
+**Status:** Done
+
+### Test in Isolation
+
+Verify all tests pass without rlibc-x workspace context.
+
+**Status:** Done - 79 tests pass
+
+### Rename tspec Subcommand to ts
+
+The `tspec` subcommand creates awkward `tspec tspec list` invocations. Should rename to just `ts` so it becomes `tspec ts list`.
+
+Currently in cli.rs:
+```rust
+#[command(alias = "ts")]
+Tspec { ... }
+```
+
+Should become:
+```rust
+Ts { ... }
+```
+
+**Status:** Todo
+
+### Improve classify_crate
+
+The `classify_crate()` function in `workspace.rs` uses name-matching which is brittle:
+
+```rust
+if name == "tspec" || name == "xt" || name == "xtask" {
+    return CrateKind::BuildTool;
+}
+```
+
+This could misclassify user crates named "tspec" or fail to recognize build tools with different names. Consider:
+- Using Cargo.toml metadata (categories, keywords)
+- Looking for `[[bin]]` with specific characteristics
+- Making it configurable via workspace Cargo.toml
+
+**Status:** Todo
+
+### Remaining xt References
+
+Some `xt` references intentionally remain for backwards compatibility:
+- `workspace.rs:105` - recognizes "xt" as BuildTool (legacy workspaces)
+- `workspace.rs` tests - verify "xt" classification still works
+
+These ensure tspec works correctly when used in workspaces that still have an `xt` crate.
+
+### CICD
+
+Set up GitHub Actions or similar for automated testing.
+
+**Status:** Todo

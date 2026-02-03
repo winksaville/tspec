@@ -1,4 +1,4 @@
-//! `cargo xt ts list` - List tspec files
+//! `tspec ts list` - List tspec files
 
 use anyhow::Result;
 use std::path::Path;

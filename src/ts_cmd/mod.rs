@@ -1,4 +1,4 @@
-//! CLI commands for tspec management (cargo xt ts ...)
+//! CLI commands for tspec management (tspec ts ...)
 
 mod hash;
 mod list;

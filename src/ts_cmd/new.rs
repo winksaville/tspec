@@ -1,4 +1,4 @@
-//! `cargo xt ts new` - Create a new tspec file
+//! `tspec ts new` - Create a new tspec file
 
 use anyhow::Result;
 use std::path::Path;

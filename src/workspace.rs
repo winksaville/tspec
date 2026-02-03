@@ -18,7 +18,7 @@ pub enum CrateKind {
     Tool,
     /// */tests - test binary crates (special handling)
     Test,
-    /// xt, xtask - build tools, excluded by default
+    /// Build tools such as xtask or tspec, excluded by default
     BuildTool,
 }
 
@@ -72,7 +72,7 @@ impl WorkspaceInfo {
         Ok(WorkspaceInfo { root, members })
     }
 
-    /// Get members excluding build tools (xt, xtask)
+    /// Get members excluding build tools such as xtask or tspec
     pub fn buildable_members(&self) -> Vec<&CrateMember> {
         self.members
             .iter()

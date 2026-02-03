@@ -1,4 +1,4 @@
-//! `cargo xt ts show` - Show tspec contents
+//! `tspec ts show` - Show tspec contents
 
 use anyhow::Result;
 use std::path::Path;

@@ -1,4 +1,4 @@
-//! `cargo xt ts hash` - Show tspec content hash
+//! `tspec ts hash` - Show tspec content hash
 
 use anyhow::Result;
 use std::path::Path;

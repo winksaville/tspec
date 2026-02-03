@@ -1,4 +1,4 @@
-//! `cargo xt ts set` - Set a scalar value in a tspec
+//! `tspec ts set` - Set a scalar value in a tspec
 
 use anyhow::{Context, Result, bail};
 
