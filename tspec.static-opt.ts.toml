@@ -1,0 +1,20 @@
+# High-level panic mode (sets both cargo -Z and rustc -C flags)
+panic = "immediate-abort"
+
+[cargo]
+# Use custom target with plt-by-default: false
+target_json = "x86_64-unknown-linux-tspec.json"
+
+[rustc]
+# Rebuild std with panic_abort
+build_std = ["std", "core", "panic_abort"]
+# Enable --gc-sections for dead code elimination (requires -Z unstable-options)
+flags = ["-Z unstable-options", "-C link-arg=-Wl,--gc-sections"]
+
+[linker]
+# Version script for aggressive dead code elimination
+#version_script = { global = ["_start"], local = "*" }
+#version_script = { global = ["main"], local = "*" }
+
+# Static linking for faster starup ?
+args = ["-static"]

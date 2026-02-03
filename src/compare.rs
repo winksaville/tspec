@@ -15,7 +15,7 @@ struct SpecResult {
 /// Compare multiple specs for a crate
 pub fn compare_specs(
     crate_name: &str,
-    spec_paths: &[impl AsRef<Path>],
+    spec_paths: &[impl AsRef<Path> + std::fmt::Debug],
     release: bool,
     strip: bool,
 ) -> Result<()> {
@@ -24,6 +24,7 @@ pub fn compare_specs(
         crate_name,
         if strip { " (stripped)" } else { "" }
     );
+    //println!("Using specs: {:?}", spec_paths);
 
     let mut results = Vec::new();
 
@@ -110,9 +111,9 @@ fn print_comparison(results: &[SpecResult]) {
 
 fn format_size(bytes: u64) -> String {
     if bytes >= 1_000_000 {
-        format!("{:.1}M", bytes as f64 / 1_000_000.0)
+        format!("{:.3}M", bytes as f64 / 1_000_000.0)
     } else if bytes >= 1_000 {
-        format!("{:.1}K", bytes as f64 / 1_000.0)
+        format!("{:.3}K", bytes as f64 / 1_000.0)
     } else {
         format!("{}", bytes)
     }
