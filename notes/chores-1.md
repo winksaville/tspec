@@ -143,7 +143,7 @@ impl CargoPassthrough for ClippyCmd {
 - Converted `clean` command from 14 lines imperative to 3-7 lines declarative
 - Each new command needs: struct + impl (~20 lines) in cargo_cmd.rs, 3-7 lines in main.rs
 
-**Status:** In Progress - evaluating if worth expanding to other commands
+**Status:** Done - Expanded to build, test, clean, clippy, fmt. Reorganized into `src/cmd/` with one file per command.
 
 ### Rename tspec Subcommand to ts
 
@@ -197,3 +197,27 @@ Created `.github/workflows/ci.yml` with three jobs:
 - `fmt` - checks formatting
 
 **Status:** Done
+
+### Investigate `-static` vs `dynamic-linking=false` Size Difference
+
+When comparing tspec builds with two specs that differ only in the `-static` linker flag:
+
+```
+tspec.dyn-opt.ts.toml:    args = [""]       → 1.638M (stripped)
+tspec.static-opt.ts.toml: args = ["-static"] → 1.584M (stripped, -3.3%)
+```
+
+Both specs use the same custom target JSON with `"dynamic-linking": false`, yet the `-static` linker flag produces a 3.3% smaller binary.
+
+**Questions:**
+1. What does `dynamic-linking: false` in target JSON actually control? (code generation? linking?)
+2. What does `-static` linker flag control? (should be final link step)
+3. Why is there a size difference if both supposedly mean "static linking"?
+4. Are they affecting different stages of the build pipeline?
+
+**Observations:**
+- Both specs share the same compiled dependencies (only tspec recompiles on second build)
+- The version_script has no effect on binary size (tested with `main`, `_start`, and no script)
+- The size difference is consistent and reproducible
+
+**Status:** Todo - needs deeper investigation into rustc/linker behavior

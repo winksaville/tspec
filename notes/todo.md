@@ -2,14 +2,14 @@
 
 ## In Progress
 
-- Add `CargoPassthrough` trait for wrapper commands (clippy, fmt, check, doc) [10]
-
 ## Todo
 
+- Investigate `-static` vs `dynamic-linking=false` size difference (3.3%) [11]
 - Improve `classify_crate` - using name alone is brittle [4]
 
 ## Done
 
+- Add `CargoPassthrough` trait for wrapper commands (build, test, clean, clippy, fmt) [10]
 - Add `tspec install --path <path>` command [9]
 - Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test
 - Set up CI/CD [5]
@@ -30,3 +30,4 @@
 [8]: chores-1.md#test-in-isolation
 [9]: chores-1.md#add-tspec-install---path
 [10]: chores-1.md#cargopassthrough-trait-for-wrapper-commands
+[11]: chores-1.md#investigate--static-vs-dynamic-linkingfalse-size-difference
