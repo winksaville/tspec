@@ -2,16 +2,11 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::process::ExitCode;
 
-use tspec::all::{print_run_summary, run_all};
-use tspec::binary::strip_binary;
-use tspec::cargo_build::build_crate;
 use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::cmd::CargoPassthrough;
 use tspec::compare::compare_specs;
-use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs, get_crate_name};
-use tspec::run::run_binary;
+use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs};
 use tspec::ts_cmd;
-use tspec::workspace::WorkspaceInfo;
 
 fn main() -> ExitCode {
     match run() {
@@ -23,12 +18,6 @@ fn main() -> ExitCode {
     }
 }
 
-/// Check if current directory is a package (has Cargo.toml with [package])
-fn current_package_name() -> Option<String> {
-    let cwd = std::env::current_dir().ok()?;
-    get_crate_name(&cwd).ok()
-}
-
 fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
 
@@ -36,37 +25,8 @@ fn run() -> Result<ExitCode> {
         Commands::Build(cmd) => {
             return cmd.execute(&find_project_root()?);
         }
-        Commands::Run {
-            package,
-            all,
-            tspec,
-            release,
-            strip,
-            args,
-        } => {
-            // Resolve package: --all > -p PKG > cwd > all
-            let resolved = if all {
-                None
-            } else {
-                package.or_else(current_package_name)
-            };
-            match resolved {
-                None => {
-                    // Run all apps (args not supported for --all)
-                    let workspace = WorkspaceInfo::discover()?;
-                    let results = run_all(&workspace, tspec.as_deref(), release, strip);
-                    return Ok(print_run_summary(&results));
-                }
-                Some(name) => {
-                    // Build, optionally strip, then run
-                    let result = build_crate(&name, tspec.as_deref(), release)?;
-                    if strip {
-                        strip_binary(&result.binary_path)?;
-                    }
-                    let exit_code = run_binary(&result.binary_path, &args)?;
-                    std::process::exit(exit_code);
-                }
-            }
+        Commands::Run(cmd) => {
+            return cmd.execute(&find_project_root()?);
         }
         Commands::Test(cmd) => {
             return cmd.execute(&find_project_root()?);

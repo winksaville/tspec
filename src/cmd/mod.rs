@@ -2,12 +2,14 @@ mod build;
 mod clean;
 mod clippy;
 mod fmt;
+mod run;
 mod test;
 
 pub use build::BuildCmd;
 pub use clean::CleanCmd;
 pub use clippy::ClippyCmd;
 pub use fmt::FmtCmd;
+pub use run::RunCmd;
 pub use test::TestCmd;
 
 use anyhow::{Context, Result, bail};

@@ -2,7 +2,7 @@
 
 ## In Progress
 
-- Convert remaining commands to CargoPassthrough pattern (Run remaining) [10]
+- Convert remaining commands to CargoPassthrough pattern (Compare, Install, Ts, Version) [10]
 
 ## Todo
 

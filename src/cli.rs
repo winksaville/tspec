@@ -1,4 +1,4 @@
-use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, TestCmd};
+use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, RunCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -14,26 +14,7 @@ pub enum Commands {
     /// Build package(s) with a translation spec
     Build(BuildCmd),
     /// Build and run package(s) with a translation spec
-    Run {
-        /// Package to run (defaults to current directory or all apps)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Run all apps (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-        /// Translation spec to use (defaults to package's tspec file)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-        /// Release build
-        #[arg(short, long)]
-        release: bool,
-        /// Strip symbols from binary before running
-        #[arg(short, long)]
-        strip: bool,
-        /// Arguments to pass to the binary (after --)
-        #[arg(last = true)]
-        args: Vec<String>,
-    },
+    Run(RunCmd),
     /// Test package(s) with a translation spec
     Test(TestCmd),
     /// Clean build artifacts
