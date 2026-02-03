@@ -67,6 +67,15 @@ pub enum Commands {
         #[arg(short, long)]
         fail_fast: bool,
     },
+    /// Clean build artifacts
+    Clean {
+        /// Package to clean (defaults to entire workspace/project)
+        #[arg(short = 'p', long = "package")]
+        package: Option<String>,
+        /// Only clean release artifacts
+        #[arg(short, long)]
+        release: bool,
+    },
     /// Compare specs for a package (size only)
     Compare {
         /// Package to compare (required)

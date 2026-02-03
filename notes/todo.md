@@ -8,6 +8,10 @@
 
 ## Done
 
+- Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test
+
+## Done
+
 - Set up CI/CD [5]
 - Rename `tspec` subcommand to `ts` (avoid `tspec tspec list`) [3]
 - Update README for standalone usage [6]

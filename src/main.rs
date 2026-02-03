@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use std::process::ExitCode;
 
@@ -119,6 +119,22 @@ fn run() -> Result<ExitCode> {
                 Some(name) => {
                     test_crate(&name, tspec.as_deref(), release)?;
                 }
+            }
+        }
+        Commands::Clean { package, release } => {
+            let workspace = find_project_root()?;
+            let mut cmd = std::process::Command::new("cargo");
+            cmd.arg("clean");
+            cmd.current_dir(&workspace);
+            if let Some(pkg) = package {
+                cmd.arg("-p").arg(&pkg);
+            }
+            if release {
+                cmd.arg("--release");
+            }
+            let status = cmd.status().context("failed to run cargo clean")?;
+            if !status.success() {
+                anyhow::bail!("cargo clean failed");
             }
         }
         Commands::Compare {
