@@ -143,7 +143,7 @@ impl CargoPassthrough for ClippyCmd {
 - Converted `clean` command from 14 lines imperative to 3-7 lines declarative
 - Each new command needs: struct + impl (~20 lines) in cargo_cmd.rs, 3-7 lines in main.rs
 
-**Status:** In Progress - Expanded to build, run, test, clean, clippy, fmt, install. Reorganized into `src/cmd/` with one file per command. Remaining: Compare, Ts, Version.
+**Status:** In Progress - Expanded to build, run, test, clean, clippy, fmt, install, compare. Reorganized into `src/cmd/` with one file per command. Remaining: Ts, Version.
 
 ### Rename tspec Subcommand to ts
 

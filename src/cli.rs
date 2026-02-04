@@ -1,4 +1,4 @@
-use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, InstallCmd, RunCmd, TestCmd};
+use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -24,20 +24,7 @@ pub enum Commands {
     /// Format source code
     Fmt(FmtCmd),
     /// Compare specs for a package (size only)
-    Compare {
-        /// Package to compare (required)
-        #[arg(short = 'p', long = "package")]
-        package: String,
-        /// Spec file(s) or glob pattern(s) (defaults to tspec* pattern)
-        #[arg(short = 't', long = "tspec", action = clap::ArgAction::Append)]
-        tspec: Vec<String>,
-        /// Release build
-        #[arg(short, long)]
-        release: bool,
-        /// Strip symbols before comparing sizes
-        #[arg(short, long)]
-        strip: bool,
-    },
+    Compare(CompareCmd),
     /// Manage translation specs
     Ts {
         #[command(subcommand)]

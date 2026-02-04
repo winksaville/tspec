@@ -4,8 +4,7 @@ use std::process::ExitCode;
 
 use tspec::cli::{Cli, Commands, TsCommands};
 use tspec::cmd::CargoPassthrough;
-use tspec::compare::compare_specs;
-use tspec::find_paths::{find_package_dir, find_project_root, find_tspecs};
+use tspec::find_paths::find_project_root;
 use tspec::ts_cmd;
 
 fn main() -> ExitCode {
@@ -40,16 +39,8 @@ fn run() -> Result<ExitCode> {
         Commands::Fmt(cmd) => {
             cmd.execute(&find_project_root()?)?;
         }
-        Commands::Compare {
-            package,
-            tspec,
-            release,
-            strip,
-        } => {
-            let workspace = find_project_root()?;
-            let package_dir = find_package_dir(&workspace, &package)?;
-            let spec_paths = find_tspecs(&package_dir, &tspec)?;
-            compare_specs(&package, &spec_paths, release, strip)?;
+        Commands::Compare(cmd) => {
+            cmd.execute(&find_project_root()?)?;
         }
         Commands::Ts { command } => match command {
             TsCommands::List { package, all } => {
