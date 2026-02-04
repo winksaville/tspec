@@ -1,10 +1,9 @@
 use anyhow::Result;
 use clap::Args;
-use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::CargoPassthrough;
+use super::Execute;
 use crate::compare::compare_specs;
 use crate::find_paths::{find_package_dir, find_tspecs};
 
@@ -25,15 +24,7 @@ pub struct CompareCmd {
     pub strip: bool,
 }
 
-impl CargoPassthrough for CompareCmd {
-    fn subcommand(&self) -> &str {
-        unreachable!("CompareCmd does not use cargo passthrough")
-    }
-
-    fn args(&self) -> Vec<OsString> {
-        unreachable!("CompareCmd does not use cargo passthrough")
-    }
-
+impl Execute for CompareCmd {
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
         let package_dir = find_package_dir(project_root, &self.package)?;
         let spec_paths = find_tspecs(&package_dir, &self.tspec)?;

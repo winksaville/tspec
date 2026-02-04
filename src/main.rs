@@ -3,7 +3,7 @@ use clap::Parser;
 use std::process::ExitCode;
 
 use tspec::cli::{Cli, Commands, TsCommands};
-use tspec::cmd::CargoPassthrough;
+use tspec::cmd::Execute;
 use tspec::find_paths::find_project_root;
 use tspec::ts_cmd;
 

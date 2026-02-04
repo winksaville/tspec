@@ -23,20 +23,21 @@ tspec fmt --check              # Check formatting
 
 ## Architecture
 
-### CargoPassthrough Pattern
+### Execute Trait Pattern
 
-Commands that wrap cargo subcommands implement the `CargoPassthrough` trait:
+Commands implement the `Execute` trait:
 
 ```rust
-pub trait CargoPassthrough {
-    fn subcommand(&self) -> &str;           // e.g., "clean", "test"
-    fn args(&self) -> Vec<OsString>;        // Arguments for cargo
-    fn execute(&self, project_root: &Path) -> Result<ExitCode>;  // Default or custom impl
+pub trait Execute {
+    fn execute(&self, project_root: &Path) -> Result<ExitCode>;
 }
+
+// Helper for simple cargo passthroughs
+pub fn execute_cargo_subcommand(subcommand: &str, args: &[OsString], project_root: &Path) -> Result<ExitCode>
 ```
 
-- **Simple passthroughs** (Clean): Use default `execute()` implementation
-- **Complex commands** (Test, Build, Run): Override `execute()` with custom logic
+- **Simple passthroughs** (Clean, Clippy, Fmt): Use `execute_cargo_subcommand()` helper
+- **Custom commands** (Build, Run, Test, Compare, Install, Version): Implement own logic
 
 Command structs derive `clap::Args` and are used directly in the `Commands` enum:
 ```rust
@@ -50,7 +51,7 @@ enum Commands {
 ### Key Modules
 
 - `cmd/` - Command implementations (one file per command)
-  - `mod.rs` - CargoPassthrough trait and re-exports
+  - `mod.rs` - Execute trait, execute_cargo_subcommand helper, re-exports
   - `build.rs`, `clean.rs`, `clippy.rs`, `compare.rs`, `fmt.rs`, `install.rs`, `run.rs`, `test.rs`, `version.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)

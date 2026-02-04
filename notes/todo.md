@@ -2,16 +2,16 @@
 
 ## In Progress
 
-- Convert remaining commands to CargoPassthrough pattern (Ts) [10]
-
 ## Todo
 
 - Add `cargo.target_dir` spec field for per-spec target directories [12]
-- Investigate `-static` vs `dynamic-linking=false` size difference (3.3%) [11]
+- Investigate `-static` vs `dynamic-linking=false` size difference (partially explained) [11]
 - Improve `classify_crate` - using name alone is brittle [4]
+- Investigate converting TsCommands to Execute pattern [13]
 
 ## Done
 
+- Refactor to Execute trait with execute_cargo_subcommand() helper [10]
 - Add `tspec install --path <path>` command [9]
 - Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test
 - Set up CI/CD [5]
@@ -34,3 +34,4 @@
 [10]: chores-1.md#cargopassthrough-trait-for-wrapper-commands
 [11]: chores-1.md#investigate--static-vs-dynamic-linkingfalse-size-difference
 [12]: chores-1.md#per-spec-target-directories
+[13]: cli.rs - TsCommands enum uses inline struct variants, different from Execute pattern

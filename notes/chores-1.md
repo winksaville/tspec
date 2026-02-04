@@ -143,7 +143,7 @@ impl CargoPassthrough for ClippyCmd {
 - Converted `clean` command from 14 lines imperative to 3-7 lines declarative
 - Each new command needs: struct + impl (~20 lines) in cargo_cmd.rs, 3-7 lines in main.rs
 
-**Status:** In Progress - Expanded to build, run, test, clean, clippy, fmt, install, compare, version. Reorganized into `src/cmd/` with one file per command. Remaining: Ts.
+**Status:** Done - Refactored to simpler `Execute` trait with `execute_cargo_subcommand()` helper. All commands converted. Ts subcommands not converted (different pattern).
 
 ### Rename tspec Subcommand to ts
 
@@ -219,8 +219,13 @@ Both specs use the same custom target JSON with `"dynamic-linking": false`, yet 
 - Both specs share the same compiled dependencies (only tspec recompiles on second build)
 - The version_script has no effect on binary size (tested with `main`, `_start`, and no script)
 - The size difference is consistent and reproducible
+- After refactoring to simplify the Execute trait (v0.9.0), sizes changed:
+  - dyn-opt: 1.638M → 1.576M (-62K)
+  - static-opt: 1.584M → 1.576M (-8K)
+  - Gap: 3.3% → 0% (now equal!)
+  - Removing dead code (subcommand/args methods) eliminated the size difference
 
-**Status:** Todo - needs deeper investigation into rustc/linker behavior
+**Status:** Partially explained - dead code removal equalized sizes, but root cause of original difference still unclear
 
 ### Per-Spec Target Directories
 

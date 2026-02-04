@@ -1,10 +1,9 @@
 use anyhow::Result;
 use clap::Args;
-use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::{CargoPassthrough, current_package_name};
+use super::{Execute, current_package_name};
 use crate::all::{build_all, print_summary};
 use crate::binary::strip_binary;
 use crate::cargo_build::build_crate;
@@ -33,16 +32,7 @@ pub struct BuildCmd {
     pub fail_fast: bool,
 }
 
-impl CargoPassthrough for BuildCmd {
-    fn subcommand(&self) -> &str {
-        "build"
-    }
-
-    fn args(&self) -> Vec<OsString> {
-        // Not used - execute() builds its own command
-        vec![]
-    }
-
+impl Execute for BuildCmd {
     fn execute(&self, _project_root: &Path) -> Result<ExitCode> {
         // Resolve package: --all > -p PKG > cwd > all
         let resolved = if self.all {

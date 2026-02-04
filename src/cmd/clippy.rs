@@ -1,7 +1,10 @@
+use anyhow::Result;
 use clap::Args;
 use std::ffi::OsString;
+use std::path::Path;
+use std::process::ExitCode;
 
-use super::CargoPassthrough;
+use super::{Execute, execute_cargo_subcommand};
 
 /// Run clippy lints
 #[derive(Args)]
@@ -14,13 +17,9 @@ pub struct ClippyCmd {
     pub all: bool,
 }
 
-impl CargoPassthrough for ClippyCmd {
-    fn subcommand(&self) -> &str {
-        "clippy"
-    }
-
-    fn args(&self) -> Vec<OsString> {
-        let mut args = Vec::new();
+impl Execute for ClippyCmd {
+    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+        let mut args: Vec<OsString> = Vec::new();
         if let Some(pkg) = &self.package {
             args.push("-p".into());
             args.push(pkg.into());
@@ -28,6 +27,6 @@ impl CargoPassthrough for ClippyCmd {
         if self.all {
             args.push("--workspace".into());
         }
-        args
+        execute_cargo_subcommand("clippy", &args, project_root)
     }
 }

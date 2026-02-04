@@ -1,10 +1,9 @@
 use anyhow::Result;
 use clap::Args;
-use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::{CargoPassthrough, current_package_name};
+use super::{Execute, current_package_name};
 use crate::all::{print_test_summary, test_all};
 use crate::testing::test_crate;
 use crate::workspace::WorkspaceInfo;
@@ -29,16 +28,7 @@ pub struct TestCmd {
     pub fail_fast: bool,
 }
 
-impl CargoPassthrough for TestCmd {
-    fn subcommand(&self) -> &str {
-        "test"
-    }
-
-    fn args(&self) -> Vec<OsString> {
-        // Not used - execute() builds its own command
-        vec![]
-    }
-
+impl Execute for TestCmd {
     fn execute(&self, _project_root: &Path) -> Result<ExitCode> {
         // Resolve package: --all > -p PKG > cwd > all
         let resolved = if self.all {
