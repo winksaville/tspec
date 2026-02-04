@@ -2,6 +2,7 @@ mod build;
 mod clean;
 mod clippy;
 mod fmt;
+mod install;
 mod run;
 mod test;
 
@@ -9,6 +10,7 @@ pub use build::BuildCmd;
 pub use clean::CleanCmd;
 pub use clippy::ClippyCmd;
 pub use fmt::FmtCmd;
+pub use install::InstallCmd;
 pub use run::RunCmd;
 pub use test::TestCmd;
 

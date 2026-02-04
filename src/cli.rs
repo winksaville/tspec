@@ -1,4 +1,4 @@
-use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, RunCmd, TestCmd};
+use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, FmtCmd, InstallCmd, RunCmd, TestCmd};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -46,14 +46,7 @@ pub enum Commands {
     /// Print version information
     Version,
     /// Install a package from a local path
-    Install {
-        /// Path to package (relative or absolute)
-        #[arg(long)]
-        path: std::path::PathBuf,
-        /// Force reinstall even if already installed
-        #[arg(short, long)]
-        force: bool,
-    },
+    Install(InstallCmd),
 }
 
 #[derive(Subcommand)]
