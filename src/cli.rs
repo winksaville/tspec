@@ -1,4 +1,6 @@
-use crate::cmd::{BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd};
+use crate::cmd::{
+    BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd, VersionCmd,
+};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -31,7 +33,7 @@ pub enum Commands {
         command: TsCommands,
     },
     /// Print version information
-    Version,
+    Version(VersionCmd),
     /// Install a package from a local path
     Install(InstallCmd),
 }

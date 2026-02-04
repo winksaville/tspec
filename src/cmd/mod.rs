@@ -6,6 +6,7 @@ mod fmt;
 mod install;
 mod run;
 mod test;
+mod version;
 
 pub use build::BuildCmd;
 pub use clean::CleanCmd;
@@ -15,6 +16,7 @@ pub use fmt::FmtCmd;
 pub use install::InstallCmd;
 pub use run::RunCmd;
 pub use test::TestCmd;
+pub use version::VersionCmd;
 
 use anyhow::{Context, Result, bail};
 use std::ffi::OsString;

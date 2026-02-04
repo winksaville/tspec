@@ -27,12 +27,11 @@ pub struct CompareCmd {
 
 impl CargoPassthrough for CompareCmd {
     fn subcommand(&self) -> &str {
-        "compare" // Not a real cargo subcommand
+        unreachable!("CompareCmd does not use cargo passthrough")
     }
 
     fn args(&self) -> Vec<OsString> {
-        // Not used - execute() has custom logic
-        vec![]
+        unreachable!("CompareCmd does not use cargo passthrough")
     }
 
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
