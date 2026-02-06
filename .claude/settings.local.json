@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline -20)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec branch -a)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec log --pretty=format:\"%h %s\" -20)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline different-passthrough..main)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec diff --name-only main..different-passthrough)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline main..different-passthrough)",
+      "Bash(wc:*)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec show:*)"
+    ]
+  }
+}

@@ -34,4 +34,4 @@
 [10]: chores-1.md#cargopassthrough-trait-for-wrapper-commands
 [11]: chores-1.md#investigate--static-vs-dynamic-linkingfalse-size-difference
 [12]: chores-1.md#per-spec-target-directories
-[13]: cli.rs - TsCommands enum uses inline struct variants, different from Execute pattern
+[13]: chores-2.md#convert-commandsts-to-use-execute-trait
