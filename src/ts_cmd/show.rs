@@ -4,13 +4,18 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_project_root, find_tspec, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_tspec, get_crate_name, resolve_package_dir};
 
 use super::list::find_tspec_files;
 
 /// Show a tspec file's contents
-pub fn show_tspec(package: Option<&str>, all: bool, tspec: Option<&str>) -> Result<()> {
-    let workspace = find_project_root()?;
+pub fn show_tspec(
+    project_root: &Path,
+    package: Option<&str>,
+    all: bool,
+    tspec: Option<&str>,
+) -> Result<()> {
+    let workspace = project_root;
 
     // Check if we're in a package directory
     let cwd = std::env::current_dir()?;
@@ -21,7 +26,7 @@ pub fn show_tspec(package: Option<&str>, all: bool, tspec: Option<&str>) -> Resu
 
     if let Some(name) = package {
         // Explicit package specified
-        let package_dir = resolve_package_dir(&workspace, Some(name))?;
+        let package_dir = resolve_package_dir(workspace, Some(name))?;
         show_package_tspecs(&package_dir, name, tspec)?;
     } else if show_all {
         // Show all packages

@@ -4,25 +4,30 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_package_dir, find_project_root, find_tspec, resolve_package_dir};
+use crate::find_paths::{find_package_dir, find_tspec, resolve_package_dir};
 use crate::tspec::{load_spec, save_spec};
 use crate::types::Spec;
 
 /// Create a new tspec file (public entry point)
-pub fn new_tspec(package: Option<&str>, name: &str, from: Option<&str>) -> Result<()> {
-    let workspace = find_project_root()?;
-    let package_dir = resolve_package_dir(&workspace, package)?;
+pub fn new_tspec(
+    project_root: &Path,
+    package: Option<&str>,
+    name: &str,
+    from: Option<&str>,
+) -> Result<()> {
+    let workspace = project_root;
+    let package_dir = resolve_package_dir(workspace, package)?;
 
     // Resolve source spec if --from provided
     let source_spec = match from {
         Some(source) => {
-            let source_path = resolve_source_spec(&workspace, &package_dir, source)?;
+            let source_path = resolve_source_spec(workspace, &package_dir, source)?;
             Some(load_spec(&source_path)?)
         }
         None => None,
     };
 
-    create_tspec_file(&workspace, &package_dir, name, source_spec.as_ref())
+    create_tspec_file(workspace, &package_dir, name, source_spec.as_ref())
 }
 
 /// Resolve the source spec path from a --from argument

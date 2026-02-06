@@ -86,4 +86,4 @@ Commands::Ts(cmd) => {
 - `src/main.rs` (simplify match arm)
 - `src/ts_cmd/*.rs` (optional: accept `project_root` parameter)
 
-**Status:** Todo
+**Status:** Done

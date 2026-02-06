@@ -7,10 +7,9 @@
 - Add `cargo.target_dir` spec field for per-spec target directories [12]
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained) [11]
 - Improve `classify_crate` - using name alone is brittle [4]
-- Investigate converting TsCommands to Execute pattern [13]
-
 ## Done
 
+- Convert TsCommands to Execute pattern [13]
 - Refactor to Execute trait with execute_cargo_subcommand() helper [10]
 - Add `tspec install --path <path>` command [9]
 - Add `tspec clean` command - wrap `cargo clean` for completeness with build/run/test

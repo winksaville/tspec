@@ -8,7 +8,9 @@
       "Bash(git -C /home/wink/data/prgs/rust/tspec diff --name-only main..different-passthrough)",
       "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline main..different-passthrough)",
       "Bash(wc:*)",
-      "Bash(git -C /home/wink/data/prgs/rust/tspec show:*)"
+      "Bash(git -C /home/wink/data/prgs/rust/tspec show:*)",
+      "Bash(tspec ts show:*)",
+      "Bash(tspec ts hash:*)"
     ]
   }
 }

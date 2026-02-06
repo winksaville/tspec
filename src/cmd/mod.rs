@@ -6,6 +6,7 @@ mod fmt;
 mod install;
 mod run;
 mod test;
+mod ts;
 mod version;
 
 pub use build::BuildCmd;
@@ -16,6 +17,7 @@ pub use fmt::FmtCmd;
 pub use install::InstallCmd;
 pub use run::RunCmd;
 pub use test::TestCmd;
+pub use ts::TsCmd;
 pub use version::VersionCmd;
 
 use anyhow::{Context, Result, bail};

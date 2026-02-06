@@ -1,16 +1,23 @@
 //! `tspec ts set` - Set a scalar value in a tspec
 
 use anyhow::{Context, Result, bail};
+use std::path::Path;
 
-use crate::find_paths::{find_project_root, find_tspec, resolve_package_dir};
+use crate::find_paths::{find_tspec, resolve_package_dir};
 use crate::options::{PanicMode, StripMode};
 use crate::tspec::{load_spec, save_spec_snapshot};
 use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
 
 /// Set a value in a tspec and save as versioned snapshot
-pub fn set_value(package: Option<&str>, key: &str, value: &str, tspec: Option<&str>) -> Result<()> {
-    let workspace = find_project_root()?;
-    let package_dir = resolve_package_dir(&workspace, package)?;
+pub fn set_value(
+    project_root: &Path,
+    package: Option<&str>,
+    key: &str,
+    value: &str,
+    tspec: Option<&str>,
+) -> Result<()> {
+    let workspace = project_root;
+    let package_dir = resolve_package_dir(workspace, package)?;
 
     // Load existing spec or use default
     let mut spec = match find_tspec(&package_dir, tspec)? {
@@ -39,7 +46,7 @@ pub fn set_value(package: Option<&str>, key: &str, value: &str, tspec: Option<&s
     println!(
         "Saved {}",
         output_path
-            .strip_prefix(&workspace)
+            .strip_prefix(workspace)
             .unwrap_or(&output_path)
             .display()
     );

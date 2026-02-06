@@ -4,14 +4,19 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_project_root, find_tspec, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_tspec, get_crate_name, resolve_package_dir};
 use crate::tspec::{hash_spec, load_spec};
 
 use super::list::find_tspec_files;
 
 /// Show hash of a tspec file
-pub fn hash_tspec(package: Option<&str>, all: bool, tspec: Option<&str>) -> Result<()> {
-    let workspace = find_project_root()?;
+pub fn hash_tspec(
+    project_root: &Path,
+    package: Option<&str>,
+    all: bool,
+    tspec: Option<&str>,
+) -> Result<()> {
+    let workspace = project_root;
 
     // Check if we're in a package directory
     let cwd = std::env::current_dir()?;
@@ -22,7 +27,7 @@ pub fn hash_tspec(package: Option<&str>, all: bool, tspec: Option<&str>) -> Resu
 
     if let Some(name) = package {
         // Explicit package specified
-        let package_dir = resolve_package_dir(&workspace, Some(name))?;
+        let package_dir = resolve_package_dir(workspace, Some(name))?;
         hash_package_tspecs(&package_dir, name, tspec)?;
     } else if hash_all {
         // Hash all packages

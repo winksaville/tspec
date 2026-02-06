@@ -1,5 +1,6 @@
 use crate::cmd::{
-    BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd, VersionCmd,
+    BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd, TsCmd,
+    VersionCmd,
 };
 use clap::{Parser, Subcommand};
 
@@ -28,72 +29,9 @@ pub enum Commands {
     /// Compare specs for a package (size only)
     Compare(CompareCmd),
     /// Manage translation specs
-    Ts {
-        #[command(subcommand)]
-        command: TsCommands,
-    },
+    Ts(TsCmd),
     /// Print version information
     Version(VersionCmd),
     /// Install a package from a local path
     Install(InstallCmd),
-}
-
-#[derive(Subcommand)]
-pub enum TsCommands {
-    /// List tspec files in workspace or for a specific package
-    List {
-        /// Package to list specs for (defaults to current directory or all packages)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// List all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-    },
-    /// Show a tspec's contents
-    Show {
-        /// Package name (defaults to current directory)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Show all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-        /// Tspec name (defaults to all tspec files)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-    },
-    /// Show the content hash of a tspec
-    Hash {
-        /// Package name (defaults to current directory)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Hash all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
-        all: bool,
-        /// Tspec name (defaults to package's tspec file)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-    },
-    /// Create a new tspec file
-    New {
-        /// Name for the new tspec (default: "tspec")
-        #[arg(default_value = "tspec")]
-        name: String,
-        /// Package name (defaults to current directory)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Copy from existing tspec (package/spec or just spec name in same package)
-        #[arg(short = 'f', long = "from")]
-        from: Option<String>,
-    },
-    /// Set a scalar value in a tspec (creates versioned copy)
-    Set {
-        /// Key=value pair (e.g., "strip=symbols", "panic=abort", "rustc.lto=true")
-        assignment: String,
-        /// Package name (defaults to current directory)
-        #[arg(short = 'p', long = "package")]
-        package: Option<String>,
-        /// Tspec to modify (defaults to package's tspec.ts.toml)
-        #[arg(short = 't', long = "tspec")]
-        tspec: Option<String>,
-    },
 }
