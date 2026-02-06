@@ -87,3 +87,71 @@ Commands::Ts(cmd) => {
 - `src/ts_cmd/*.rs` (optional: accept `project_root` parameter)
 
 **Status:** Done
+
+## 20260206 - Add `cargo.target_dir` spec field
+
+### The Problem
+
+When two specs share the same target triple, builds overwrite each other in `target/{triple}/{profile}/`. This makes `tspec compare` unreliable and prevents side-by-side builds.
+
+### The Design
+
+Add a `target_dir` field to the `[cargo]` spec section with template placeholder support:
+
+```toml
+[cargo]
+target_dir = "<name>"           # spec filename sans .ts.toml
+target_dir = "<hash>"           # 8-char content hash
+target_dir = "<name>-<hash>"    # combined
+target_dir = ""                 # empty = no subdir (backward compat)
+```
+
+Path structure uses cargo's native `--target-dir`: `target/{target_dir}/{triple}/{profile}/{binary}`
+
+Default when field absent: empty (backward compatible, no subdirectory).
+
+### The Plan
+
+The `target_dir` field threads through the build pipeline: types → spec loading → path resolution → cargo command → binary scanning. The double `load_spec` call in `build_crate` gets consolidated along the way.
+
+1. **Add `target_dir` field to `CargoConfig`** (`src/types.rs`)
+   - Add `pub target_dir: Option<String>` to `CargoConfig`
+
+2. **Add helpers in `src/tspec.rs`**
+   - `spec_name_from_path(path: &Path) -> String` — strips `.ts.toml` suffix from filename
+   - `expand_target_dir(spec: &Spec, spec_name: &str) -> Result<Option<String>>` — expands `<name>` and `<hash>` placeholders; returns `None` if field is absent or empty
+
+3. **Update `get_binary_path`** (`src/find_paths.rs`)
+   - Add `expanded_target_dir: Option<&str>` parameter
+   - When `Some(td)`, base path becomes `workspace.join("target").join(td)` instead of `workspace.join("target")`
+   - Update existing test call sites to pass `None`
+
+4. **Update `apply_spec_to_command`** (`src/cargo_build.rs`)
+   - Add `expanded_target_dir: Option<&str>` parameter
+   - When `Some(td)`, insert `--target-dir target/{td}` into cargo command
+   - Fix version script path to use expanded target dir
+
+5. **Refactor `build_crate`** (`src/cargo_build.rs`)
+   - Consolidate the double `load_spec` call into one
+   - Compute `spec_name` and `expanded_td` after loading
+   - Pass `expanded_td` to both `get_binary_path` and `apply_spec_to_command`
+   - Add `target_base: PathBuf` to `BuildResult`
+
+6. **Update `test_crate`** (`src/testing.rs`)
+   - Compute `expanded_td` from loaded spec and pass to `apply_spec_to_command`
+
+7. **Fix test binary scanning** (`src/all.rs`)
+   - Capture `BuildResult` from `build_crate` (currently only error case captured)
+   - Use `build_result.target_base.join(profile)` instead of hardcoded `workspace.root.join("target").join(profile)`
+
+8. **Add `cargo.target_dir` to `tspec ts set`** (`src/ts_cmd/set.rs`)
+   - Add match arm for `"cargo.target_dir"` in `apply_value`
+
+9. **Tests**
+   - Unit tests for `expand_target_dir` (None, empty, literal, `<name>`, `<hash>`, combined)
+   - Unit tests for `spec_name_from_path`
+   - Unit test for `get_binary_path` with target_dir
+   - Unit test for `apply_value` with `cargo.target_dir`
+   - Existing tests: append `None` to `get_binary_path` calls (mechanical)
+
+**Status:** Todo
