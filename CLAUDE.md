@@ -72,6 +72,7 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 - **Rust Edition:** 2024
 - **Commit style:** Conventional commits (feat:, docs:, refactor:)
 - **Naming:** POP (Plain Old Package) refers to single-crate projects; tspec treats them as trivial workspaces
+- **Markdown refs:** Multiple references use `[1],[2]` not `[1,2]` or `[1][2]` (both break in markdown)
 
 ## Workflow
 
