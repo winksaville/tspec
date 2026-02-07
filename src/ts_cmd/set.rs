@@ -72,6 +72,9 @@ fn apply_value(spec: &mut Spec, key: &str, value: &str) -> Result<()> {
         "cargo.target_triple" => {
             spec.cargo.target_triple = Some(value.to_string());
         }
+        "cargo.target_dir" => {
+            spec.cargo.target_dir = Some(value.to_string());
+        }
 
         // Rustc config
         "rustc.opt_level" => {
@@ -219,6 +222,13 @@ mod tests {
                 .to_string()
                 .contains("invalid strip mode")
         );
+    }
+
+    #[test]
+    fn apply_cargo_target_dir() {
+        let mut spec = Spec::default();
+        apply_value(&mut spec, "cargo.target_dir", "<name>").unwrap();
+        assert_eq!(spec.cargo.target_dir, Some("<name>".to_string()));
     }
 
     #[test]

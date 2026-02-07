@@ -8,12 +8,14 @@ use crate::find_paths::{
     find_package_dir, find_project_root, find_tspec, get_binary_path, get_binary_path_simple,
     get_crate_name,
 };
-use crate::tspec::load_spec;
+use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
 use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
 
 /// Result of a successful build
 pub struct BuildResult {
     pub binary_path: PathBuf,
+    /// The effective target directory base (e.g., "target/foo" if target_dir was set)
+    pub target_base: PathBuf,
 }
 
 /// Build a crate with a spec, returns the binary path on success
@@ -29,31 +31,44 @@ pub fn build_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resu
     let build_rs_path = crate_dir.join("build.rs");
     let had_build_rs = build_rs_path.exists();
 
-    // Determine binary path based on spec
-    let binary_path = if let Some(path) = &tspec_path {
-        let spec = load_spec(path)?;
-        get_binary_path(&workspace, &pkg_name, &spec, release)
+    // Load spec once (if present) and compute target_dir
+    let (spec, expanded_td) = if let Some(path) = &tspec_path {
+        let s = load_spec(path)?;
+        let name = spec_name_from_path(path);
+        let td = expand_target_dir(&s, &name)?;
+        (Some(s), td)
+    } else {
+        (None, None)
+    };
+
+    // Compute paths
+    let target_base = match &expanded_td {
+        Some(td) => workspace.join("target").join(td),
+        None => workspace.join("target"),
+    };
+    let binary_path = if let Some(spec) = &spec {
+        get_binary_path(&workspace, &pkg_name, spec, release, expanded_td.as_deref())
     } else {
         get_binary_path_simple(&workspace, &pkg_name, release)
     };
 
     // Apply spec if present, otherwise plain cargo build
-    let status = if let Some(path) = &tspec_path {
-        let spec = load_spec(path)?;
+    let status = if let Some(spec) = &spec {
+        let path = tspec_path.as_ref().unwrap();
         println!("Building {} with spec {}", pkg_name, path.display());
 
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
         if has_linker_args && !had_build_rs {
-            generate_build_rs(&build_rs_path, &pkg_name, &spec)?;
+            generate_build_rs(&build_rs_path, &pkg_name, spec)?;
         }
 
-        let mut cmd = build_cargo_command(&spec)?;
+        let mut cmd = build_cargo_command(spec)?;
         cmd.arg("build");
         cmd.arg("-p").arg(&pkg_name);
         cmd.current_dir(&workspace);
 
-        apply_spec_to_command(&mut cmd, &spec, &workspace, release)?;
+        apply_spec_to_command(&mut cmd, spec, &workspace, release, expanded_td.as_deref())?;
         cmd.status().context("failed to run cargo")?
     } else {
         println!("Building {} (no tspec)", pkg_name);
@@ -77,7 +92,10 @@ pub fn build_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resu
     }
 
     println!("  {}", binary_path.display());
-    Ok(BuildResult { binary_path })
+    Ok(BuildResult {
+        binary_path,
+        target_base,
+    })
 }
 
 /// Generate a temporary build.rs with scoped linker flags from tspec.toml
@@ -130,7 +148,14 @@ pub fn apply_spec_to_command(
     spec: &Spec,
     workspace: &Path,
     release: bool,
+    expanded_target_dir: Option<&str>,
 ) -> Result<()> {
+    // Set custom target directory if specified
+    if let Some(td) = expanded_target_dir {
+        cmd.arg("--target-dir")
+            .arg(workspace.join("target").join(td));
+    }
+
     // Handle high-level panic mode (cargo -Z flag)
     if let Some(panic_mode) = spec.panic
         && let Some(z_flag) = panic_mode.cargo_z_flag()
@@ -229,9 +254,12 @@ pub fn apply_spec_to_command(
 
     // Handle version script (generates file and adds linker arg)
     if let Some(vs) = &spec.linker.version_script {
-        let target_dir = workspace.join("target");
-        let _ = fs::create_dir_all(&target_dir);
-        let version_script_path = target_dir.join("tspec-version.script");
+        let vs_dir = match expanded_target_dir {
+            Some(td) => workspace.join("target").join(td),
+            None => workspace.join("target"),
+        };
+        let _ = fs::create_dir_all(&vs_dir);
+        let version_script_path = vs_dir.join("tspec-version.script");
 
         // Generate version script: { global: sym1; sym2; local: *; };
         let globals = vs.global.join("; ");

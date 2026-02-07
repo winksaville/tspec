@@ -254,7 +254,13 @@ pub fn find_tspecs(crate_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>
 }
 
 /// Get binary path for a build with a spec
-pub fn get_binary_path(workspace: &Path, crate_name: &str, spec: &Spec, release: bool) -> PathBuf {
+pub fn get_binary_path(
+    workspace: &Path,
+    crate_name: &str,
+    spec: &Spec,
+    release: bool,
+    expanded_target_dir: Option<&str>,
+) -> PathBuf {
     let is_release = release || spec.cargo.profile.as_ref() == Some(&Profile::Release);
 
     let target = spec.cargo.target_triple.clone().or_else(|| {
@@ -266,13 +272,14 @@ pub fn get_binary_path(workspace: &Path, crate_name: &str, spec: &Spec, release:
 
     let profile_dir = if is_release { "release" } else { "debug" };
 
+    let base = match expanded_target_dir {
+        Some(td) => workspace.join("target").join(td),
+        None => workspace.join("target"),
+    };
+
     match target {
-        Some(t) => workspace
-            .join("target")
-            .join(t)
-            .join(profile_dir)
-            .join(crate_name),
-        None => workspace.join("target").join(profile_dir).join(crate_name),
+        Some(t) => base.join(t).join(profile_dir).join(crate_name),
+        None => base.join(profile_dir).join(crate_name),
     }
 }
 
@@ -652,7 +659,7 @@ version = "0.1.0"
     fn get_binary_path_empty_spec_debug() {
         let workspace = Path::new("/workspace");
         let spec = Spec::default();
-        let path = get_binary_path(workspace, "myapp", &spec, false);
+        let path = get_binary_path(workspace, "myapp", &spec, false, None);
         assert_eq!(path, PathBuf::from("/workspace/target/debug/myapp"));
     }
 
@@ -660,7 +667,7 @@ version = "0.1.0"
     fn get_binary_path_empty_spec_release_flag() {
         let workspace = Path::new("/workspace");
         let spec = Spec::default();
-        let path = get_binary_path(workspace, "myapp", &spec, true);
+        let path = get_binary_path(workspace, "myapp", &spec, true, None);
         assert_eq!(path, PathBuf::from("/workspace/target/release/myapp"));
     }
 
@@ -676,7 +683,7 @@ version = "0.1.0"
             ..Default::default()
         };
         // release=false but spec says Release
-        let path = get_binary_path(workspace, "myapp", &spec, false);
+        let path = get_binary_path(workspace, "myapp", &spec, false, None);
         assert_eq!(path, PathBuf::from("/workspace/target/release/myapp"));
     }
 
@@ -691,7 +698,7 @@ version = "0.1.0"
             },
             ..Default::default()
         };
-        let path = get_binary_path(workspace, "myapp", &spec, true);
+        let path = get_binary_path(workspace, "myapp", &spec, true, None);
         assert_eq!(
             path,
             PathBuf::from("/workspace/target/x86_64-unknown-linux-musl/release/myapp")
@@ -709,7 +716,7 @@ version = "0.1.0"
             },
             ..Default::default()
         };
-        let path = get_binary_path(workspace, "myapp", &spec, true);
+        let path = get_binary_path(workspace, "myapp", &spec, true, None);
         assert_eq!(
             path,
             PathBuf::from("/workspace/target/x86_64-unknown-linux-rlibcx2/release/myapp")
@@ -727,7 +734,7 @@ version = "0.1.0"
             },
             ..Default::default()
         };
-        let path = get_binary_path(workspace, "myapp", &spec, false);
+        let path = get_binary_path(workspace, "myapp", &spec, false, None);
         assert_eq!(
             path,
             PathBuf::from("/workspace/target/x86_64-unknown-linux-musl/debug/myapp")
@@ -746,7 +753,35 @@ version = "0.1.0"
             ..Default::default()
         };
         // release=true overrides spec's Debug profile
-        let path = get_binary_path(workspace, "myapp", &spec, true);
+        let path = get_binary_path(workspace, "myapp", &spec, true, None);
         assert_eq!(path, PathBuf::from("/workspace/target/release/myapp"));
+    }
+
+    // ==================== get_binary_path with target_dir tests ====================
+
+    #[test]
+    fn get_binary_path_with_target_dir_and_triple() {
+        use crate::types::CargoConfig;
+        let workspace = Path::new("/workspace");
+        let spec = Spec {
+            cargo: CargoConfig {
+                target_triple: Some("x86_64-unknown-linux-musl".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let path = get_binary_path(workspace, "myapp", &spec, true, Some("static-opt"));
+        assert_eq!(
+            path,
+            PathBuf::from("/workspace/target/static-opt/x86_64-unknown-linux-musl/release/myapp")
+        );
+    }
+
+    #[test]
+    fn get_binary_path_with_target_dir_no_triple() {
+        let workspace = Path::new("/workspace");
+        let spec = Spec::default();
+        let path = get_binary_path(workspace, "myapp", &spec, false, Some("custom"));
+        assert_eq!(path, PathBuf::from("/workspace/target/custom/debug/myapp"));
     }
 }

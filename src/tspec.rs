@@ -31,6 +31,46 @@ pub fn hash_spec(spec: &Spec) -> Result<String> {
     Ok(hex::encode(&result[..4]))
 }
 
+/// Extract spec name from path by stripping the .ts.toml (or .toml) suffix
+pub fn spec_name_from_path(path: &Path) -> String {
+    let filename = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    filename
+        .strip_suffix(TSPEC_SUFFIX)
+        .or_else(|| filename.strip_suffix(".toml"))
+        .unwrap_or(&filename)
+        .to_string()
+}
+
+/// Expand template placeholders in a spec's target_dir field.
+/// Returns None if target_dir is absent or empty.
+pub fn expand_target_dir(spec: &Spec, spec_name: &str) -> Result<Option<String>> {
+    let raw = match &spec.cargo.target_dir {
+        Some(td) if !td.is_empty() => td,
+        _ => return Ok(None),
+    };
+
+    let mut expanded = raw.clone();
+
+    if expanded.contains("<name>") {
+        expanded = expanded.replace("<name>", spec_name);
+    }
+
+    if expanded.contains("<hash>") {
+        let hash = hash_spec(spec)?;
+        expanded = expanded.replace("<hash>", &hash);
+    }
+
+    if expanded.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(expanded))
+    }
+}
+
 /// Save a spec to a TOML file, creating parent directories if needed
 pub fn save_spec(spec: &Spec, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
@@ -194,5 +234,78 @@ mod tests {
             .strip_suffix(SUFFIX)
             .unwrap();
         assert_eq!(hash1, hash3);
+    }
+
+    // ==================== spec_name_from_path tests ====================
+
+    #[test]
+    fn spec_name_strips_ts_toml_suffix() {
+        let path = PathBuf::from("/foo/bar/tspec.static-opt.ts.toml");
+        assert_eq!(spec_name_from_path(&path), "tspec.static-opt");
+    }
+
+    #[test]
+    fn spec_name_strips_plain_toml_suffix() {
+        let path = PathBuf::from("/foo/bar/minimal.toml");
+        assert_eq!(spec_name_from_path(&path), "minimal");
+    }
+
+    #[test]
+    fn spec_name_no_known_suffix() {
+        let path = PathBuf::from("/foo/bar/weird.txt");
+        assert_eq!(spec_name_from_path(&path), "weird.txt");
+    }
+
+    // ==================== expand_target_dir tests ====================
+
+    #[test]
+    fn expand_target_dir_none() {
+        let spec = Spec::default();
+        assert_eq!(expand_target_dir(&spec, "foo").unwrap(), None);
+    }
+
+    #[test]
+    fn expand_target_dir_empty() {
+        let mut spec = Spec::default();
+        spec.cargo.target_dir = Some("".to_string());
+        assert_eq!(expand_target_dir(&spec, "foo").unwrap(), None);
+    }
+
+    #[test]
+    fn expand_target_dir_literal() {
+        let mut spec = Spec::default();
+        spec.cargo.target_dir = Some("my-subdir".to_string());
+        assert_eq!(
+            expand_target_dir(&spec, "foo").unwrap(),
+            Some("my-subdir".to_string())
+        );
+    }
+
+    #[test]
+    fn expand_target_dir_name_placeholder() {
+        let mut spec = Spec::default();
+        spec.cargo.target_dir = Some("<name>".to_string());
+        assert_eq!(
+            expand_target_dir(&spec, "static-opt").unwrap(),
+            Some("static-opt".to_string())
+        );
+    }
+
+    #[test]
+    fn expand_target_dir_hash_placeholder() {
+        let mut spec = Spec::default();
+        spec.cargo.target_dir = Some("<hash>".to_string());
+        let result = expand_target_dir(&spec, "foo").unwrap().unwrap();
+        assert_eq!(result.len(), 8);
+        assert!(result.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn expand_target_dir_name_and_hash() {
+        let mut spec = Spec::default();
+        spec.cargo.target_dir = Some("<name>-<hash>".to_string());
+        let result = expand_target_dir(&spec, "opt").unwrap().unwrap();
+        assert!(result.starts_with("opt-"));
+        assert_eq!(result.len(), 4 + 8); // "opt-" + 8-char hash
     }
 }

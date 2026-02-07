@@ -50,6 +50,9 @@ pub struct CargoConfig {
     /// Nightly-only -Z flags (e.g., ["panic-immediate-abort"])
     #[serde(default)]
     pub unstable: Vec<String>,
+    /// Custom target directory subdirectory for per-spec isolation.
+    /// Supports `<name>` (spec filename sans .ts.toml) and `<hash>` (8-char content hash).
+    pub target_dir: Option<String>,
 }
 
 /// Rustc codegen and compilation configuration (flat struct)

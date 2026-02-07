@@ -10,7 +10,9 @@
       "Bash(wc:*)",
       "Bash(git -C /home/wink/data/prgs/rust/tspec show:*)",
       "Bash(tspec ts show:*)",
-      "Bash(tspec ts hash:*)"
+      "Bash(tspec ts hash:*)",
+      "Bash(tspec test:*)",
+      "Bash(tspec clippy:*)"
     ]
   }
 }

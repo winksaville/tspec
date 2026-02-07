@@ -159,22 +159,25 @@ pub fn test_all(
         println!("=== {} ===", member.name);
 
         // Build the test crate (builds all binaries)
-        if let Err(e) = build_crate(&member.name, tspec, release) {
-            results.push(OpResult {
-                name: member.name.clone(),
-                success: false,
-                message: format!("build failed: {}", e),
-                size: None,
-            });
-            if fail_fast {
-                return results;
+        let build_result = match build_crate(&member.name, tspec, release) {
+            Ok(r) => r,
+            Err(e) => {
+                results.push(OpResult {
+                    name: member.name.clone(),
+                    success: false,
+                    message: format!("build failed: {}", e),
+                    size: None,
+                });
+                if fail_fast {
+                    return results;
+                }
+                continue;
             }
-            continue;
-        }
+        };
 
         // Find and run all test binaries in the target directory
         let profile = if release { "release" } else { "debug" };
-        let target_dir = workspace.root.join("target").join(profile);
+        let target_dir = build_result.target_base.join(profile);
 
         // Look for binaries that end with "-tests" in the target directory
         let test_binaries: Vec<_> = std::fs::read_dir(&target_dir)

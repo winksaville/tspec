@@ -4,7 +4,7 @@ use std::process::Command;
 
 use crate::cargo_build::{apply_spec_to_command, generate_build_rs};
 use crate::find_paths::{find_package_dir, find_project_root, find_tspec};
-use crate::tspec::load_spec;
+use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
 /// Check if spec requires nightly toolchain
 fn requires_nightly(spec: &crate::types::Spec) -> bool {
     // High-level panic mode may require nightly
@@ -30,6 +30,8 @@ pub fn test_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resul
     // Apply spec if present, otherwise plain cargo test
     let status = if let Some(path) = &tspec_path {
         let spec = load_spec(path)?;
+        let spec_name = spec_name_from_path(path);
+        let expanded_td = expand_target_dir(&spec, &spec_name)?;
         println!("Testing {} with spec {}", crate_name, path.display());
 
         // Generate temporary build.rs for linker flags if needed
@@ -46,7 +48,7 @@ pub fn test_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resul
         cmd.arg("-p").arg(crate_name);
         cmd.current_dir(&workspace);
 
-        apply_spec_to_command(&mut cmd, &spec, &workspace, release)?;
+        apply_spec_to_command(&mut cmd, &spec, &workspace, release, expanded_td.as_deref())?;
         cmd.status().context("failed to run cargo test")?
     } else {
         println!("Testing {} (no tspec)", crate_name);
