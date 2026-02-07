@@ -6,14 +6,14 @@ use tspec::cli::{Cli, Commands};
 use tspec::cmd::Execute;
 use tspec::find_paths::find_project_root;
 
-fn main() -> ExitCode {
-    match run() {
-        Ok(code) => code,
-        Err(e) => {
-            eprintln!("error: {e}");
-            ExitCode::from(1)
-        }
-    }
+fn main() -> Result<ExitCode, anyhow::Error> {
+    println!("args: {:?}", std::env::args().collect::<Vec<_>>());
+    let exe_path: std::path::PathBuf = match std::env::current_exe() {
+        Ok(path) => path,
+        Err(e) => return Err(anyhow::anyhow!(e)),
+    };
+    println!("Executable path: {}", exe_path.display());
+    run()
 }
 
 fn run() -> Result<ExitCode> {
