@@ -5,10 +5,10 @@ use std::path::Path;
 
 use crate::find_paths::{find_tspec, resolve_package_dir};
 use crate::options::{PanicMode, StripMode};
-use crate::tspec::{load_spec, save_spec_snapshot};
+use crate::tspec::{load_spec, save_spec};
 use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
 
-/// Set a value in a tspec and save as versioned snapshot
+/// Set a value in a tspec and save in place
 pub fn set_value(
     project_root: &Path,
     package: Option<&str>,
@@ -19,29 +19,27 @@ pub fn set_value(
     let workspace = project_root;
     let package_dir = resolve_package_dir(workspace, package)?;
 
-    // Load existing spec or use default
-    let mut spec = match find_tspec(&package_dir, tspec)? {
-        Some(path) => load_spec(&path)?,
-        None => Spec::default(),
+    // Load existing spec and its path, or use default with constructed path
+    let (mut spec, output_path) = match find_tspec(&package_dir, tspec)? {
+        Some(path) => (load_spec(&path)?, path),
+        None => {
+            let base_name = match tspec {
+                Some(t) => t
+                    .strip_suffix(crate::TSPEC_SUFFIX)
+                    .or_else(|| t.strip_suffix(".toml"))
+                    .unwrap_or(t),
+                None => "tspec",
+            };
+            let path = package_dir.join(format!("{}{}", base_name, crate::TSPEC_SUFFIX));
+            (Spec::default(), path)
+        }
     };
 
     // Apply the key=value change
     apply_value(&mut spec, key, value)?;
 
-    // Determine base name for snapshot
-    let base_name = match tspec {
-        Some(t) => {
-            // Strip suffix if present
-            t.strip_suffix(crate::TSPEC_SUFFIX)
-                .or_else(|| t.strip_suffix(".toml"))
-                .unwrap_or(t)
-                .to_string()
-        }
-        None => "tspec".to_string(),
-    };
-
-    // Save as versioned snapshot
-    let output_path = save_spec_snapshot(&spec, &base_name, &package_dir)?;
+    // Save in place
+    save_spec(&spec, &output_path)?;
 
     println!(
         "Saved {}",

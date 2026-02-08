@@ -60,7 +60,7 @@ pub enum TsCommands {
         #[arg(short = 'f', long = "from")]
         from: Option<String>,
     },
-    /// Set a scalar value in a tspec (creates versioned copy)
+    /// Set a scalar value in a tspec (modifies in place)
     Set {
         /// Key=value pair (e.g., "strip=symbols", "panic=abort", "rustc.lto=true")
         assignment: String,
@@ -70,6 +70,24 @@ pub enum TsCommands {
         /// Tspec to modify (defaults to package's tspec.ts.toml)
         #[arg(short = 't', long = "tspec")]
         tspec: Option<String>,
+    },
+    /// Create a versioned backup of a tspec
+    Backup {
+        /// Package name (defaults to current directory)
+        #[arg(short = 'p', long = "package")]
+        package: Option<String>,
+        /// Tspec to backup (defaults to package's tspec.ts.toml)
+        #[arg(short = 't', long = "tspec")]
+        tspec: Option<String>,
+    },
+    /// Restore a tspec from a versioned backup
+    Restore {
+        /// Package name (defaults to current directory)
+        #[arg(short = 'p', long = "package")]
+        package: Option<String>,
+        /// Backup tspec to restore from (required, e.g., "t2-001-abcd1234.ts.toml")
+        #[arg(short = 't', long = "tspec")]
+        tspec: String,
     },
 }
 
@@ -115,6 +133,12 @@ impl Execute for TsCmd {
                     value,
                     tspec.as_deref(),
                 )?;
+            }
+            TsCommands::Backup { package, tspec } => {
+                ts_cmd::backup_tspec(project_root, package.as_deref(), tspec.as_deref())?;
+            }
+            TsCommands::Restore { package, tspec } => {
+                ts_cmd::restore_tspec(project_root, package.as_deref(), tspec)?;
             }
         }
         Ok(ExitCode::SUCCESS)

@@ -154,4 +154,96 @@ The `target_dir` field threads through the build pipeline: types → spec loadin
    - Unit test for `apply_value` with `cargo.target_dir`
    - Existing tests: append `None` to `get_binary_path` calls (mechanical)
 
+**Status:** Done
+
+## 20260207 - In-place `set`, add `backup` and `restore` subcommands
+
+### The Problem
+
+`tspec ts set` creates a new snapshot file (`name-NNN-hash.ts.toml`) on every edit.
+Chaining edits compounds the names: `t1-001-xxx-001-yyy.ts.toml`. The file you work
+with should keep its name; backup/restore should be explicit user actions.
+
+### The Design
+
+1. **`tspec ts set`** modifies the file in place (no snapshot creation)
+2. **`tspec ts backup -t t1.ts.toml`** creates `t1-001-<hash>.ts.toml`
+3. **`tspec ts restore -t t1-001-<hash>.ts.toml`** copies it back to `t1.ts.toml`
+4. Backups are valid specs — `tspec build -t t1-001-<hash>.ts.toml` works directly
+
+### The Plan
+
+#### 1. Modify `tspec ts set` to save in place
+
+**File:** `src/ts_cmd/set.rs`
+
+- Change `set_value()` to save back to the original file path instead of calling `save_spec_snapshot()`
+- If the file existed (found via `find_tspec()`), save to that path
+- If no file existed, construct path from `-t` arg (or default `tspec`) + `TSPEC_SUFFIX` in package dir
+- Use existing `save_spec()` instead of `save_spec_snapshot()`
+- Remove `save_spec_snapshot` import
+
+**File:** `src/cmd/ts.rs`
+- Update `Set` variant doc comment from "creates versioned copy" to "modifies in place"
+
+#### 2. Add `tspec ts backup` subcommand
+
+**New file:** `src/ts_cmd/backup.rs`
+
+```rust
+pub fn backup_tspec(project_root, package, tspec) -> Result<()>
+```
+
+- Locate the spec via `find_tspec()`; error if not found
+- Extract base name via `spec_name_from_path()`
+- Load the spec, call existing `save_spec_snapshot()` to create `{name}-NNN-{hash}.ts.toml`
+- Print the backup filename
+
+**File:** `src/cmd/ts.rs` — add `Backup` variant with `-p` and `-t` args, dispatch
+**File:** `src/ts_cmd/mod.rs` — add `mod backup;` and `pub use backup::backup_tspec;`
+
+#### 3. Add `tspec ts restore` subcommand
+
+**New file:** `src/ts_cmd/restore.rs`
+
+```rust
+pub fn restore_tspec(project_root, package, tspec) -> Result<()>
+```
+
+- Locate the backup file via `find_tspec()` (`-t` required)
+- Parse the filename to extract the base name by stripping trailing `-NNN-HHHHHHHH`
+  (3-digit seq + 8-char hex hash) from the stem before `.ts.toml`
+- Construct target path: `{base_name}.ts.toml` in the same directory
+- Copy content to the base file using `load_spec()` + `save_spec()`
+- Print what was restored
+
+**File:** `src/cmd/ts.rs` — add `Restore` variant with `-p` and `-t` (required) args, dispatch
+**File:** `src/ts_cmd/mod.rs` — add `mod restore;` and `pub use restore::restore_tspec;`
+
+### Files modified
+- `src/ts_cmd/set.rs` — save in place instead of snapshot
+- `src/cmd/ts.rs` — add Backup/Restore variants, update Set doc
+- `src/ts_cmd/mod.rs` — register new modules
+
+### Files created
+- `src/ts_cmd/backup.rs` — backup logic
+- `src/ts_cmd/restore.rs` — restore logic (with name-suffix parsing)
+
+### Verification
+```bash
+tspec test -p tspec
+tspec clippy
+tspec fmt --check
+
+# Manual smoke test:
+tspec ts new t2
+tspec ts set strip=symbols -t t2.ts.toml      # modifies t2.ts.toml in place
+tspec ts show -t t2.ts.toml                    # shows strip = "symbols"
+tspec ts backup -t t2.ts.toml                  # creates t2-001-<hash>.ts.toml
+tspec ts set panic=abort -t t2.ts.toml         # modifies t2.ts.toml again
+tspec ts show -t t2.ts.toml                    # shows panic + strip
+tspec ts restore -t t2-001-<hash>.ts.toml      # restores t2.ts.toml to pre-panic state
+tspec build -t t2-001-<hash>.ts.toml           # backup usable directly
+```
+
 **Status:** Todo
