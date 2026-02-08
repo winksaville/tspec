@@ -38,20 +38,37 @@ The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's 
 Translation specs are TOML files (conventionally `*.ts.toml`) that configure builds:
 
 ```toml
-# tspec.ts.toml - Example spec
+# tspec.ts.toml - all supported fields shown
+
+# Top-level high-level options (expand to lower-level cargo/rustc flags)
+panic = "abort"                            # "unwind" (default), "abort", "immediate-abort" (nightly)
+strip = "symbols"                          # "none" (default), "debuginfo", "symbols"
+
 [cargo]
-profile = "release"
+profile = "release"                        # "debug" (default), "release"
 target_triple = "x86_64-unknown-linux-musl"
+target_json = "path/to/custom-target.json" # custom target spec (mutually exclusive with target_triple)
+unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
+target_dir = "<name>"                      # per-spec target dir; supports <name> and <hash> placeholders
 
 [rustc]
-opt_level = "z"
-panic = "abort"
+opt_level = "z"                            # "0", "1", "2", "3", "s", "z"
+panic = "abort"                            # "abort", "unwind", "immediate-abort" (prefer top-level panic)
 lto = true
 codegen_units = 1
+build_std = ["core", "alloc"]              # crates to rebuild with -Z build-std (nightly)
+flags = ["-C", "relocation-model=static"]  # raw rustc flags passed through
 
 [linker]
 args = ["-static", "-nostartfiles"]
+
+[linker.version_script]                    # symbol visibility control (enables --gc-sections)
+global = ["_start"]                        # symbols to keep
+local = "*"                                # default: "*" (hide everything else)
 ```
+
+The top-level `panic` sets both cargo `-Z` and rustc `-C` flags automatically. If both
+top-level `panic` and `rustc.panic` are set, both are applied (prefer one or the other).
 
 ### Key Concepts
 
