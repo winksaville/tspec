@@ -20,8 +20,8 @@ pub enum TsCommands {
         /// Package to list specs for (defaults to current directory or all packages)
         #[arg(short = 'p', long = "package")]
         package: Option<String>,
-        /// List all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
+        /// List all workspace packages (even when in a package directory)
+        #[arg(short = 'w', long = "workspace")]
         all: bool,
     },
     /// Show a tspec's contents
@@ -29,8 +29,8 @@ pub enum TsCommands {
         /// Package name (defaults to current directory)
         #[arg(short = 'p', long = "package")]
         package: Option<String>,
-        /// Show all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
+        /// Show all workspace packages (even when in a package directory)
+        #[arg(short = 'w', long = "workspace")]
         all: bool,
         /// Tspec name (defaults to all tspec files)
         #[arg(short = 't', long = "tspec")]
@@ -41,8 +41,8 @@ pub enum TsCommands {
         /// Package name (defaults to current directory)
         #[arg(short = 'p', long = "package")]
         package: Option<String>,
-        /// Hash all packages (even when in a package directory)
-        #[arg(short = 'a', long = "all")]
+        /// Hash all workspace packages (even when in a package directory)
+        #[arg(short = 'w', long = "workspace")]
         all: bool,
         /// Tspec name (defaults to package's tspec file)
         #[arg(short = 't', long = "tspec")]

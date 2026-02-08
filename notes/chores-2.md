@@ -248,7 +248,7 @@ tspec build -t t2-001-<hash>.ts.toml           # backup usable directly
 
 **Status:** Done
 
-## 20260208 - Rethink `--all` flag semantics
+## 20260208 - Rename `--all` to `--workspace`
 
 ### The Problem
 
@@ -277,9 +277,25 @@ in the workspace". Several issues:
 POPs now classify their single crate as `App` so `--all` includes it. No changes
 to workspace behavior.
 
-### Future Design
+### Resolution
 
-Defer the naming/semantics redesign until multi-spec batch operations are needed.
-The current `--all` = "all packages" is adequate for now.
+Cargo itself deprecated `--all` in favor of `--workspace`. We do the same:
+rename `--all` / `-a` to `--workspace` / `-w` across all commands (build, run,
+test, clippy, fmt, and ts subcommands).
 
-**Status:** Todo
+### The Plan
+
+Mechanical rename in 8 locations across 7 files:
+
+**`src/cmd/build.rs`** — BuildCmd: `--all`/`-a` → `--workspace`/`-w`
+**`src/cmd/test.rs`** — TestCmd: same
+**`src/cmd/run.rs`** — RunCmd: same
+**`src/cmd/clippy.rs`** — ClippyCmd: same (already passes `--workspace` to cargo)
+**`src/cmd/fmt.rs`** — FmtCmd: same (still passes `--all` to `cargo fmt` which uses that name)
+**`src/cmd/ts.rs`** — TsCommands::List, Show, Hash: same
+
+Also rename the struct field from `all` to `workspace` in each.
+
+**`README.md`** — Update usage examples from `-a`/`--all` to `-w`/`--workspace`
+
+**Status:** Done

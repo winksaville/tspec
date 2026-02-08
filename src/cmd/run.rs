@@ -16,9 +16,9 @@ pub struct RunCmd {
     /// Package to run (defaults to current directory or all apps)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
-    /// Run all apps (even when in a package directory)
-    #[arg(short = 'a', long = "all")]
-    pub all: bool,
+    /// Run all workspace apps (even when in a package directory)
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: bool,
     /// Translation spec to use (defaults to package's tspec file)
     #[arg(short = 't', long = "tspec")]
     pub tspec: Option<String>,
@@ -35,8 +35,8 @@ pub struct RunCmd {
 
 impl Execute for RunCmd {
     fn execute(&self, _project_root: &Path) -> Result<ExitCode> {
-        // Resolve package: --all > -p PKG > cwd > all
-        let resolved = if self.all {
+        // Resolve package: --workspace > -p PKG > cwd > all
+        let resolved = if self.workspace {
             None
         } else {
             self.package.clone().or_else(current_package_name)
@@ -44,7 +44,7 @@ impl Execute for RunCmd {
 
         match resolved {
             None => {
-                // Run all apps (args not supported for --all)
+                // Run all apps (args not supported for --workspace)
                 let workspace = WorkspaceInfo::discover()?;
                 let results = run_all(&workspace, self.tspec.as_deref(), self.release, self.strip);
                 Ok(print_run_summary(&results))

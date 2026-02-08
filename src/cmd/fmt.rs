@@ -12,9 +12,9 @@ pub struct FmtCmd {
     /// Package to format (defaults to entire workspace)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
-    /// Format all packages in workspace
-    #[arg(short = 'a', long = "all")]
-    pub all: bool,
+    /// Format all workspace packages
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: bool,
     /// Check formatting without modifying files
     #[arg(short, long)]
     pub check: bool,
@@ -27,7 +27,7 @@ impl Execute for FmtCmd {
             args.push("-p".into());
             args.push(pkg.into());
         }
-        if self.all {
+        if self.workspace {
             args.push("--all".into());
         }
         if self.check {

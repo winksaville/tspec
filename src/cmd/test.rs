@@ -14,9 +14,9 @@ pub struct TestCmd {
     /// Package to test (defaults to current directory or all packages)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
-    /// Test all packages (even when in a package directory)
-    #[arg(short = 'a', long = "all")]
-    pub all: bool,
+    /// Test all workspace packages (even when in a package directory)
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: bool,
     /// Translation spec to use (defaults to package's tspec file)
     #[arg(short = 't', long = "tspec")]
     pub tspec: Option<String>,
@@ -30,8 +30,8 @@ pub struct TestCmd {
 
 impl Execute for TestCmd {
     fn execute(&self, _project_root: &Path) -> Result<ExitCode> {
-        // Resolve package: --all > -p PKG > cwd > all
-        let resolved = if self.all {
+        // Resolve package: --workspace > -p PKG > cwd > all
+        let resolved = if self.workspace {
             None
         } else {
             self.package.clone().or_else(current_package_name)

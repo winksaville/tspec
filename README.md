@@ -25,12 +25,12 @@ tspec build -p myapp -t tspec-opt.ts.toml  # Build with alternative spec tspec-o
 tspec build -p myapp -r -s                 # Build release, strip symbol with tspec.ts.toml if present
 tspec run -p myapp                         # Build and run with tspec.ts.toml if present
 tspec test -p myapp                        # Build and test with tspec.ts.toml if present
-tspec build -a                             # Build all packages (even from inside a package dir)
+tspec build -w                             # Build all packages (even from inside a package dir)
 tspec compare -p myapp -r                  # Compare all tspec*.ts.toml by binary size
 ```
 
 The `-p` flag specifies a package (defaults to current directory if in a package, otherwise all packages).
-Use `-a, --all` to force all-packages mode even when inside a package directory.
+Use `-w, --workspace` to force all-packages mode even when inside a package directory.
 The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically.
 
 ## tspec Files

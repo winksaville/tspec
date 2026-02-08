@@ -12,9 +12,9 @@ pub struct ClippyCmd {
     /// Package to check (defaults to entire workspace)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
-    /// Check all packages in workspace
-    #[arg(short = 'a', long = "all")]
-    pub all: bool,
+    /// Check all workspace packages
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: bool,
 }
 
 impl Execute for ClippyCmd {
@@ -24,7 +24,7 @@ impl Execute for ClippyCmd {
             args.push("-p".into());
             args.push(pkg.into());
         }
-        if self.all {
+        if self.workspace {
             args.push("--workspace".into());
         }
         execute_cargo_subcommand("clippy", &args, project_root)
