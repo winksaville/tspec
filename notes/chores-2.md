@@ -246,4 +246,4 @@ tspec ts restore -t t2-001-<hash>.ts.toml      # restores t2.ts.toml to pre-pani
 tspec build -t t2-001-<hash>.ts.toml           # backup usable directly
 ```
 
-**Status:** Todo
+**Status:** Done

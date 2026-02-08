@@ -4,7 +4,6 @@
 
 ## Todo
 
-- In-place `set`, add `backup` and `restore` subcommands [15]
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
 - Improve `classify_crate` - using name alone is brittle [4]
 
@@ -12,6 +11,7 @@
 
 See older [done.md](done.md)
 
+- In-place `set`, add `backup` and `restore` subcommands [15]
 - Add `cargo.target_dir` spec field for per-spec target directories [12],[14]
 
 [4]: chores-1.md#improve-classify_crate
