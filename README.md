@@ -18,14 +18,15 @@ cargo run -- build
 ## Usage
 
 ```bash
-tspec build                           # Build current package (or all in workspace)
-tspec build -p myapp                  # Build specific package
-tspec build -p myapp -t tspec-opt.ts.toml  # Build with alternative spec
-tspec build -p myapp -r -s            # Build release, strip symbols
-tspec run -p myapp                    # Build and run
-tspec test -p myapp                   # Build and test
-tspec compare -p myapp -r             # Compare all tspec*.ts.toml by binary size
-tspec build -a                        # Build all packages (even from inside a package dir)
+tspec build                                # Build current package (or all in workspace) with tspec.ts.toml if present
+tspec build -p myapp                       # Build specific package with tspec.ts.toml if present
+tspec build -p myapp -t tspec-opt          # Build with alternative spec tspec-opt.ts.toml
+tspec build -p myapp -t tspec-opt.ts.toml  # Build with alternative spec tspec-opt.ts.toml
+tspec build -p myapp -r -s                 # Build release, strip symbol with tspec.ts.toml if present
+tspec run -p myapp                         # Build and run with tspec.ts.toml if present
+tspec test -p myapp                        # Build and test with tspec.ts.toml if present
+tspec build -a                             # Build all packages (even from inside a package dir)
+tspec compare -p myapp -r                  # Compare all tspec*.ts.toml by binary size
 ```
 
 The `-p` flag specifies a package (defaults to current directory if in a package, otherwise all packages).
@@ -79,16 +80,22 @@ build.rs scopes flags to just the binary.
 Manage spec files without manual TOML editing:
 
 ```bash
-tspec ts list                         # List all tspec files
-tspec ts list -p myapp                # List tspec files for a package
-tspec ts show -p myapp                # Show tspec contents
-tspec ts show -p myapp -t tspec-opt   # Show specific tspec
-tspec ts hash -p myapp                # Show content hash
-tspec ts new -p myapp                 # Create tspec.ts.toml
-tspec ts new experiment -p myapp      # Create experiment.ts.toml
-tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec
-tspec ts set strip=symbols -p myapp   # Set value, create versioned snapshot
+tspec ts list                            # List all tspec files
+tspec ts list -p myapp                   # List all tspec files for a package
+tspec ts show -p myapp                   # Show all tspec contents, i.e. *.ts.toml
+tspec ts show -p myapp -t tspec-opt      # Show specific tspec-opt.ts.toml
+tspec ts hash -p myapp                   # Show content hash of tspec.ts.toml
+tspec ts hash -p myapp -t tspec-opt      # Show content hash of tspec-opt.ts.toml
+tspec ts new -p myapp                    # Create tspec.ts.toml
+tspec ts new experiment -p myapp         # Create experiment.ts.toml
+tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec creating opt2.ts.toml
+tspec ts set strip=symbols -p myapp      # Set value in tspec.ts.toml
+tspec ts backup -p myapp                 # Create versioned backup (name-NNN-hash.ts.toml)
+tspec ts backup -p myapp -t tspec-opt    # Backup myapp/tspec-opt.ts.toml to myapp/tspec-opt-<next-seqnum>-<hash>.ts.toml
+tspec ts restore -t t1-001-abcd1234      # Restore t1.ts.toml from backup t1-001-abcd1234.ts.toml
 ```
+
+Backups are valid spec files and can be used directly with `-t`.
 
 Note: Use `ts` as the subcommand (short for "tspec management").
 

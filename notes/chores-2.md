@@ -247,3 +247,39 @@ tspec build -t t2-001-<hash>.ts.toml           # backup usable directly
 ```
 
 **Status:** Done
+
+## 20260208 - Rethink `--all` flag semantics
+
+### The Problem
+
+`--all` (`-a`) appears on build, run, test, clippy, and fmt. It means "all packages
+in the workspace". Several issues:
+
+1. **POPs:** For a single-package project, `--all` was silently doing nothing because
+   `classify_crate()` classified the lone crate as `BuildTool` (either by name match
+   or by the fallback for crates not in `apps/`, `libs/`, or `tools/` directories).
+   Fixed by treating POPs as `App` unconditionally in `WorkspaceInfo::discover()`.
+
+2. **Ambiguity with two dimensions:** Currently `--all` means "all packages". But
+   tspec has two axes — packages and specs. When you want "build all specs for all
+   packages" or "build all specs for one package", `--all` doesn't say which axis.
+   Future options:
+   - `--all-packages` / `--all-specs` (explicit, verbose)
+   - `--all` means both axes, with separate flags for each
+   - Positional/glob patterns for specs (e.g., `tspec build -p myapp 'tspec*.ts.toml'`)
+
+3. **Workspace + cwd:** When inside a package directory in a workspace, `--all`
+   overrides the cwd default and builds all workspace members. Without `--all`, it
+   builds just the cwd package. This is correct but non-obvious.
+
+### Quick Fix (done)
+
+POPs now classify their single crate as `App` so `--all` includes it. No changes
+to workspace behavior.
+
+### Future Design
+
+Defer the naming/semantics redesign until multi-spec batch operations are needed.
+The current `--all` = "all packages" is adequate for now.
+
+**Status:** Todo

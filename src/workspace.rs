@@ -47,8 +47,10 @@ impl WorkspaceInfo {
 
         let root = metadata.workspace_root.as_std_path().to_path_buf();
 
-        let members: Vec<CrateMember> = metadata
-            .workspace_packages()
+        let packages = metadata.workspace_packages();
+        let is_pop = packages.len() == 1;
+
+        let members: Vec<CrateMember> = packages
             .iter()
             .map(|pkg| {
                 let path = pkg
@@ -58,7 +60,12 @@ impl WorkspaceInfo {
                     .as_std_path()
                     .to_path_buf();
                 let has_binary = pkg.targets.iter().any(|t| t.is_bin());
-                let kind = classify_crate(&path, &pkg.name);
+                // POPs are always App — classify_crate is for multi-crate workspaces
+                let kind = if is_pop {
+                    CrateKind::App
+                } else {
+                    classify_crate(&path, &pkg.name)
+                };
 
                 CrateMember {
                     name: pkg.name.clone(),
@@ -178,16 +185,21 @@ mod tests {
             // Should have some members (at least 1 for POP, more for workspace)
             assert!(!info.members.is_empty());
 
-            // xt and xtask should be excluded from buildable
             let buildable = info.buildable_members();
-            assert!(
-                buildable
-                    .iter()
-                    .all(|m| m.name != "xt" && m.name != "xtask")
-            );
+            if info.members.len() == 1 {
+                // POP: the single crate should be buildable
+                assert_eq!(buildable.len(), 1);
+            } else {
+                // Workspace: xt and xtask should be excluded from buildable
+                assert!(
+                    buildable
+                        .iter()
+                        .all(|m| m.name != "xt" && m.name != "xtask")
+                );
+            }
 
             // For workspaces with apps/, should have runnable members
-            // For POPs or workspaces without apps/, runnable may be empty
+            // For POPs, the single crate is runnable if it has a binary
             let _runnable = info.runnable_members();
             // Just verify it doesn't panic - count depends on project structure
         }
