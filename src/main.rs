@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Parser;
 use std::process::ExitCode;
 
@@ -6,17 +5,7 @@ use tspec::cli::{Cli, Commands};
 use tspec::cmd::Execute;
 use tspec::find_paths::find_project_root;
 
-fn main() -> ExitCode {
-    match run() {
-        Ok(code) => code,
-        Err(e) => {
-            eprintln!("error: {e}");
-            ExitCode::from(1)
-        }
-    }
-}
-
-fn run() -> Result<ExitCode> {
+fn main() -> Result<ExitCode, anyhow::Error> {
     let cli = Cli::parse();
 
     match cli.command {
