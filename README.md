@@ -107,13 +107,60 @@ tspec ts hash -p myapp -t tspec-opt      # Show content hash of tspec-opt.ts.tom
 tspec ts new -p myapp                    # Create tspec.ts.toml
 tspec ts new experiment -p myapp         # Create experiment.ts.toml
 tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec creating opt2.ts.toml
-tspec ts set strip=symbols -p myapp      # Set value in tspec.ts.toml
+tspec ts set strip=symbols -p myapp      # Set scalar value in tspec.ts.toml
+tspec ts set 'rustc.build_std=["core","alloc"]'  # Set array value
+tspec ts set 'linker.args=["-static"]'   # Set array value
+tspec ts set rustc.lto=true -t tspec-opt # Set in a specific tspec
+tspec ts unset rustc.lto -p myapp        # Remove a field from tspec.ts.toml
+tspec ts unset linker.args -t tspec-opt  # Remove array field from specific tspec
 tspec ts backup -p myapp                 # Create versioned backup (name-NNN-hash.ts.toml)
 tspec ts backup -p myapp -t tspec-opt    # Backup myapp/tspec-opt.ts.toml to myapp/tspec-opt-<next-seqnum>-<hash>.ts.toml
 tspec ts restore -t t1-001-abcd1234      # Restore t1.ts.toml from backup t1-001-abcd1234.ts.toml
 ```
 
 Backups are valid spec files and can be used directly with `-t`.
+
+`ts set` and `ts unset` use `toml_edit` for surgical editing — comments and formatting are preserved.
+`ts backup`, `ts restore`, and `ts new -f` use byte-for-byte file copy — comments are preserved exactly.
+
+### Supported `ts set` / `ts unset` keys
+
+| Key | Type | Values |
+|-----|------|--------|
+| `panic` | scalar | `unwind`, `abort`, `immediate-abort` |
+| `strip` | scalar | `none`, `debuginfo`, `symbols` |
+| `cargo.profile` | scalar | `debug`, `release` |
+| `cargo.target_triple` | scalar | any string |
+| `cargo.target_json` | scalar | any path |
+| `cargo.target_dir` | scalar | any string (supports `<name>`, `<hash>`) |
+| `cargo.unstable` | array | `["flag1", "flag2"]` |
+| `rustc.opt_level` | scalar | `0`, `1`, `2`, `3`, `s`, `z` |
+| `rustc.panic` | scalar | `abort`, `unwind`, `immediate-abort` |
+| `rustc.lto` | scalar | `true`, `false` |
+| `rustc.codegen_units` | scalar | integer |
+| `rustc.build_std` | array | `["core", "alloc"]` |
+| `rustc.flags` | array | `["-C", "flag"]` |
+| `linker.args` | array | `["-static", "-nostdlib"]` |
+
+Array values accept bracket syntax or comma-separated:
+
+```bash
+# Bracket syntax (TOML inline array) — use shell quotes to protect brackets
+tspec ts set 'linker.args=["-static","-nostdlib","-Wl,--gc-sections"]'
+tspec ts set 'rustc.build_std=["core","alloc"]'
+
+# Comma-separated (no brackets needed)
+tspec ts set linker.args=-static,-nostdlib,-Wl,--gc-sections
+tspec ts set rustc.build_std=core,alloc
+
+# Both forms replace the entire array. To remove entries, set the array
+# to the values you want to keep:
+tspec ts set 'linker.args=["-static"]'           # was ["-static","-nostdlib"], drop -nostdlib
+tspec ts set rustc.build_std=core                 # was ["core","alloc"], drop alloc
+
+# To remove the entire field, use unset:
+tspec ts unset linker.args                        # removes args completely
+```
 
 Note: Use `ts` as the subcommand (short for "tspec management").
 

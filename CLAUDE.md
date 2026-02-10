@@ -55,10 +55,20 @@ enum Commands {
   - `build.rs`, `clean.rs`, `clippy.rs`, `compare.rs`, `fmt.rs`, `install.rs`, `run.rs`, `test.rs`, `version.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
-- `tspec.rs` - Spec loading/saving/hashing
+- `tspec.rs` - Spec loading/saving/hashing, `copy_spec_snapshot()` for byte-for-byte backups
 - `cargo_build.rs` - Package build orchestration with spec application
 - `workspace.rs` - Workspace package discovery
 - `all.rs` - Batch operations (build_all, test_all, run_all)
+- `ts_cmd/edit.rs` - `toml_edit` helpers: field registry, `set_field()`, `unset_field()`, validation
+- `ts_cmd/unset.rs` - `ts unset` command
+
+### Three Write Strategies
+
+| Operation | Strategy | Why |
+|---|---|---|
+| load, hash, build | serde (`toml`) | Need typed `Spec` struct for build logic |
+| set, unset | `toml_edit` (`DocumentMut`) | Surgical edit preserving comments/formatting |
+| backup, restore, new -f | raw `fs::copy` | Exact byte-for-byte preservation |
 
 ### Translation Spec Structure
 
