@@ -1,6 +1,6 @@
 # tspec - Translation Spec Build System
 
-A spec-driven build system for Rust that wraps cargo with configurable target triples, compiler flags, and linker options.
+A spec-driven build system for Rust that wraps cargo with configurable target triples, compiler flags, and linker options. Each tspec applies to a Cargo **package** — the unit with a `Cargo.toml`. If different crates need different compilation settings, they should be in separate packages.
 
 **Status:** Active development. Works with both workspaces and single-package projects (POPs).
 
@@ -72,6 +72,7 @@ top-level `panic` and `rustc.panic` are set, both are applied (prefer one or the
 
 ### Key Concepts
 
+- **One tspec per package** - A tspec applies to all crates (targets) within a Cargo package. For per-crate control, use separate packages in a workspace.
 - **tspec.ts.toml is optional** - Packages without one get plain `cargo build/test`
 - **Generated build.rs** - tspec generates temporary build.rs for scoped linker flags
 - **Spec comparison** - Compare binary sizes across different specs
@@ -134,8 +135,8 @@ tspec/
     cli.rs          # Clap CLI definitions
     types.rs        # Spec parameter types
     tspec.rs        # Spec loading/saving/hashing
-    find_paths.rs   # Project/crate/tspec/binary path discovery
-    workspace.rs    # Workspace member discovery
+    find_paths.rs   # Project/package/tspec/binary path discovery
+    workspace.rs    # Workspace package discovery
     cargo_build.rs  # Build command + generated build.rs
     run.rs          # Run command implementation
     testing.rs      # Test command implementation

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**tspec** is a spec-driven build system wrapper for Rust that sits on top of cargo. It allows configuring builds via translation spec files (TOML-based) with support for target triples, compiler flags, linker options, and high-level build options like panic strategies and symbol stripping.
+**tspec** is a spec-driven build system wrapper for Rust that sits on top of cargo. It configures builds at the **package** level (one tspec per Cargo package) via translation spec files (TOML-based) with support for target triples, compiler flags, linker options, and high-level build options like panic strategies and symbol stripping. For per-crate control, use separate packages in a workspace.
 
 ## Build Commands
 
@@ -56,8 +56,8 @@ enum Commands {
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
 - `tspec.rs` - Spec loading/saving/hashing
-- `cargo_build.rs` - Build orchestration with spec application
-- `workspace.rs` - Workspace member discovery
+- `cargo_build.rs` - Package build orchestration with spec application
+- `workspace.rs` - Workspace package discovery
 - `all.rs` - Batch operations (build_all, test_all, run_all)
 
 ### Translation Spec Structure
@@ -71,7 +71,8 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 
 - **Rust Edition:** 2024
 - **Commit style:** Conventional commits (feat:, docs:, refactor:)
-- **Naming:** POP (Plain Old Package) refers to single-crate projects; tspec treats them as trivial workspaces
+- **Naming:** POP (Plain Old Package) refers to single-package projects (no workspace); tspec treats them as trivial workspaces
+- **Granularity:** tspec operates at the Cargo package level, not the crate level. "Package" = directory with Cargo.toml. A package may contain multiple crates (targets), but they all share one tspec.
 - **Markdown refs:** Multiple references use `[1],[2]` not `[1,2]` or `[1][2]` (both break in markdown)
 
 ## Workflow
