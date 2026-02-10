@@ -18,17 +18,17 @@ pub struct BuildResult {
     pub target_base: PathBuf,
 }
 
-/// Build a crate with a spec, returns the binary path on success
-pub fn build_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Result<BuildResult> {
+/// Build a package with a spec, returns the binary path on success
+pub fn build_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Result<BuildResult> {
     let workspace = find_project_root()?;
-    let crate_dir = find_package_dir(&workspace, crate_name)?;
-    let tspec_path = find_tspec(&crate_dir, tspec)?;
+    let pkg_dir = find_package_dir(&workspace, pkg_name)?;
+    let tspec_path = find_tspec(&pkg_dir, tspec)?;
 
-    // Get actual package name from Cargo.toml (needed when crate_name is a path)
-    let pkg_name = get_crate_name(&crate_dir)?;
+    // Resolve actual package name from Cargo.toml (needed when pkg_name is a path)
+    let pkg_name = get_crate_name(&pkg_dir)?;
 
     // Track if we generated a build.rs
-    let build_rs_path = crate_dir.join("build.rs");
+    let build_rs_path = pkg_dir.join("build.rs");
     let had_build_rs = build_rs_path.exists();
 
     // Load spec once (if present) and compute target_dir

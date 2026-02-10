@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use super::{Execute, current_package_name};
 use crate::all::{print_run_summary, run_all};
 use crate::binary::strip_binary;
-use crate::cargo_build::build_crate;
+use crate::cargo_build::build_package;
 use crate::run::run_binary;
 use crate::workspace::WorkspaceInfo;
 
@@ -51,7 +51,7 @@ impl Execute for RunCmd {
             }
             Some(name) => {
                 // Build, optionally strip, then run
-                let result = build_crate(&name, self.tspec.as_deref(), self.release)?;
+                let result = build_package(&name, self.tspec.as_deref(), self.release)?;
                 if self.strip {
                     strip_binary(&result.binary_path)?;
                 }

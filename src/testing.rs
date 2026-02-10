@@ -17,14 +17,14 @@ fn requires_nightly(spec: &crate::types::Spec) -> bool {
     panic_needs_nightly || has_build_std || has_unstable
 }
 
-/// Test a crate with a spec
-pub fn test_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Result<()> {
+/// Test a package with a spec
+pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Result<()> {
     let workspace = find_project_root()?;
-    let crate_dir = find_package_dir(&workspace, crate_name)?;
-    let tspec_path = find_tspec(&crate_dir, tspec)?;
+    let pkg_dir = find_package_dir(&workspace, pkg_name)?;
+    let tspec_path = find_tspec(&pkg_dir, tspec)?;
 
     // Track if we generated a build.rs
-    let build_rs_path = crate_dir.join("build.rs");
+    let build_rs_path = pkg_dir.join("build.rs");
     let had_build_rs = build_rs_path.exists();
 
     // Apply spec if present, otherwise plain cargo test
@@ -32,12 +32,12 @@ pub fn test_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resul
         let spec = load_spec(path)?;
         let spec_name = spec_name_from_path(path);
         let expanded_td = expand_target_dir(&spec, &spec_name)?;
-        println!("Testing {} with spec {}", crate_name, path.display());
+        println!("Testing {} with spec {}", pkg_name, path.display());
 
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
         if has_linker_args && !had_build_rs {
-            generate_build_rs(&build_rs_path, crate_name, &spec)?;
+            generate_build_rs(&build_rs_path, pkg_name, &spec)?;
         }
 
         let mut cmd = Command::new("cargo");
@@ -45,16 +45,16 @@ pub fn test_crate(crate_name: &str, tspec: Option<&str>, release: bool) -> Resul
             cmd.arg("+nightly");
         }
         cmd.arg("test");
-        cmd.arg("-p").arg(crate_name);
+        cmd.arg("-p").arg(pkg_name);
         cmd.current_dir(&workspace);
 
         apply_spec_to_command(&mut cmd, &spec, &workspace, release, expanded_td.as_deref())?;
         cmd.status().context("failed to run cargo test")?
     } else {
-        println!("Testing {} (no tspec)", crate_name);
+        println!("Testing {} (no tspec)", pkg_name);
         let mut cmd = Command::new("cargo");
         cmd.arg("test");
-        cmd.arg("-p").arg(crate_name);
+        cmd.arg("-p").arg(pkg_name);
         cmd.current_dir(&workspace);
         if release {
             cmd.arg("--release");

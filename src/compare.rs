@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::binary::{binary_size, strip_binary};
-use crate::cargo_build::build_crate;
+use crate::cargo_build::build_package;
 use crate::{print_header, print_hline};
 
 /// Result of building a spec
@@ -12,16 +12,16 @@ struct SpecResult {
     size: u64,
 }
 
-/// Compare multiple specs for a crate
+/// Compare multiple specs for a package
 pub fn compare_specs(
-    crate_name: &str,
+    pkg_name: &str,
     spec_paths: &[impl AsRef<Path> + std::fmt::Debug],
     release: bool,
     strip: bool,
 ) -> Result<()> {
     println!(
         "Comparing {} builds{}:\n",
-        crate_name,
+        pkg_name,
         if strip { " (stripped)" } else { "" }
     );
     //println!("Using specs: {:?}", spec_paths);
@@ -35,7 +35,7 @@ pub fn compare_specs(
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| spec_path.display().to_string());
 
-        let size = build_spec(crate_name, spec_path, release, strip)?;
+        let size = build_spec(pkg_name, spec_path, release, strip)?;
         results.push(SpecResult { name, size });
         println!();
     }
@@ -48,7 +48,7 @@ pub fn compare_specs(
     Ok(())
 }
 
-fn build_spec(crate_name: &str, spec_path: &Path, release: bool, strip: bool) -> Result<u64> {
+fn build_spec(pkg_name: &str, spec_path: &Path, release: bool, strip: bool) -> Result<u64> {
     let spec_str = spec_path.to_string_lossy();
     println!(
         "  {}:",
@@ -56,7 +56,7 @@ fn build_spec(crate_name: &str, spec_path: &Path, release: bool, strip: bool) ->
     );
 
     // Build
-    let build_result = build_crate(crate_name, Some(&spec_str), release)?;
+    let build_result = build_package(pkg_name, Some(&spec_str), release)?;
 
     // Optionally strip
     if strip {

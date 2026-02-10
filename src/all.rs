@@ -6,9 +6,9 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::ExitCode;
 
 use crate::binary::{binary_size, strip_binary};
-use crate::cargo_build::build_crate;
+use crate::cargo_build::build_package;
 use crate::run::run_binary;
-use crate::testing::test_crate;
+use crate::testing::test_package;
 use crate::workspace::{CrateKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
 
@@ -33,7 +33,7 @@ pub fn build_all(
     for member in workspace.buildable_members() {
         println!("=== {} ===", member.name);
 
-        let result = match build_crate(&member.name, tspec, release) {
+        let result = match build_package(&member.name, tspec, release) {
             Ok(build_result) => {
                 if strip
                     && member.has_binary
@@ -80,7 +80,7 @@ pub fn run_all(
     for member in workspace.runnable_members() {
         println!("=== {} ===", member.name);
 
-        let result = match build_crate(&member.name, tspec, release) {
+        let result = match build_package(&member.name, tspec, release) {
             Ok(build_result) => {
                 if strip && let Err(e) = strip_binary(&build_result.binary_path) {
                     eprintln!("  warning: strip failed: {}", e);
@@ -131,7 +131,7 @@ pub fn test_all(
 
         println!("=== {} ===", member.name);
 
-        let result = match test_crate(&member.name, tspec, release) {
+        let result = match test_package(&member.name, tspec, release) {
             Ok(()) => OpResult {
                 name: member.name.clone(),
                 success: true,
@@ -159,7 +159,7 @@ pub fn test_all(
         println!("=== {} ===", member.name);
 
         // Build the test crate (builds all binaries)
-        let build_result = match build_crate(&member.name, tspec, release) {
+        let build_result = match build_package(&member.name, tspec, release) {
             Ok(r) => r,
             Err(e) => {
                 results.push(OpResult {

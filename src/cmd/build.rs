@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use super::{Execute, current_package_name};
 use crate::all::{build_all, print_summary};
 use crate::binary::strip_binary;
-use crate::cargo_build::build_crate;
+use crate::cargo_build::build_package;
 use crate::workspace::WorkspaceInfo;
 
 /// Build package(s) with a translation spec
@@ -55,7 +55,7 @@ impl Execute for BuildCmd {
                 Ok(print_summary(&results))
             }
             Some(name) => {
-                let result = build_crate(&name, self.tspec.as_deref(), self.release)?;
+                let result = build_package(&name, self.tspec.as_deref(), self.release)?;
                 if self.strip {
                     strip_binary(&result.binary_path)?;
                 }

@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use super::{Execute, current_package_name};
 use crate::all::{print_test_summary, test_all};
-use crate::testing::test_crate;
+use crate::testing::test_package;
 use crate::workspace::WorkspaceInfo;
 
 /// Test package(s) with a translation spec
@@ -50,7 +50,7 @@ impl Execute for TestCmd {
                 Ok(print_test_summary(&results))
             }
             Some(name) => {
-                test_crate(&name, self.tspec.as_deref(), self.release)?;
+                test_package(&name, self.tspec.as_deref(), self.release)?;
                 Ok(ExitCode::SUCCESS)
             }
         }

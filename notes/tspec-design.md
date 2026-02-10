@@ -133,8 +133,8 @@ separate packages.
 
 tspec operates at Cargo's package granularity:
 - `build_all` discovers workspace packages via `cargo metadata` and iterates,
-  calling `build_crate()` (misnamed — actually builds a package) for each
-- Single package: user passes `-p <name>`, `build_crate()` runs `cargo build -p <name>`
+  calling `build_package()` for each
+- Single package: user passes `-p <name>`, `build_package()` runs `cargo build -p <name>`
 - `RUSTFLAGS` is set per invocation, applying to all crates within the package
 
 A package can contain multiple crates (targets). For example, tspec itself has two:
