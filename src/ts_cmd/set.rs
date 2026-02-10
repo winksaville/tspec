@@ -1,12 +1,11 @@
-//! `tspec ts set` - Set a scalar value in a tspec
+//! `tspec ts set` - Set a value in a tspec using toml_edit (preserves comments/formatting)
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use std::path::Path;
+use toml_edit::DocumentMut;
 
+use super::edit;
 use crate::find_paths::{find_tspec, resolve_package_dir};
-use crate::options::{PanicMode, StripMode};
-use crate::tspec::{load_spec, save_spec};
-use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
 
 /// Set a value in a tspec and save in place
 pub fn set_value(
@@ -19,9 +18,9 @@ pub fn set_value(
     let workspace = project_root;
     let package_dir = resolve_package_dir(workspace, package)?;
 
-    // Load existing spec and its path, or use default with constructed path
-    let (mut spec, output_path) = match find_tspec(&package_dir, tspec)? {
-        Some(path) => (load_spec(&path)?, path),
+    // Resolve tspec path (existing or new)
+    let output_path = match find_tspec(&package_dir, tspec)? {
+        Some(path) => path,
         None => {
             let base_name = match tspec {
                 Some(t) => t
@@ -30,16 +29,31 @@ pub fn set_value(
                     .unwrap_or(t),
                 None => "tspec",
             };
-            let path = package_dir.join(format!("{}{}", base_name, crate::TSPEC_SUFFIX));
-            (Spec::default(), path)
+            package_dir.join(format!("{}{}", base_name, crate::TSPEC_SUFFIX))
         }
     };
 
-    // Apply the key=value change
-    apply_value(&mut spec, key, value)?;
+    // Validate key and value
+    let kind = edit::validate_key(key)?;
+    edit::validate_value(key, value)?;
 
-    // Save in place
-    save_spec(&spec, &output_path)?;
+    // Read existing content or start empty
+    let content = if output_path.exists() {
+        std::fs::read_to_string(&output_path)
+            .with_context(|| format!("failed to read: {}", output_path.display()))?
+    } else {
+        String::new()
+    };
+
+    // Parse, edit, write
+    let mut doc: DocumentMut = content
+        .parse()
+        .with_context(|| format!("failed to parse: {}", output_path.display()))?;
+
+    edit::set_field(&mut doc, key, value, kind)?;
+
+    std::fs::write(&output_path, doc.to_string())
+        .with_context(|| format!("failed to write: {}", output_path.display()))?;
 
     println!(
         "Saved {}",
@@ -52,167 +66,75 @@ pub fn set_value(
     Ok(())
 }
 
-/// Apply key=value to a spec
-fn apply_value(spec: &mut Spec, key: &str, value: &str) -> Result<()> {
-    match key {
-        // Top-level high-level options
-        "panic" => {
-            spec.panic = Some(parse_panic_mode(value)?);
-        }
-        "strip" => {
-            spec.strip = Some(parse_strip_mode(value)?);
-        }
-
-        // Cargo config
-        "cargo.profile" => {
-            spec.cargo.profile = Some(parse_profile(value)?);
-        }
-        "cargo.target_triple" => {
-            spec.cargo.target_triple = Some(value.to_string());
-        }
-        "cargo.target_dir" => {
-            spec.cargo.target_dir = Some(value.to_string());
-        }
-
-        // Rustc config
-        "rustc.opt_level" => {
-            spec.rustc.opt_level = Some(parse_opt_level(value)?);
-        }
-        "rustc.panic" => {
-            spec.rustc.panic = Some(parse_panic_strategy(value)?);
-        }
-        "rustc.lto" => {
-            spec.rustc.lto = Some(parse_bool(value)?);
-        }
-        "rustc.codegen_units" => {
-            spec.rustc.codegen_units = Some(
-                value
-                    .parse()
-                    .with_context(|| format!("invalid codegen_units: {}", value))?,
-            );
-        }
-
-        _ => bail!("unknown key: {}", key),
-    }
-
-    Ok(())
-}
-
-fn parse_panic_mode(s: &str) -> Result<PanicMode> {
-    match s {
-        "unwind" => Ok(PanicMode::Unwind),
-        "abort" => Ok(PanicMode::Abort),
-        "immediate-abort" => Ok(PanicMode::ImmediateAbort),
-        _ => bail!(
-            "invalid panic mode: {} (expected: unwind, abort, immediate-abort)",
-            s
-        ),
-    }
-}
-
-fn parse_strip_mode(s: &str) -> Result<StripMode> {
-    match s {
-        "none" => Ok(StripMode::None),
-        "debuginfo" => Ok(StripMode::Debuginfo),
-        "symbols" => Ok(StripMode::Symbols),
-        _ => bail!(
-            "invalid strip mode: {} (expected: none, debuginfo, symbols)",
-            s
-        ),
-    }
-}
-
-fn parse_profile(s: &str) -> Result<Profile> {
-    match s {
-        "debug" => Ok(Profile::Debug),
-        "release" => Ok(Profile::Release),
-        _ => bail!("invalid profile: {} (expected: debug, release)", s),
-    }
-}
-
-fn parse_opt_level(s: &str) -> Result<OptLevel> {
-    match s {
-        "0" => Ok(OptLevel::O0),
-        "1" => Ok(OptLevel::O1),
-        "2" => Ok(OptLevel::O2),
-        "3" => Ok(OptLevel::O3),
-        "s" => Ok(OptLevel::Os),
-        "z" => Ok(OptLevel::Oz),
-        _ => bail!("invalid opt-level: {} (expected: 0, 1, 2, 3, s, z)", s),
-    }
-}
-
-fn parse_panic_strategy(s: &str) -> Result<PanicStrategy> {
-    match s {
-        "abort" => Ok(PanicStrategy::Abort),
-        "unwind" => Ok(PanicStrategy::Unwind),
-        "immediate-abort" => Ok(PanicStrategy::ImmediateAbort),
-        _ => bail!(
-            "invalid panic strategy: {} (expected: abort, unwind, immediate-abort)",
-            s
-        ),
-    }
-}
-
-fn parse_bool(s: &str) -> Result<bool> {
-    match s {
-        "true" | "yes" | "1" => Ok(true),
-        "false" | "no" | "0" => Ok(false),
-        _ => bail!("invalid boolean: {} (expected: true/false)", s),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_constants::SUFFIX;
+    use crate::tspec::load_spec;
+    use tempfile::TempDir;
 
-    #[test]
-    fn apply_strip_mode() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "strip", "symbols").unwrap();
-        assert_eq!(spec.strip, Some(StripMode::Symbols));
+    /// Helper: create a tspec file with given content and run set on it.
+    /// Returns (TempDir, path, output_string) - TempDir must stay alive for path to be valid.
+    fn set_in_file(content: &str, key: &str, value: &str) -> (TempDir, std::path::PathBuf, String) {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("tspec{}", SUFFIX));
+        std::fs::write(&path, content).unwrap();
+
+        let mut doc: DocumentMut = content.parse().unwrap();
+        let kind = edit::validate_key(key).unwrap();
+        edit::validate_value(key, value).unwrap();
+        edit::set_field(&mut doc, key, value, kind).unwrap();
+        let output = doc.to_string();
+        std::fs::write(&path, &output).unwrap();
+
+        (dir, path, output)
     }
 
     #[test]
-    fn apply_panic_mode() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "panic", "abort").unwrap();
-        assert_eq!(spec.panic, Some(PanicMode::Abort));
+    fn set_strip_mode() {
+        let (_dir, path, _) = set_in_file("", "strip", "symbols");
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.strip, Some(crate::options::StripMode::Symbols));
     }
 
     #[test]
-    fn apply_rustc_lto() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "rustc.lto", "true").unwrap();
+    fn set_panic_mode() {
+        let (_dir, path, _) = set_in_file("", "panic", "abort");
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.panic, Some(crate::options::PanicMode::Abort));
+    }
+
+    #[test]
+    fn set_rustc_lto() {
+        let (_dir, path, _) = set_in_file("", "rustc.lto", "true");
+        let spec = load_spec(&path).unwrap();
         assert_eq!(spec.rustc.lto, Some(true));
     }
 
     #[test]
-    fn apply_rustc_opt_level() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "rustc.opt_level", "z").unwrap();
-        assert_eq!(spec.rustc.opt_level, Some(OptLevel::Oz));
+    fn set_rustc_opt_level() {
+        let (_dir, path, _) = set_in_file("", "rustc.opt_level", "z");
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.rustc.opt_level, Some(crate::types::OptLevel::Oz));
     }
 
     #[test]
-    fn apply_cargo_profile() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "cargo.profile", "release").unwrap();
-        assert_eq!(spec.cargo.profile, Some(Profile::Release));
+    fn set_cargo_profile() {
+        let (_dir, path, _) = set_in_file("", "cargo.profile", "release");
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.cargo.profile, Some(crate::types::Profile::Release));
     }
 
     #[test]
     fn unknown_key_errors() {
-        let mut spec = Spec::default();
-        let result = apply_value(&mut spec, "nonexistent", "value");
+        let result = edit::validate_key("nonexistent");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("unknown key"));
     }
 
     #[test]
     fn invalid_strip_mode_errors() {
-        let mut spec = Spec::default();
-        let result = apply_value(&mut spec, "strip", "invalid");
+        let result = edit::validate_value("strip", "invalid");
         assert!(result.is_err());
         assert!(
             result
@@ -223,19 +145,73 @@ mod tests {
     }
 
     #[test]
-    fn apply_cargo_target_dir() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "cargo.target_dir", "<name>").unwrap();
+    fn set_cargo_target_dir() {
+        let (_dir, path, _) = set_in_file("", "cargo.target_dir", "<name>");
+        let spec = load_spec(&path).unwrap();
         assert_eq!(spec.cargo.target_dir, Some("<name>".to_string()));
     }
 
     #[test]
-    fn apply_value_with_spaces() {
-        let mut spec = Spec::default();
-        apply_value(&mut spec, "cargo.target_triple", "my custom triple").unwrap();
+    fn set_cargo_target_triple() {
+        let (_dir, path, _) = set_in_file("", "cargo.target_triple", "my custom triple");
+        let spec = load_spec(&path).unwrap();
         assert_eq!(
             spec.cargo.target_triple,
             Some("my custom triple".to_string())
         );
+    }
+
+    #[test]
+    fn set_rustc_build_std() {
+        let (_dir, path, _) = set_in_file("", "rustc.build_std", r#"["core", "alloc"]"#);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.rustc.build_std,
+            vec!["core".to_string(), "alloc".to_string()]
+        );
+    }
+
+    #[test]
+    fn set_linker_args() {
+        let (_dir, path, _) = set_in_file("", "linker.args", r#"["-static", "-nostdlib"]"#);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.linker.args,
+            vec!["-static".to_string(), "-nostdlib".to_string()]
+        );
+    }
+
+    #[test]
+    fn set_cargo_unstable() {
+        let (_dir, path, _) = set_in_file("", "cargo.unstable", r#"["panic-immediate-abort"]"#);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.cargo.unstable,
+            vec!["panic-immediate-abort".to_string()]
+        );
+    }
+
+    #[test]
+    fn set_rustc_flags() {
+        let (_dir, path, _) = set_in_file("", "rustc.flags", r#"["-Cforce-frame-pointers=yes"]"#);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.rustc.flags,
+            vec!["-Cforce-frame-pointers=yes".to_string()]
+        );
+    }
+
+    #[test]
+    fn set_preserves_comments() {
+        let input = "# Important comment\npanic = \"unwind\"\n";
+        let (_dir, _, output) = set_in_file(input, "strip", "symbols");
+        assert!(output.contains("# Important comment"));
+    }
+
+    #[test]
+    fn set_codegen_units() {
+        let (_dir, path, _) = set_in_file("", "rustc.codegen_units", "1");
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.rustc.codegen_units, Some(1));
     }
 }

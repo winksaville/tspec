@@ -60,10 +60,21 @@ pub enum TsCommands {
         #[arg(short = 'f', long = "from")]
         from: Option<String>,
     },
-    /// Set a scalar value in a tspec (modifies in place)
+    /// Set a value in a tspec (modifies in place, preserves comments)
     Set {
         /// Key=value pair (e.g., "strip=symbols", "panic=abort", "rustc.lto=true")
         assignment: String,
+        /// Package name (defaults to current directory)
+        #[arg(short = 'p', long = "package")]
+        package: Option<String>,
+        /// Tspec to modify (defaults to package's tspec.ts.toml)
+        #[arg(short = 't', long = "tspec")]
+        tspec: Option<String>,
+    },
+    /// Remove a field from a tspec (preserves comments)
+    Unset {
+        /// Key to remove (e.g., "rustc.lto", "panic", "linker.args")
+        key: String,
         /// Package name (defaults to current directory)
         #[arg(short = 'p', long = "package")]
         package: Option<String>,
@@ -133,6 +144,13 @@ impl Execute for TsCmd {
                     value,
                     tspec.as_deref(),
                 )?;
+            }
+            TsCommands::Unset {
+                key,
+                package,
+                tspec,
+            } => {
+                ts_cmd::unset_value(project_root, package.as_deref(), key, tspec.as_deref())?;
             }
             TsCommands::Backup { package, tspec } => {
                 ts_cmd::backup_tspec(project_root, package.as_deref(), tspec.as_deref())?;

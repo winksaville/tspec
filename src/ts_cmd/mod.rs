@@ -1,12 +1,14 @@
 //! CLI commands for tspec management (tspec ts ...)
 
 mod backup;
+mod edit;
 mod hash;
 mod list;
 mod new;
 mod restore;
 mod set;
 mod show;
+mod unset;
 
 pub use backup::backup_tspec;
 pub use hash::hash_tspec;
@@ -15,3 +17,4 @@ pub use new::new_tspec;
 pub use restore::restore_tspec;
 pub use set::set_value;
 pub use show::show_tspec;
+pub use unset::unset_value;

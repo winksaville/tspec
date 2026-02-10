@@ -1,10 +1,10 @@
-//! `tspec ts backup` - Create a versioned backup of a tspec
+//! `tspec ts backup` - Create a versioned backup of a tspec (byte-for-byte copy)
 
 use anyhow::{Result, bail};
 use std::path::Path;
 
 use crate::find_paths::{find_tspec, resolve_package_dir};
-use crate::tspec::{load_spec, save_spec_snapshot, spec_name_from_path};
+use crate::tspec::{copy_spec_snapshot, spec_name_from_path};
 
 /// Create a versioned backup snapshot of a tspec
 pub fn backup_tspec(project_root: &Path, package: Option<&str>, tspec: Option<&str>) -> Result<()> {
@@ -16,9 +16,8 @@ pub fn backup_tspec(project_root: &Path, package: Option<&str>, tspec: Option<&s
         None => bail!("no tspec found to backup"),
     };
 
-    let spec = load_spec(&spec_path)?;
     let base_name = spec_name_from_path(&spec_path);
-    let backup_path = save_spec_snapshot(&spec, &base_name, &package_dir)?;
+    let backup_path = copy_spec_snapshot(&spec_path, &base_name, &package_dir)?;
 
     println!(
         "Backed up to {}",

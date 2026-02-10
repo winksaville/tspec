@@ -8,28 +8,16 @@
 - Improve `classify_crate` - using name alone is brittle [4]
 - -p shouldn't be needed for `ts compare` if in a POP
 - for build, run ... a -t should suppor glob like in compare
-- add a `ts unset` or `ts remove`?
-- how to add/remove from a array/list such as linker.args, rustc.flags and many others
-- Some fields in README.md don't seem to be working not just these
--- wink@fwlaptop 26-02-09T06:26:58.397Z:~/data/prgs/rust/rlibc-x/apps/hw-x2 (main)
--- $ tspec ts set -t tspec-opt-2.ts.toml rustc.build_std="abc"
--- Error: unknown key: rustc.build_std
--- wink@fwlaptop 26-02-09T06:27:22.688Z:~/data/prgs/rust/rlibc-x/apps/hw-x2 (main)
--- $ tspec ts set -t tspec-opt-2.ts.toml rustc.build_std=["abc"]
--- Error: unknown key: rustc.build_std
--- wink@fwlaptop 26-02-09T06:27:33.476Z:~/data/prgs/rust/rlibc-x/apps/hw-x2 (main)
--- $ tspec ts set -t tspec-opt-2.ts.toml linker.args="abc"
--- Error: unknown key: linker.args
--- wink@fwlaptop 26-02-09T06:27:59.220Z:~/data/prgs/rust/rlibc-x/apps/hw-x2 (main)
--- $ tspec ts set -t tspec-opt-2.ts.toml args="abc"
--- Error: unknown key: args
--- wink@fwlaptop 26-02-09T06:28:15.285Z:~/data/prgs/rust/rlibc-x/apps/hw-x2 (main)
-
+- Consider `ts set` array append/remove syntax: `linker.args+=-Wl,--gc-sections` / `linker.args-=-Wl,--gc-sections`
+ 
 
 ## Done
 
 See older [done.md](done.md)
 
+- `ts set/unset` rewritten with `toml_edit` - supports all fields (including arrays: `rustc.build_std`, `linker.args`, `cargo.unstable`, `rustc.flags`), preserves comments/formatting
+- `ts unset` command added - removes fields from tspecs
+- `ts backup`, `ts restore`, `ts new -f` now use raw file copy (byte-for-byte, preserves comments)
 - Rename `--all` to `--workspace` (match cargo convention) [16]
 - In-place `set`, add `backup` and `restore` subcommands [15]
 - Add `cargo.target_dir` spec field for per-spec target directories [12],[14]

@@ -1,6 +1,6 @@
 [package]
 name = "tspec"
-version = "0.9.6"
+version = "0.9.7"
 edition = "2024"
 description = "Translation spec based build system"
 
@@ -8,6 +8,7 @@ description = "Translation spec based build system"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+toml_edit = "0.22"
 anyhow = "1"
 sha2 = "0.10"
 hex = "0.4"

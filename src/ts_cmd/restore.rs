@@ -1,11 +1,10 @@
-//! `tspec ts restore` - Restore a tspec from a versioned backup
+//! `tspec ts restore` - Restore a tspec from a versioned backup (byte-for-byte copy)
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
 use crate::find_paths::{find_tspec, resolve_package_dir};
-use crate::tspec::{load_spec, save_spec};
 
 /// Restore a tspec from a versioned backup to its base name
 pub fn restore_tspec(project_root: &Path, package: Option<&str>, tspec: &str) -> Result<()> {
@@ -20,8 +19,13 @@ pub fn restore_tspec(project_root: &Path, package: Option<&str>, tspec: &str) ->
     let base_name = parse_backup_base_name(&backup_path)?;
     let target_path = package_dir.join(format!("{}{}", base_name, TSPEC_SUFFIX));
 
-    let spec = load_spec(&backup_path)?;
-    save_spec(&spec, &target_path)?;
+    std::fs::copy(&backup_path, &target_path).with_context(|| {
+        format!(
+            "failed to copy {} to {}",
+            backup_path.display(),
+            target_path.display()
+        )
+    })?;
 
     println!(
         "Restored {} from {}",

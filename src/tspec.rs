@@ -82,13 +82,8 @@ pub fn save_spec(spec: &Spec, path: &Path) -> Result<()> {
         .with_context(|| format!("failed to write spec file: {}", path.display()))
 }
 
-/// Save a spec snapshot with sequence number and hash: `{name}-{seq:03}-{hash}.toml`
-/// Returns the path of the created file.
-pub fn save_spec_snapshot(spec: &Spec, name: &str, dir: &Path) -> Result<PathBuf> {
-    std::fs::create_dir_all(dir)
-        .with_context(|| format!("failed to create directory: {}", dir.display()))?;
-
-    // Find highest existing sequence number for this name
+/// Find the next sequence number for snapshot files matching `{name}-NNN-*{TSPEC_SUFFIX}`.
+pub fn next_snapshot_seq(name: &str, dir: &Path) -> Result<u32> {
     let prefix = format!("{}-", name);
     let next_seq = std::fs::read_dir(dir)
         .with_context(|| format!("failed to read directory: {}", dir.display()))?
@@ -96,7 +91,6 @@ pub fn save_spec_snapshot(spec: &Spec, name: &str, dir: &Path) -> Result<PathBuf
         .filter_map(|entry| {
             let filename = entry.file_name().to_string_lossy().into_owned();
             if filename.starts_with(&prefix) && filename.ends_with(TSPEC_SUFFIX) {
-                // Extract sequence number: {name}-{seq:03}-{hash}{TSPEC_SUFFIX}
                 let rest = filename.strip_prefix(&prefix)?;
                 let seq_str = rest.split('-').next()?;
                 seq_str.parse::<u32>().ok()
@@ -107,7 +101,16 @@ pub fn save_spec_snapshot(spec: &Spec, name: &str, dir: &Path) -> Result<PathBuf
         .max()
         .map(|n| n + 1)
         .unwrap_or(1);
+    Ok(next_seq)
+}
 
+/// Save a spec snapshot with sequence number and hash: `{name}-{seq:03}-{hash}.toml`
+/// Returns the path of the created file.
+pub fn save_spec_snapshot(spec: &Spec, name: &str, dir: &Path) -> Result<PathBuf> {
+    std::fs::create_dir_all(dir)
+        .with_context(|| format!("failed to create directory: {}", dir.display()))?;
+
+    let next_seq = next_snapshot_seq(name, dir)?;
     let hash = hash_spec(spec)?;
     let filename = format!("{}-{:03}-{}{}", name, next_seq, hash, TSPEC_SUFFIX);
     let path = dir.join(&filename);
@@ -115,6 +118,25 @@ pub fn save_spec_snapshot(spec: &Spec, name: &str, dir: &Path) -> Result<PathBuf
     let content = serialize_spec(spec)?;
     std::fs::write(&path, &content)
         .with_context(|| format!("failed to write spec file: {}", path.display()))?;
+
+    Ok(path)
+}
+
+/// Create a backup snapshot using raw file copy (preserves comments/formatting).
+/// Loads the spec only for hashing (to compute the backup filename).
+/// Returns the path of the created backup file.
+pub fn copy_spec_snapshot(source: &Path, name: &str, dir: &Path) -> Result<PathBuf> {
+    std::fs::create_dir_all(dir)
+        .with_context(|| format!("failed to create directory: {}", dir.display()))?;
+
+    let spec = load_spec(source)?;
+    let next_seq = next_snapshot_seq(name, dir)?;
+    let hash = hash_spec(&spec)?;
+    let filename = format!("{}-{:03}-{}{}", name, next_seq, hash, TSPEC_SUFFIX);
+    let path = dir.join(&filename);
+
+    std::fs::copy(source, &path)
+        .with_context(|| format!("failed to copy {} to {}", source.display(), path.display()))?;
 
     Ok(path)
 }
