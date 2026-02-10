@@ -4,15 +4,16 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use toml_edit::DocumentMut;
 
-use super::edit;
+use super::edit::{self, SetOp};
 use crate::find_paths::{find_tspec, resolve_package_dir};
 
-/// Set a value in a tspec and save in place
+/// Set/append/remove a value in a tspec and save in place
 pub fn set_value(
     project_root: &Path,
     package: Option<&str>,
     key: &str,
     value: &str,
+    op: SetOp,
     tspec: Option<&str>,
 ) -> Result<()> {
     let workspace = project_root;
@@ -35,7 +36,19 @@ pub fn set_value(
 
     // Validate key and value
     let kind = edit::validate_key(key)?;
-    edit::validate_value(key, value)?;
+
+    // Append/remove only make sense for array fields
+    if op != SetOp::Replace && kind != edit::FieldKind::Array {
+        anyhow::bail!(
+            "operator += and -= can only be used with array fields, but '{}' is a scalar",
+            key
+        );
+    }
+
+    // Only validate enum constraints for replace (append/remove are raw strings)
+    if op == SetOp::Replace {
+        edit::validate_value(key, value)?;
+    }
 
     // Read existing content or start empty
     let content = if output_path.exists() {
@@ -50,7 +63,11 @@ pub fn set_value(
         .parse()
         .with_context(|| format!("failed to parse: {}", output_path.display()))?;
 
-    edit::set_field(&mut doc, key, value, kind)?;
+    match op {
+        SetOp::Replace => edit::set_field(&mut doc, key, value, kind)?,
+        SetOp::Append => edit::append_field(&mut doc, key, value)?,
+        SetOp::Remove => edit::remove_from_field(&mut doc, key, value)?,
+    }
 
     std::fs::write(&output_path, doc.to_string())
         .with_context(|| format!("failed to write: {}", output_path.display()))?;
@@ -213,5 +230,114 @@ mod tests {
         let (_dir, path, _) = set_in_file("", "rustc.codegen_units", "1");
         let spec = load_spec(&path).unwrap();
         assert_eq!(spec.rustc.codegen_units, Some(1));
+    }
+
+    /// Helper for append/remove operations on a tspec file.
+    fn op_in_file(
+        content: &str,
+        key: &str,
+        value: &str,
+        op: SetOp,
+    ) -> (TempDir, std::path::PathBuf, String) {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("tspec{}", SUFFIX));
+        std::fs::write(&path, content).unwrap();
+
+        let mut doc: DocumentMut = content.parse().unwrap();
+        match op {
+            SetOp::Append => edit::append_field(&mut doc, key, value).unwrap(),
+            SetOp::Remove => edit::remove_from_field(&mut doc, key, value).unwrap(),
+            SetOp::Replace => {
+                let kind = edit::validate_key(key).unwrap();
+                edit::set_field(&mut doc, key, value, kind).unwrap();
+            }
+        }
+        let output = doc.to_string();
+        std::fs::write(&path, &output).unwrap();
+
+        (dir, path, output)
+    }
+
+    #[test]
+    fn append_to_empty_array() {
+        let (_dir, path, _) = op_in_file("", "linker.args", "-static", SetOp::Append);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.linker.args, vec!["-static".to_string()]);
+    }
+
+    #[test]
+    fn append_to_existing_array() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let (_dir, path, _) = op_in_file(input, "linker.args", "-Wl,--gc-sections", SetOp::Append);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.linker.args,
+            vec!["-static".to_string(), "-Wl,--gc-sections".to_string()]
+        );
+    }
+
+    #[test]
+    fn append_multiple_values_bracket_syntax() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let (_dir, path, _) = op_in_file(
+            input,
+            "linker.args",
+            r#"["-nostdlib", "-Wl,--gc-sections"]"#,
+            SetOp::Append,
+        );
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.linker.args,
+            vec![
+                "-static".to_string(),
+                "-nostdlib".to_string(),
+                "-Wl,--gc-sections".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn append_skips_duplicates() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let (_dir, path, _) = op_in_file(input, "linker.args", "-static", SetOp::Append);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.linker.args, vec!["-static".to_string()]);
+    }
+
+    #[test]
+    fn remove_from_array() {
+        let input = "[linker]\nargs = [\"-static\", \"-nostdlib\"]\n";
+        let (_dir, path, _) = op_in_file(input, "linker.args", "-nostdlib", SetOp::Remove);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.linker.args, vec!["-static".to_string()]);
+    }
+
+    #[test]
+    fn remove_multiple_from_array_bracket_syntax() {
+        let input = "[linker]\nargs = [\"-static\", \"-nostdlib\", \"-Wl,--gc-sections\"]\n";
+        let (_dir, path, _) = op_in_file(
+            input,
+            "linker.args",
+            r#"["-static", "-Wl,--gc-sections"]"#,
+            SetOp::Remove,
+        );
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.linker.args, vec!["-nostdlib".to_string()]);
+    }
+
+    #[test]
+    fn remove_last_entry_removes_field() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let (_dir, path, _) = op_in_file(input, "linker.args", "-static", SetOp::Remove);
+        let spec = load_spec(&path).unwrap();
+        assert!(spec.linker.args.is_empty());
+    }
+
+    #[test]
+    fn remove_nonexistent_is_noop() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let (_dir, path, _) = op_in_file(input, "linker.args", "-nostdlib", SetOp::Remove);
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(spec.linker.args, vec!["-static".to_string()]);
     }
 }

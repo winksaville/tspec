@@ -8,13 +8,13 @@
 - Improve `classify_crate` - using name alone is brittle [4]
 - -p shouldn't be needed for `ts compare` if in a POP
 - for build, run ... a -t should suppor glob like in compare
-- Consider `ts set` array append/remove syntax: `linker.args+=-Wl,--gc-sections` / `linker.args-=-Wl,--gc-sections`
  
 
 ## Done
 
 See older [done.md](done.md)
 
+- `ts set` array append/remove: `linker.args+=-Wl,--gc-sections` / `linker.args-=-static`
 - `ts set/unset` rewritten with `toml_edit` - supports all fields (including arrays: `rustc.build_std`, `linker.args`, `cargo.unstable`, `rustc.flags`), preserves comments/formatting
 - `ts unset` command added - removes fields from tspecs
 - `ts backup`, `ts restore`, `ts new -f` now use raw file copy (byte-for-byte, preserves comments)

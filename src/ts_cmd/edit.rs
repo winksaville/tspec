@@ -10,6 +10,17 @@ pub enum FieldKind {
     Array,
 }
 
+/// The set operation to perform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetOp {
+    /// Replace the field (`=`)
+    Replace,
+    /// Append to an array (`+=`)
+    Append,
+    /// Remove from an array (`-=`)
+    Remove,
+}
+
 /// Registry entry: (dotted key path, kind).
 const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("panic", FieldKind::Scalar),
@@ -123,11 +134,12 @@ fn parse_scalar_value(key: &str, raw: &str) -> Value {
 }
 
 /// Parse an array value from a string.
-/// Accepts: `["a","b","c"]` or `[a, b, c]` or `a,b,c`
+/// With brackets: `["a","b"]` — parsed as TOML inline array (multiple items).
+/// Without brackets: treated as a single item (commas are literal).
 fn parse_array_value(raw: &str) -> Result<Array> {
     let raw = raw.trim();
 
-    // Try parsing as TOML inline array first
+    // Bracket syntax: parse as TOML inline array
     if raw.starts_with('[') && raw.ends_with(']') {
         let toml_str = format!("x = {}", raw);
         match toml_str.parse::<DocumentMut>() {
@@ -140,13 +152,11 @@ fn parse_array_value(raw: &str) -> Result<Array> {
         }
     }
 
-    // Fallback: comma-separated values (strip quotes)
+    // No brackets: single item (commas are literal, e.g. "-Wl,--gc-sections")
     let mut arr = Array::new();
-    for item in raw.split(',') {
-        let item = item.trim().trim_matches('"').trim_matches('\'');
-        if !item.is_empty() {
-            arr.push(item);
-        }
+    let item = raw.trim_matches('"').trim_matches('\'');
+    if !item.is_empty() {
+        arr.push(item);
     }
     Ok(arr)
 }
@@ -183,6 +193,101 @@ pub fn set_field(doc: &mut DocumentMut, key: &str, value: &str, kind: FieldKind)
                 None => {
                     doc[field] = toml_edit::Item::Value(Value::Array(arr));
                 }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Get the existing array for a field, or an empty array if it doesn't exist.
+fn get_existing_array(doc: &DocumentMut, key: &str) -> Array {
+    let (table_name, field) = parse_key(key);
+    match table_name {
+        Some(table) => doc
+            .get(table)
+            .and_then(|t| t.get(field))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
+        None => doc
+            .get(field)
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default(),
+    }
+}
+
+/// Append values to an array field. Creates the array if it doesn't exist.
+/// Skips values that are already present (dedup).
+pub fn append_field(doc: &mut DocumentMut, key: &str, value: &str) -> Result<()> {
+    let (table_name, field) = parse_key(key);
+    let mut arr = get_existing_array(doc, key);
+    let new_items = parse_array_value(value)?;
+
+    // Collect existing string values for dedup
+    let existing: Vec<String> = arr
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+
+    for item in new_items.iter() {
+        if let Some(s) = item.as_str()
+            && !existing.contains(&s.to_string())
+        {
+            arr.push(s);
+        }
+    }
+
+    match table_name {
+        Some(table) => {
+            if doc.get(table).is_none() {
+                doc[table] = toml_edit::Item::Table(toml_edit::Table::new());
+            }
+            doc[table][field] = toml_edit::Item::Value(Value::Array(arr));
+        }
+        None => {
+            doc[field] = toml_edit::Item::Value(Value::Array(arr));
+        }
+    }
+
+    Ok(())
+}
+
+/// Remove values from an array field. If the array becomes empty, removes the field.
+/// If the containing table becomes empty, removes the table too.
+pub fn remove_from_field(doc: &mut DocumentMut, key: &str, value: &str) -> Result<()> {
+    let (table_name, field) = parse_key(key);
+    let arr = get_existing_array(doc, key);
+    let to_remove = parse_array_value(value)?;
+
+    let remove_strs: Vec<String> = to_remove
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+
+    let mut new_arr = Array::new();
+    for item in arr.iter() {
+        if let Some(s) = item.as_str()
+            && !remove_strs.contains(&s.to_string())
+        {
+            new_arr.push(s);
+        }
+    }
+
+    if new_arr.is_empty() {
+        // Remove the field entirely
+        unset_field(doc, key)?;
+    } else {
+        match table_name {
+            Some(table) => {
+                if doc.get(table).is_none() {
+                    doc[table] = toml_edit::Item::Table(toml_edit::Table::new());
+                }
+                doc[table][field] = toml_edit::Item::Value(Value::Array(new_arr));
+            }
+            None => {
+                doc[field] = toml_edit::Item::Value(Value::Array(new_arr));
             }
         }
     }
@@ -320,13 +425,22 @@ mod tests {
     }
 
     #[test]
-    fn set_array_comma_syntax() {
+    fn set_array_no_brackets_is_single_item() {
+        // Without brackets, the entire string is one item (commas are literal)
         let mut doc = "".parse::<DocumentMut>().unwrap();
         set_field(&mut doc, "rustc.build_std", "core,alloc", FieldKind::Array).unwrap();
         let arr = doc["rustc"]["build_std"].as_array().unwrap();
-        assert_eq!(arr.len(), 2);
-        assert_eq!(arr.get(0).unwrap().as_str(), Some("core"));
-        assert_eq!(arr.get(1).unwrap().as_str(), Some("alloc"));
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("core,alloc"));
+    }
+
+    #[test]
+    fn set_array_single_item_no_brackets() {
+        let mut doc = "".parse::<DocumentMut>().unwrap();
+        set_field(&mut doc, "linker.args", "-static", FieldKind::Array).unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
     }
 
     #[test]
@@ -378,5 +492,82 @@ mod tests {
         // Should not error
         unset_field(&mut doc, "panic").unwrap();
         unset_field(&mut doc, "rustc.lto").unwrap();
+    }
+
+    #[test]
+    fn append_to_empty() {
+        let mut doc = "".parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", "-static").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+    }
+
+    #[test]
+    fn append_to_existing() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", "-nostdlib").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-nostdlib"));
+    }
+
+    #[test]
+    fn append_deduplicates() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", "-static").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+    }
+
+    #[test]
+    fn append_multiple_bracket_syntax() {
+        let mut doc = "".parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", r#"["-static", "-nostdlib"]"#).unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-nostdlib"));
+    }
+
+    #[test]
+    fn append_single_with_comma_is_literal() {
+        // Without brackets, "-Wl,--gc-sections" is one item (not split on comma)
+        let mut doc = "".parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", "-Wl,--gc-sections").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-Wl,--gc-sections"));
+    }
+
+    #[test]
+    fn remove_one_from_array() {
+        let input = "[linker]\nargs = [\"-static\", \"-nostdlib\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        remove_from_field(&mut doc, "linker.args", "-nostdlib").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+    }
+
+    #[test]
+    fn remove_last_removes_field_and_table() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        remove_from_field(&mut doc, "linker.args", "-static").unwrap();
+        // Field removed, table removed (was empty)
+        assert!(doc.get("linker").is_none());
+    }
+
+    #[test]
+    fn remove_nonexistent_value_is_noop() {
+        let input = "[linker]\nargs = [\"-static\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        remove_from_field(&mut doc, "linker.args", "-nostdlib").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 1);
     }
 }

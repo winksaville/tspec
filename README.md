@@ -95,27 +95,47 @@ build.rs scopes flags to just the binary.
 
 ## tspec Management (ts subcommand)
 
-Manage spec files without manual TOML editing:
+Manage spec files without manual TOML editing. All commands that modify files preserve comments and formatting.
+
+| Command | Description |
+|---------|-------------|
+| `ts list` | List tspec files found in the workspace or a specific package |
+| `ts show` | Display the TOML contents of a tspec file |
+| `ts hash` | Print the content hash (used in backup filenames) of a tspec |
+| `ts new` | Create a new tspec with defaults, or copy an existing one with `-f` (byte-for-byte) |
+| `ts set` | Set a scalar or replace an entire array (`=`), append to an array (`+=`), or remove from an array (`-=`) |
+| `ts unset` | Remove a field (scalar or array) from a tspec entirely |
+| `ts backup` | Create a versioned backup copy (`name-NNN-hash.ts.toml`) |
+| `ts restore` | Restore a tspec by copying a versioned backup back to its original name |
 
 ```bash
+# List / show / hash
 tspec ts list                            # List all tspec files
-tspec ts list -p myapp                   # List all tspec files for a package
-tspec ts show -p myapp                   # Show all tspec contents, i.e. *.ts.toml
+tspec ts list -p myapp                   # List tspec files for a package
+tspec ts show -p myapp                   # Show all tspec contents
 tspec ts show -p myapp -t tspec-opt      # Show specific tspec-opt.ts.toml
 tspec ts hash -p myapp                   # Show content hash of tspec.ts.toml
-tspec ts hash -p myapp -t tspec-opt      # Show content hash of tspec-opt.ts.toml
-tspec ts new -p myapp                    # Create tspec.ts.toml
+
+# Create new tspec files
+tspec ts new -p myapp                    # Create tspec.ts.toml with defaults
 tspec ts new experiment -p myapp         # Create experiment.ts.toml
-tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec creating opt2.ts.toml
-tspec ts set strip=symbols -p myapp      # Set scalar value in tspec.ts.toml
-tspec ts set 'rustc.build_std=["core","alloc"]'  # Set array value
-tspec ts set 'linker.args=["-static"]'   # Set array value
-tspec ts set rustc.lto=true -t tspec-opt # Set in a specific tspec
-tspec ts unset rustc.lto -p myapp        # Remove a field from tspec.ts.toml
-tspec ts unset linker.args -t tspec-opt  # Remove array field from specific tspec
-tspec ts backup -p myapp                 # Create versioned backup (name-NNN-hash.ts.toml)
-tspec ts backup -p myapp -t tspec-opt    # Backup myapp/tspec-opt.ts.toml to myapp/tspec-opt-<next-seqnum>-<hash>.ts.toml
-tspec ts restore -t t1-001-abcd1234      # Restore t1.ts.toml from backup t1-001-abcd1234.ts.toml
+tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec (byte-for-byte)
+
+# Set values (= sets/replaces, += appends to array, -= removes from array)
+tspec ts set strip=symbols -p myapp                # Set a scalar field
+tspec ts set rustc.lto=true -t tspec-opt           # Set in a specific tspec
+tspec ts set 'linker.args=["-static","-nostdlib"]' # Replace entire array with new value
+tspec ts set 'linker.args+=-Wl,--gc-sections'      # Append one item to array
+tspec ts set 'linker.args-=-nostdlib'               # Remove one item from array
+
+# Remove a field entirely
+tspec ts unset rustc.lto -p myapp             # Remove scalar field
+tspec ts unset linker.args -t tspec-opt       # Remove array field
+
+# Backup and restore (byte-for-byte copies)
+tspec ts backup -p myapp                 # Backup tspec.ts.toml → tspec-001-abcd1234.ts.toml
+tspec ts backup -p myapp -t tspec-opt    # Backup tspec-opt.ts.toml
+tspec ts restore -t t1-001-abcd1234      # Restore t1.ts.toml from backup
 ```
 
 Backups are valid spec files and can be used directly with `-t`.
@@ -142,24 +162,42 @@ Backups are valid spec files and can be used directly with `-t`.
 | `rustc.flags` | array | `["-C", "flag"]` |
 | `linker.args` | array | `["-static", "-nostdlib"]` |
 
-Array values accept bracket syntax or comma-separated:
+### Array value rules
+
+Array values follow two simple rules, consistent across `=`, `+=`, and `-=`:
+
+- **With brackets** `["a","b"]` — TOML inline array. Commas separate items. Quotes protect literal commas.
+- **Without brackets** `value` — always **one item**. The entire value is taken literally.
+
+| Syntax | Result |
+|--------|--------|
+| `["-static","-nostdlib"]` | 2 items: `-static`, `-nostdlib` |
+| `["-Wl,--gc-sections"]` | 1 item: `-Wl,--gc-sections` (comma inside quotes is literal) |
+| `-static` | 1 item: `-static` |
+| `-Wl,--gc-sections` | 1 item: `-Wl,--gc-sections` |
+| `core,alloc` | 1 item: `core,alloc` (NOT two items — use `["core","alloc"]`) |
 
 ```bash
-# Bracket syntax (TOML inline array) — use shell quotes to protect brackets
-tspec ts set 'linker.args=["-static","-nostdlib","-Wl,--gc-sections"]'
+# Replace entire array with multiple items (bracket syntax, quote for shell)
+tspec ts set 'linker.args=["-static","-nostdlib"]'
 tspec ts set 'rustc.build_std=["core","alloc"]'
 
-# Comma-separated (no brackets needed)
-tspec ts set linker.args=-static,-nostdlib,-Wl,--gc-sections
-tspec ts set rustc.build_std=core,alloc
+# Replace entire array with a single item (no brackets needed)
+tspec ts set linker.args=-static                   # array becomes ["-static"]
 
-# Both forms replace the entire array. To remove entries, set the array
-# to the values you want to keep:
-tspec ts set 'linker.args=["-static"]'           # was ["-static","-nostdlib"], drop -nostdlib
-tspec ts set rustc.build_std=core                 # was ["core","alloc"], drop alloc
+# Append to an existing array
+tspec ts set 'linker.args+=-nostdlib'              # append one item
+tspec ts set 'linker.args+=["-nostdlib","-pie"]'   # append multiple items
+
+# Remove from an array
+tspec ts set 'linker.args-=-nostdlib'              # remove one item
+tspec ts set 'linker.args-=["-static","-pie"]'     # remove multiple items
+
+# += skips duplicates; -= is a no-op if the value isn't present.
+# If -= removes the last entry, the field is removed entirely.
 
 # To remove the entire field, use unset:
-tspec ts unset linker.args                        # removes args completely
+tspec ts unset linker.args                         # removes the field completely
 ```
 
 Note: Use `ts` as the subcommand (short for "tspec management").

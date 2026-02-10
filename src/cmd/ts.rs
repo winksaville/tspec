@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::Execute;
-use crate::ts_cmd;
+use crate::ts_cmd::{self, SetOp};
 
 /// Manage translation specs
 #[derive(Args)]
@@ -61,8 +61,10 @@ pub enum TsCommands {
         from: Option<String>,
     },
     /// Set a value in a tspec (modifies in place, preserves comments)
+    ///
+    /// Use key=value to replace, key+=value to append to arrays, key-=value to remove from arrays.
     Set {
-        /// Key=value pair (e.g., "strip=symbols", "panic=abort", "rustc.lto=true")
+        /// Assignment: key=value, key+=value (append), or key-=value (remove)
         assignment: String,
         /// Package name (defaults to current directory)
         #[arg(short = 'p', long = "package")]
@@ -134,14 +136,13 @@ impl Execute for TsCmd {
                 package,
                 tspec,
             } => {
-                let (key, value) = assignment.split_once('=').ok_or_else(|| {
-                    anyhow::anyhow!("invalid assignment '{}': expected key=value", assignment)
-                })?;
+                let (key, value, op) = parse_assignment(assignment)?;
                 ts_cmd::set_value(
                     project_root,
                     package.as_deref(),
-                    key,
-                    value,
+                    &key,
+                    &value,
+                    op,
                     tspec.as_deref(),
                 )?;
             }
@@ -160,5 +161,66 @@ impl Execute for TsCmd {
             }
         }
         Ok(ExitCode::SUCCESS)
+    }
+}
+
+/// Parse an assignment string into (key, value, op).
+/// Supports: `key=value`, `key+=value`, `key-=value`
+fn parse_assignment(assignment: &str) -> Result<(String, String, SetOp)> {
+    // Check for += and -= before plain =
+    if let Some((key, value)) = assignment.split_once("+=") {
+        return Ok((key.to_string(), value.to_string(), SetOp::Append));
+    }
+    if let Some((key, value)) = assignment.split_once("-=") {
+        return Ok((key.to_string(), value.to_string(), SetOp::Remove));
+    }
+    if let Some((key, value)) = assignment.split_once('=') {
+        return Ok((key.to_string(), value.to_string(), SetOp::Replace));
+    }
+    anyhow::bail!(
+        "invalid assignment '{}': expected key=value, key+=value, or key-=value",
+        assignment
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_plain_assignment() {
+        let (key, value, op) = parse_assignment("rustc.lto=true").unwrap();
+        assert_eq!(key, "rustc.lto");
+        assert_eq!(value, "true");
+        assert_eq!(op, SetOp::Replace);
+    }
+
+    #[test]
+    fn parse_append_assignment() {
+        let (key, value, op) = parse_assignment("linker.args+=-Wl,--gc-sections").unwrap();
+        assert_eq!(key, "linker.args");
+        assert_eq!(value, "-Wl,--gc-sections");
+        assert_eq!(op, SetOp::Append);
+    }
+
+    #[test]
+    fn parse_remove_assignment() {
+        let (key, value, op) = parse_assignment("linker.args-=-static").unwrap();
+        assert_eq!(key, "linker.args");
+        assert_eq!(value, "-static");
+        assert_eq!(op, SetOp::Remove);
+    }
+
+    #[test]
+    fn parse_array_bracket_assignment() {
+        let (key, value, op) = parse_assignment(r#"linker.args=["-static","-nostdlib"]"#).unwrap();
+        assert_eq!(key, "linker.args");
+        assert_eq!(value, r#"["-static","-nostdlib"]"#);
+        assert_eq!(op, SetOp::Replace);
+    }
+
+    #[test]
+    fn parse_no_equals_errors() {
+        assert!(parse_assignment("no-equals").is_err());
     }
 }

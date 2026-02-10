@@ -11,6 +11,7 @@ mod show;
 mod unset;
 
 pub use backup::backup_tspec;
+pub use edit::SetOp;
 pub use hash::hash_tspec;
 pub use list::list_tspecs;
 pub use new::new_tspec;
