@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::path::Path;
 
 use crate::TSPEC_SUFFIX;
-use crate::find_paths::{find_tspec, get_crate_name, resolve_package_dir};
+use crate::find_paths::{find_tspec, get_package_name, resolve_package_dir};
 use crate::tspec::{hash_spec, load_spec};
 
 use super::list::find_tspec_files;
@@ -20,7 +20,7 @@ pub fn hash_tspec(
 
     // Check if we're in a package directory
     let cwd = std::env::current_dir()?;
-    let in_package_dir = get_crate_name(&cwd).is_ok();
+    let in_package_dir = get_package_name(&cwd).is_ok();
 
     // Resolve: --all > -p PKG > cwd > all
     let hash_all = all || (package.is_none() && !in_package_dir);
@@ -37,7 +37,7 @@ pub fn hash_tspec(
         }
     } else {
         // In a package directory
-        let pkg_name = get_crate_name(&cwd)?;
+        let pkg_name = get_package_name(&cwd)?;
         hash_package_tspecs(&cwd, &pkg_name, tspec)?;
     }
 

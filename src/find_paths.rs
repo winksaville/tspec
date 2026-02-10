@@ -12,8 +12,8 @@ fn has_toml_section_exact(content: &str, section: &str) -> bool {
     content.lines().any(|line| line.trim() == header)
 }
 
-/// Extract crate name from Cargo.toml
-pub fn get_crate_name(crate_dir: &Path) -> Result<String> {
+/// Extract package name from Cargo.toml
+pub fn get_package_name(crate_dir: &Path) -> Result<String> {
     let cargo_toml = crate_dir.join("Cargo.toml");
     let content = std::fs::read_to_string(&cargo_toml)
         .with_context(|| format!("failed to read {}", cargo_toml.display()))?;
@@ -114,7 +114,7 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
 
     // For POPs, check if name matches the root package
     if is_pop(project_root) {
-        if let Ok(pkg_name) = get_crate_name(project_root)
+        if let Ok(pkg_name) = get_package_name(project_root)
             && pkg_name == name
         {
             return Ok(project_root.to_path_buf());
@@ -122,7 +122,7 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
         bail!(
             "package '{}' not found (this is a single-package project with package '{}')",
             name,
-            get_crate_name(project_root).unwrap_or_else(|_| "unknown".to_string())
+            get_package_name(project_root).unwrap_or_else(|_| "unknown".to_string())
         );
     }
 
@@ -143,7 +143,7 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
         {
             let nested = entry.path().join("tests");
             if nested.join("Cargo.toml").exists()
-                && let Ok(pkg_name) = get_crate_name(&nested)
+                && let Ok(pkg_name) = get_package_name(&nested)
                 && pkg_name == name
             {
                 return Ok(nested);
@@ -154,9 +154,9 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
     bail!("package '{}' not found", name);
 }
 
-/// Find the tspec for a crate - tries as path first, then relative to crate_dir
+/// Find the tspec for a package - tries as path first, then relative to pkg_dir
 /// Returns None if no tspec exists (plain cargo build will be used)
-pub fn find_tspec(crate_dir: &Path, explicit: Option<&str>) -> Result<Option<PathBuf>> {
+pub fn find_tspec(pkg_dir: &Path, explicit: Option<&str>) -> Result<Option<PathBuf>> {
     match explicit {
         Some(name) => {
             // Try as path first (relative to cwd or absolute)
@@ -165,15 +165,15 @@ pub fn find_tspec(crate_dir: &Path, explicit: Option<&str>) -> Result<Option<Pat
                 return Ok(Some(as_path.canonicalize().unwrap_or(as_path)));
             }
 
-            // Fallback: relative to crate directory
-            let in_crate = crate_dir.join(name);
-            if in_crate.exists() {
-                return Ok(Some(in_crate));
+            // Fallback: relative to package directory
+            let in_pkg = pkg_dir.join(name);
+            if in_pkg.exists() {
+                return Ok(Some(in_pkg));
             }
 
             // Try with TSPEC_SUFFIX if name has no extension
             if !name.contains('.') {
-                let with_suffix = crate_dir.join(format!("{}{}", name, TSPEC_SUFFIX));
+                let with_suffix = pkg_dir.join(format!("{}{}", name, TSPEC_SUFFIX));
                 if with_suffix.exists() {
                     return Ok(Some(with_suffix));
                 }
@@ -182,7 +182,7 @@ pub fn find_tspec(crate_dir: &Path, explicit: Option<&str>) -> Result<Option<Pat
             bail!("tspec not found: {}", name);
         }
         None => {
-            let default = crate_dir.join(format!("tspec{}", TSPEC_SUFFIX));
+            let default = pkg_dir.join(format!("tspec{}", TSPEC_SUFFIX));
             if default.exists() {
                 Ok(Some(default))
             } else {
@@ -195,7 +195,7 @@ pub fn find_tspec(crate_dir: &Path, explicit: Option<&str>) -> Result<Option<Pat
 /// Find multiple tspecs by glob patterns
 /// If no patterns given, defaults to "tspec*{TSPEC_SUFFIX}"
 /// Returns sorted list of paths, errors if none found
-pub fn find_tspecs(crate_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>> {
+pub fn find_tspecs(pkg_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>> {
     let default_pattern = format!("tspec*{}", TSPEC_SUFFIX);
     let patterns: Vec<&str> = if patterns.is_empty() {
         vec![&default_pattern]
@@ -213,19 +213,19 @@ pub fn find_tspecs(crate_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>
             continue;
         }
 
-        // Try as literal path relative to crate_dir
-        let in_crate = crate_dir.join(pattern);
-        if in_crate.exists() && in_crate.is_file() {
-            results.push(in_crate);
+        // Try as literal path relative to pkg_dir
+        let in_pkg = pkg_dir.join(pattern);
+        if in_pkg.exists() && in_pkg.is_file() {
+            results.push(in_pkg);
             continue;
         }
 
-        // Try as glob pattern in crate_dir
+        // Try as glob pattern in pkg_dir
         let glob_pattern =
             Pattern::new(pattern).with_context(|| format!("invalid glob pattern: {}", pattern))?;
 
-        let entries: Vec<_> = std::fs::read_dir(crate_dir)
-            .with_context(|| format!("cannot read directory: {}", crate_dir.display()))?
+        let entries: Vec<_> = std::fs::read_dir(pkg_dir)
+            .with_context(|| format!("cannot read directory: {}", pkg_dir.display()))?
             .filter_map(|e| e.ok())
             .filter(|e| {
                 let name = e.file_name().to_string_lossy().to_string();
@@ -246,7 +246,7 @@ pub fn find_tspecs(crate_dir: &Path, patterns: &[String]) -> Result<Vec<PathBuf>
         bail!(
             "no tspec files found matching '{}' in {}",
             pattern_list,
-            crate_dir.display()
+            pkg_dir.display()
         );
     }
 
@@ -297,10 +297,10 @@ mod tests {
     use std::path::PathBuf;
     use tempfile::TempDir;
 
-    // ==================== get_crate_name tests ====================
+    // ==================== get_package_name tests ====================
 
     #[test]
-    fn get_crate_name_valid() {
+    fn get_package_name_valid() {
         let tmp = TempDir::new().unwrap();
         let cargo_toml = tmp.path().join("Cargo.toml");
         fs::write(
@@ -312,12 +312,12 @@ version = "0.1.0"
         )
         .unwrap();
 
-        let name = get_crate_name(tmp.path()).unwrap();
+        let name = get_package_name(tmp.path()).unwrap();
         assert_eq!(name, "my-test-crate");
     }
 
     #[test]
-    fn get_crate_name_with_single_quotes() {
+    fn get_package_name_with_single_quotes() {
         let tmp = TempDir::new().unwrap();
         let cargo_toml = tmp.path().join("Cargo.toml");
         fs::write(
@@ -326,17 +326,17 @@ version = "0.1.0"
         )
         .unwrap();
 
-        let name = get_crate_name(tmp.path()).unwrap();
+        let name = get_package_name(tmp.path()).unwrap();
         assert_eq!(name, "single-quoted");
     }
 
     #[test]
-    fn get_crate_name_missing_name() {
+    fn get_package_name_missing_name() {
         let tmp = TempDir::new().unwrap();
         let cargo_toml = tmp.path().join("Cargo.toml");
         fs::write(&cargo_toml, "[package]\nversion = \"0.1.0\"\n").unwrap();
 
-        let result = get_crate_name(tmp.path());
+        let result = get_package_name(tmp.path());
         assert!(result.is_err());
         assert!(
             result
@@ -347,15 +347,15 @@ version = "0.1.0"
     }
 
     #[test]
-    fn get_crate_name_missing_file() {
+    fn get_package_name_missing_file() {
         let tmp = TempDir::new().unwrap();
-        let result = get_crate_name(tmp.path());
+        let result = get_package_name(tmp.path());
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("failed to read"));
     }
 
     #[test]
-    fn get_crate_name_name_in_other_section_ignored() {
+    fn get_package_name_name_in_other_section_ignored() {
         let tmp = TempDir::new().unwrap();
         let cargo_toml = tmp.path().join("Cargo.toml");
         fs::write(
@@ -370,7 +370,7 @@ version = "0.1.0"
         )
         .unwrap();
 
-        let name = get_crate_name(tmp.path()).unwrap();
+        let name = get_package_name(tmp.path()).unwrap();
         assert_eq!(name, "correct-name");
     }
 

@@ -25,7 +25,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use crate::find_paths::get_crate_name;
+use crate::find_paths::get_package_name;
 
 /// Trait for command execution.
 pub trait Execute {
@@ -55,5 +55,5 @@ pub fn execute_cargo_subcommand(
 /// Check if current directory is a package (has Cargo.toml with [package])
 pub(crate) fn current_package_name() -> Option<String> {
     let cwd = std::env::current_dir().ok()?;
-    get_crate_name(&cwd).ok()
+    get_package_name(&cwd).ok()
 }

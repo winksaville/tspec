@@ -6,7 +6,7 @@ use std::process::Command;
 
 use crate::find_paths::{
     find_package_dir, find_project_root, find_tspec, get_binary_path, get_binary_path_simple,
-    get_crate_name,
+    get_package_name,
 };
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
 use crate::types::{OptLevel, PanicStrategy, Profile, Spec};
@@ -25,7 +25,7 @@ pub fn build_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resu
     let tspec_path = find_tspec(&pkg_dir, tspec)?;
 
     // Resolve actual package name from Cargo.toml (needed when pkg_name is a path)
-    let pkg_name = get_crate_name(&pkg_dir)?;
+    let pkg_name = get_package_name(&pkg_dir)?;
 
     // Track if we generated a build.rs
     let build_rs_path = pkg_dir.join("build.rs");

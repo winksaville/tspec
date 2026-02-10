@@ -1,4 +1,4 @@
-//! Batch operations on all workspace crates
+//! Batch operations on all workspace packages
 //!
 //! Provides build_all, run_all, test_all for operating on all workspace members.
 
@@ -9,10 +9,10 @@ use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::build_package;
 use crate::run::run_binary;
 use crate::testing::test_package;
-use crate::workspace::{CrateKind, WorkspaceInfo};
+use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
 
-/// Result of a batch operation on a single crate
+/// Result of a batch operation on a single package
 pub struct OpResult {
     pub name: String,
     pub success: bool,
@@ -20,7 +20,7 @@ pub struct OpResult {
     pub size: Option<u64>,
 }
 
-/// Build all workspace crates (excluding build tools)
+/// Build all workspace packages (excluding build tools)
 pub fn build_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
@@ -68,7 +68,7 @@ pub fn build_all(
     results
 }
 
-/// Run all app crates sequentially
+/// Run all app packages sequentially
 pub fn run_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
@@ -114,7 +114,7 @@ pub fn run_all(
     results
 }
 
-/// Test all workspace crates
+/// Test all workspace packages
 pub fn test_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
@@ -123,10 +123,10 @@ pub fn test_all(
 ) -> Vec<OpResult> {
     let mut results = Vec::new();
 
-    // Test regular crates (excluding Test kind which needs special handling)
+    // Test regular packages (excluding Test kind which needs special handling)
     for member in workspace.buildable_members() {
-        if member.kind == CrateKind::Test {
-            continue; // Handle test crates separately
+        if member.kind == PackageKind::Test {
+            continue; // Handle test packages separately
         }
 
         println!("=== {} ===", member.name);
@@ -154,11 +154,11 @@ pub fn test_all(
         }
     }
 
-    // Handle test crates (like rlibc-x2-tests) - build and run all test binaries
+    // Handle test packages (like rlibc-x2-tests) - build and run all test binaries
     for member in workspace.test_members() {
         println!("=== {} ===", member.name);
 
-        // Build the test crate (builds all binaries)
+        // Build the test package (builds all binaries)
         let build_result = match build_package(&member.name, tspec, release) {
             Ok(r) => r,
             Err(e) => {
@@ -266,7 +266,7 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
 
     println!();
     print_header!("TEST SUMMARY");
-    println!("  {:width$}  Status", "Crate", width = max_name_len);
+    println!("  {:width$}  Status", "Package", width = max_name_len);
 
     let mut passed = 0;
     let mut failed = 0;
@@ -307,7 +307,11 @@ pub fn print_summary(results: &[OpResult]) -> ExitCode {
 
     println!();
     print_header!("BUILD SUMMARY");
-    println!("  {:width$}  Status    Size", "Crate", width = max_name_len);
+    println!(
+        "  {:width$}  Status    Size",
+        "Package",
+        width = max_name_len
+    );
 
     let mut ok_count = 0;
     let mut failed_count = 0;
@@ -365,7 +369,7 @@ pub fn print_run_summary(results: &[OpResult]) -> ExitCode {
 
     println!();
     print_header!("RUN SUMMARY");
-    println!("  {:width$}  Exit", "Crate", width = max_name_len);
+    println!("  {:width$}  Exit", "Package", width = max_name_len);
 
     let mut error_count = 0;
 

@@ -1,4 +1,4 @@
-//! Workspace discovery and crate classification
+//! Workspace discovery and package classification
 //!
 //! Uses `cargo metadata` to discover workspace members and classify them
 //! by type (app, lib, tool, test, build tool).
@@ -7,9 +7,9 @@ use anyhow::{Context, Result};
 use cargo_metadata::MetadataCommand;
 use std::path::{Path, PathBuf};
 
-/// Crate classification for behavior differences
+/// Package classification for behavior differences
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CrateKind {
+pub enum PackageKind {
     /// apps/* - application binaries, runnable
     App,
     /// libs/* - library crates
@@ -22,19 +22,19 @@ pub enum CrateKind {
     BuildTool,
 }
 
-/// Information about a workspace member
+/// Information about a workspace package
 #[derive(Debug, Clone)]
-pub struct CrateMember {
+pub struct PackageMember {
     pub name: String,
     pub path: PathBuf,
     pub has_binary: bool,
-    pub kind: CrateKind,
+    pub kind: PackageKind,
 }
 
 /// Workspace information from cargo metadata
 pub struct WorkspaceInfo {
     pub root: PathBuf,
-    pub members: Vec<CrateMember>,
+    pub members: Vec<PackageMember>,
 }
 
 impl WorkspaceInfo {
@@ -50,7 +50,7 @@ impl WorkspaceInfo {
         let packages = metadata.workspace_packages();
         let is_pop = packages.len() == 1;
 
-        let members: Vec<CrateMember> = packages
+        let members: Vec<PackageMember> = packages
             .iter()
             .map(|pkg| {
                 let path = pkg
@@ -60,14 +60,14 @@ impl WorkspaceInfo {
                     .as_std_path()
                     .to_path_buf();
                 let has_binary = pkg.targets.iter().any(|t| t.is_bin());
-                // POPs are always App — classify_crate is for multi-crate workspaces
+                // POPs are always App — classify_package is for multi-package workspaces
                 let kind = if is_pop {
-                    CrateKind::App
+                    PackageKind::App
                 } else {
-                    classify_crate(&path, &pkg.name)
+                    classify_package(&path, &pkg.name)
                 };
 
-                CrateMember {
+                PackageMember {
                     name: pkg.name.clone(),
                     path,
                     has_binary,
@@ -80,54 +80,54 @@ impl WorkspaceInfo {
     }
 
     /// Get members excluding build tools such as xtask or tspec
-    pub fn buildable_members(&self) -> Vec<&CrateMember> {
+    pub fn buildable_members(&self) -> Vec<&PackageMember> {
         self.members
             .iter()
-            .filter(|m| m.kind != CrateKind::BuildTool)
+            .filter(|m| m.kind != PackageKind::BuildTool)
             .collect()
     }
 
     /// Get members that can be run (apps only - have binaries and are runnable)
-    pub fn runnable_members(&self) -> Vec<&CrateMember> {
+    pub fn runnable_members(&self) -> Vec<&PackageMember> {
         self.members
             .iter()
-            .filter(|m| m.has_binary && m.kind == CrateKind::App)
+            .filter(|m| m.has_binary && m.kind == PackageKind::App)
             .collect()
     }
 
-    /// Get test crates (special handling for rlibc-x2-tests etc.)
-    pub fn test_members(&self) -> Vec<&CrateMember> {
+    /// Get test packages (special handling for rlibc-x2-tests etc.)
+    pub fn test_members(&self) -> Vec<&PackageMember> {
         self.members
             .iter()
-            .filter(|m| m.kind == CrateKind::Test)
+            .filter(|m| m.kind == PackageKind::Test)
             .collect()
     }
 }
 
-/// Classify a crate based on its path and name
-fn classify_crate(path: &Path, name: &str) -> CrateKind {
+/// Classify a package based on its path and name
+fn classify_package(path: &Path, name: &str) -> PackageKind {
     let path_str = path.to_string_lossy();
 
     // Build tools at workspace root level
     if name == "tspec" || name == "xt" || name == "xtask" {
-        return CrateKind::BuildTool;
+        return PackageKind::BuildTool;
     }
 
-    // Test crates
+    // Test packages
     if path_str.contains("/tests") || name.ends_with("-tests") {
-        return CrateKind::Test;
+        return PackageKind::Test;
     }
 
     // Categorize by directory
     if path_str.contains("apps/") {
-        CrateKind::App
+        PackageKind::App
     } else if path_str.contains("libs/") {
-        CrateKind::Lib
+        PackageKind::Lib
     } else if path_str.contains("tools/") {
-        CrateKind::Tool
+        PackageKind::Tool
     } else {
         // Unknown location, treat as build tool (excluded)
-        CrateKind::BuildTool
+        PackageKind::BuildTool
     }
 }
 
@@ -138,43 +138,43 @@ mod tests {
     #[test]
     fn classify_app() {
         let path = PathBuf::from("/workspace/apps/ex-x1");
-        assert_eq!(classify_crate(&path, "ex-x1"), CrateKind::App);
+        assert_eq!(classify_package(&path, "ex-x1"), PackageKind::App);
     }
 
     #[test]
     fn classify_lib() {
         let path = PathBuf::from("/workspace/libs/rlibc-x1");
-        assert_eq!(classify_crate(&path, "rlibc-x1"), CrateKind::Lib);
+        assert_eq!(classify_package(&path, "rlibc-x1"), PackageKind::Lib);
     }
 
     #[test]
     fn classify_tool() {
         let path = PathBuf::from("/workspace/tools/is-libc-used");
-        assert_eq!(classify_crate(&path, "is-libc-used"), CrateKind::Tool);
+        assert_eq!(classify_package(&path, "is-libc-used"), PackageKind::Tool);
     }
 
     #[test]
     fn classify_test_by_path() {
         let path = PathBuf::from("/workspace/libs/rlibc-x2/tests");
-        assert_eq!(classify_crate(&path, "rlibc-x2-tests"), CrateKind::Test);
+        assert_eq!(classify_package(&path, "rlibc-x2-tests"), PackageKind::Test);
     }
 
     #[test]
     fn classify_test_by_name() {
         let path = PathBuf::from("/workspace/somewhere");
-        assert_eq!(classify_crate(&path, "foo-tests"), CrateKind::Test);
+        assert_eq!(classify_package(&path, "foo-tests"), PackageKind::Test);
     }
 
     #[test]
     fn classify_build_tool_xt() {
         let path = PathBuf::from("/workspace/xt");
-        assert_eq!(classify_crate(&path, "xt"), CrateKind::BuildTool);
+        assert_eq!(classify_package(&path, "xt"), PackageKind::BuildTool);
     }
 
     #[test]
     fn classify_build_tool_xtask() {
         let path = PathBuf::from("/workspace/xtask");
-        assert_eq!(classify_crate(&path, "xtask"), CrateKind::BuildTool);
+        assert_eq!(classify_package(&path, "xtask"), PackageKind::BuildTool);
     }
 
     #[test]
@@ -187,7 +187,7 @@ mod tests {
 
             let buildable = info.buildable_members();
             if info.members.len() == 1 {
-                // POP: the single crate should be buildable
+                // POP: the single package should be buildable
                 assert_eq!(buildable.len(), 1);
             } else {
                 // Workspace: xt and xtask should be excluded from buildable
@@ -199,7 +199,7 @@ mod tests {
             }
 
             // For workspaces with apps/, should have runnable members
-            // For POPs, the single crate is runnable if it has a binary
+            // For POPs, the single package is runnable if it has a binary
             let _runnable = info.runnable_members();
             // Just verify it doesn't panic - count depends on project structure
         }
