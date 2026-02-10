@@ -135,21 +135,30 @@ fn parse_scalar_value(key: &str, raw: &str) -> Value {
 
 /// Parse an array value from a string.
 /// With brackets: `["a","b"]` — parsed as TOML inline array (multiple items).
+///   If TOML parse fails, falls back to comma-splitting bare strings: `[a,b]` → `["a","b"]`.
 /// Without brackets: treated as a single item (commas are literal).
 fn parse_array_value(raw: &str) -> Result<Array> {
     let raw = raw.trim();
 
-    // Bracket syntax: parse as TOML inline array
+    // Bracket syntax: try TOML first, fall back to bare comma-split
     if raw.starts_with('[') && raw.ends_with(']') {
         let toml_str = format!("x = {}", raw);
-        match toml_str.parse::<DocumentMut>() {
-            Ok(doc) => {
-                if let Some(Item::Value(Value::Array(arr))) = doc.get("x") {
-                    return Ok(arr.clone());
-                }
-            }
-            Err(e) => bail!("invalid array syntax: {} ({})", raw, e),
+        if let Ok(doc) = toml_str.parse::<DocumentMut>()
+            && let Some(Item::Value(Value::Array(arr))) = doc.get("x")
+        {
+            return Ok(arr.clone());
         }
+
+        // Fallback: treat bracket contents as comma-separated bare strings
+        let inner = &raw[1..raw.len() - 1];
+        let mut arr = Array::new();
+        for item in inner.split(',') {
+            let item = item.trim().trim_matches('"').trim_matches('\'');
+            if !item.is_empty() {
+                arr.push(item);
+            }
+        }
+        return Ok(arr);
     }
 
     // No brackets: single item (commas are literal, e.g. "-Wl,--gc-sections")
@@ -569,5 +578,57 @@ mod tests {
         remove_from_field(&mut doc, "linker.args", "-nostdlib").unwrap();
         let arr = doc["linker"]["args"].as_array().unwrap();
         assert_eq!(arr.len(), 1);
+    }
+
+    #[test]
+    fn parse_array_bare_single_bracket() {
+        // [za] — TOML parse fails, falls back to bare string
+        let arr = parse_array_value("[za]").unwrap();
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("za"));
+    }
+
+    #[test]
+    fn parse_array_bare_multiple_brackets() {
+        // [-static,-nostdlib] — bare comma-split
+        let arr = parse_array_value("[-static,-nostdlib]").unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-nostdlib"));
+    }
+
+    #[test]
+    fn parse_array_bare_brackets_with_spaces() {
+        let arr = parse_array_value("[-static, -nostdlib]").unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-nostdlib"));
+    }
+
+    #[test]
+    fn parse_array_quoted_toml_still_works() {
+        // Proper TOML syntax still works via the TOML-first path
+        let arr = parse_array_value(r#"["-Wl,--gc-sections", "-static"]"#).unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-Wl,--gc-sections"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-static"));
+    }
+
+    #[test]
+    fn remove_with_bare_bracket_syntax() {
+        let input = "[linker]\nargs = [\"-static\", \"-nostdlib\"]\n";
+        let mut doc = input.parse::<DocumentMut>().unwrap();
+        remove_from_field(&mut doc, "linker.args", "[-static,-nostdlib]").unwrap();
+        assert!(doc.get("linker").is_none());
+    }
+
+    #[test]
+    fn append_with_bare_bracket_syntax() {
+        let mut doc = "".parse::<DocumentMut>().unwrap();
+        append_field(&mut doc, "linker.args", "[-static,-nostdlib]").unwrap();
+        let arr = doc["linker"]["args"].as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr.get(0).unwrap().as_str(), Some("-static"));
+        assert_eq!(arr.get(1).unwrap().as_str(), Some("-nostdlib"));
     }
 }

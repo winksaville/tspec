@@ -51,7 +51,7 @@ pub struct CargoConfig {
     #[serde(default)]
     pub unstable: Vec<String>,
     /// Custom target directory subdirectory for per-spec isolation.
-    /// Supports `<name>` (spec filename sans .ts.toml) and `<hash>` (8-char content hash).
+    /// Supports `{name}` (spec filename sans .ts.toml) and `{hash}` (8-char content hash).
     pub target_dir: Option<String>,
 }
 

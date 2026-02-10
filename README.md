@@ -49,7 +49,7 @@ profile = "release"                        # "debug" (default), "release"
 target_triple = "x86_64-unknown-linux-musl"
 target_json = "path/to/custom-target.json" # custom target spec (mutually exclusive with target_triple)
 unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
-target_dir = "<name>"                      # per-spec target dir; supports <name> and <hash> placeholders
+target_dir = "{name}"                      # per-spec target dir; supports {name} and {hash} placeholders
 
 [rustc]
 opt_level = "z"                            # "0", "1", "2", "3", "s", "z"
@@ -152,7 +152,7 @@ Backups are valid spec files and can be used directly with `-t`.
 | `cargo.profile` | scalar | `debug`, `release` |
 | `cargo.target_triple` | scalar | any string |
 | `cargo.target_json` | scalar | any path |
-| `cargo.target_dir` | scalar | any string (supports `<name>`, `<hash>`) |
+| `cargo.target_dir` | scalar | any string (supports `{name}`, `{hash}`) |
 | `cargo.unstable` | array | `["flag1", "flag2"]` |
 | `rustc.opt_level` | scalar | `0`, `1`, `2`, `3`, `s`, `z` |
 | `rustc.panic` | scalar | `abort`, `unwind`, `immediate-abort` |

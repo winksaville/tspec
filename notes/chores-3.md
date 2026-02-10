@@ -161,3 +161,50 @@ tspec ts unset rustc.lto                           # New command
 tspec ts backup && diff original backup            # Byte-identical
 tspec ts restore -t name-001-hash                  # Preserves comments
 ```
+
+## 20260210 - Shell-hostile characters in values and array syntax
+
+### Problem
+
+Several tspec features used characters that conflict with bash:
+
+1. **`<name>`/`<hash>` placeholders in `cargo.target_dir`** — `<` and `>` are shell
+   redirection operators, so `tspec ts set cargo.target_dir=<name>-xyz` triggers
+   `bash: name: No such file or directory`. Users must quote the whole argument.
+
+2. **Bracket array syntax with unquoted values** — `tspec ts set linker.args-=[za]`
+   fails because `parse_array_value` tries to parse `[za]` as a TOML inline array,
+   and bare `za` is not valid TOML (must be `["za"]`). Meanwhile `linker.args+=za`
+   (no brackets) works fine since the bare path treats it as a single string.
+
+3. **Shell quote stripping compounds the bracket problem** — even
+   `tspec ts set linker.args-=["za"]` fails because bash strips the double quotes,
+   passing `[za]` to tspec. Only single-quoting the entire argument works:
+   `tspec ts set 'linker.args-=["za"]'`.
+
+### Fix 1: `<>` → `{}` placeholders (v0.9.8)
+
+Replaced `<name>`/`<hash>` with `{name}`/`{hash}` in `expand_target_dir()`. Curly
+braces are shell-inert — bash brace expansion only triggers with commas (`{a,b}`) or
+ranges (`{1..3}`) inside, so `{name}` passes through untouched.
+
+**Files changed:** `src/tspec.rs`, `src/types.rs`, `src/ts_cmd/set.rs` (test),
+`README.md`
+
+### Fix 2: Bare-string fallback for bracket array syntax (v0.9.8)
+
+Changed `parse_array_value()` to try TOML parsing first, then fall back to
+comma-splitting bare strings when TOML fails. This means:
+
+| Input | Parse path | Result |
+|---|---|---|
+| `za` | bare (no brackets) | single item `"za"` |
+| `[za]` | TOML fails → bare fallback | single item `"za"` |
+| `[-static,-nostdlib]` | TOML fails → bare fallback | two items |
+| `[-static, -nostdlib]` | TOML fails → bare fallback | two items (spaces trimmed) |
+| `["-Wl,--gc-sections", "-static"]` | TOML succeeds | two items (embedded comma preserved) |
+
+The TOML-first path is preserved so that properly quoted strings with embedded commas
+still work — `"-Wl,--gc-sections"` contains a comma that must not be split on.
+
+**Files changed:** `src/ts_cmd/edit.rs` (7 new tests)

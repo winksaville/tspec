@@ -55,13 +55,13 @@ pub fn expand_target_dir(spec: &Spec, spec_name: &str) -> Result<Option<String>>
 
     let mut expanded = raw.clone();
 
-    if expanded.contains("<name>") {
-        expanded = expanded.replace("<name>", spec_name);
+    if expanded.contains("{name}") {
+        expanded = expanded.replace("{name}", spec_name);
     }
 
-    if expanded.contains("<hash>") {
+    if expanded.contains("{hash}") {
         let hash = hash_spec(spec)?;
-        expanded = expanded.replace("<hash>", &hash);
+        expanded = expanded.replace("{hash}", &hash);
     }
 
     if expanded.is_empty() {
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn expand_target_dir_name_placeholder() {
         let mut spec = Spec::default();
-        spec.cargo.target_dir = Some("<name>".to_string());
+        spec.cargo.target_dir = Some("{name}".to_string());
         assert_eq!(
             expand_target_dir(&spec, "static-opt").unwrap(),
             Some("static-opt".to_string())
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn expand_target_dir_hash_placeholder() {
         let mut spec = Spec::default();
-        spec.cargo.target_dir = Some("<hash>".to_string());
+        spec.cargo.target_dir = Some("{hash}".to_string());
         let result = expand_target_dir(&spec, "foo").unwrap().unwrap();
         assert_eq!(result.len(), 8);
         assert!(result.chars().all(|c| c.is_ascii_hexdigit()));
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn expand_target_dir_name_and_hash() {
         let mut spec = Spec::default();
-        spec.cargo.target_dir = Some("<name>-<hash>".to_string());
+        spec.cargo.target_dir = Some("{name}-{hash}".to_string());
         let result = expand_target_dir(&spec, "opt").unwrap().unwrap();
         assert!(result.starts_with("opt-"));
         assert_eq!(result.len(), 4 + 8); // "opt-" + 8-char hash

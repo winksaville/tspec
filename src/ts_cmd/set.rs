@@ -163,9 +163,9 @@ mod tests {
 
     #[test]
     fn set_cargo_target_dir() {
-        let (_dir, path, _) = set_in_file("", "cargo.target_dir", "<name>");
+        let (_dir, path, _) = set_in_file("", "cargo.target_dir", "{name}");
         let spec = load_spec(&path).unwrap();
-        assert_eq!(spec.cargo.target_dir, Some("<name>".to_string()));
+        assert_eq!(spec.cargo.target_dir, Some("{name}".to_string()));
     }
 
     #[test]
