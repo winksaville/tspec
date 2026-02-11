@@ -103,8 +103,10 @@ Manage spec files without manual TOML editing. All commands that modify files pr
 | `ts show` | Display the TOML contents of a tspec file |
 | `ts hash` | Print the content hash (used in backup filenames) of a tspec |
 | `ts new` | Create a new tspec with defaults, or copy an existing one with `-f` (byte-for-byte) |
-| `ts set` | Set a scalar or replace an entire array (`=`), append to an array (`+=`), or remove from an array (`-=`) |
+| `ts set` | Set a scalar value or replace an entire array |
 | `ts unset` | Remove a field (scalar or array) from a tspec entirely |
+| `ts add` | Add items to an array field (append or insert at position) |
+| `ts remove` | Remove items from an array field (by value or by index) |
 | `ts backup` | Create a versioned backup copy (`name-NNN-hash.ts.toml`) |
 | `ts restore` | Restore a tspec by copying a versioned backup back to its original name |
 
@@ -121,16 +123,28 @@ tspec ts new -p myapp                    # Create tspec.ts.toml with defaults
 tspec ts new experiment -p myapp         # Create experiment.ts.toml
 tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec (byte-for-byte)
 
-# Set values (= sets/replaces, += appends to array, -= removes from array)
-tspec ts set strip=symbols -p myapp                # Set a scalar field
-tspec ts set rustc.lto=true -t tspec-opt           # Set in a specific tspec
-tspec ts set 'linker.args=["-static","-nostdlib"]' # Replace entire array with new value
-tspec ts set 'linker.args+=-Wl,--gc-sections'      # Append one item to array
-tspec ts set 'linker.args-=-nostdlib'               # Remove one item from array
+# Set scalar values
+tspec ts set strip symbols -p myapp              # Set a scalar field
+tspec ts set rustc.lto true -t tspec-opt         # Set in a specific tspec
+tspec ts set cargo.profile release               # No quoting needed
+
+# Set (replace) entire arrays — each element is a separate arg
+tspec ts set linker.args -static -nostdlib        # Replace array
+tspec ts set rustc.build_std core alloc           # Replace array
+
+# Add items to arrays (append by default)
+tspec ts add linker.args -Wl,--gc-sections        # Append one item
+tspec ts add linker.args -nostdlib -pie            # Append multiple items
+tspec ts add -i 0 linker.args -nostartfiles        # Insert at position 0
+
+# Remove items from arrays
+tspec ts remove linker.args -nostdlib              # Remove by value
+tspec ts remove linker.args -static -pie           # Remove multiple by value
+tspec ts remove -i 2 linker.args                   # Remove by index
 
 # Remove a field entirely
-tspec ts unset rustc.lto -p myapp             # Remove scalar field
-tspec ts unset linker.args -t tspec-opt       # Remove array field
+tspec ts unset rustc.lto -p myapp                  # Remove scalar field
+tspec ts unset linker.args -t tspec-opt            # Remove array field
 
 # Backup and restore (byte-for-byte copies)
 tspec ts backup -p myapp                 # Backup tspec.ts.toml → tspec-001-abcd1234.ts.toml
@@ -140,10 +154,12 @@ tspec ts restore -t t1-001-abcd1234      # Restore t1.ts.toml from backup
 
 Backups are valid spec files and can be used directly with `-t`.
 
-`ts set` and `ts unset` use `toml_edit` for surgical editing — comments and formatting are preserved.
+`ts set`, `ts unset`, `ts add`, and `ts remove` use `toml_edit` for surgical editing — comments and formatting are preserved.
 `ts backup`, `ts restore`, and `ts new -f` use byte-for-byte file copy — comments are preserved exactly.
 
-### Supported `ts set` / `ts unset` keys
+### Supported keys
+
+Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`) or `TABLE.FIELD` for nested fields (`rustc.lto`, `linker.args`).
 
 | Key | Type | Values |
 |-----|------|--------|
@@ -153,52 +169,37 @@ Backups are valid spec files and can be used directly with `-t`.
 | `cargo.target_triple` | scalar | any string |
 | `cargo.target_json` | scalar | any path |
 | `cargo.target_dir` | scalar | any string (supports `{name}`, `{hash}`) |
-| `cargo.unstable` | array | `["flag1", "flag2"]` |
+| `cargo.unstable` | array | e.g. `panic-immediate-abort` |
 | `rustc.opt_level` | scalar | `0`, `1`, `2`, `3`, `s`, `z` |
 | `rustc.panic` | scalar | `abort`, `unwind`, `immediate-abort` |
 | `rustc.lto` | scalar | `true`, `false` |
 | `rustc.codegen_units` | scalar | integer |
-| `rustc.build_std` | array | `["core", "alloc"]` |
-| `rustc.flags` | array | `["-C", "flag"]` |
-| `linker.args` | array | `["-static", "-nostdlib"]` |
+| `rustc.build_std` | array | e.g. `core alloc` |
+| `rustc.flags` | array | e.g. `-Cforce-frame-pointers=yes` |
+| `linker.args` | array | e.g. `-static -nostdlib` |
 
-### Array value rules
+### Array operations
 
-Array values follow two simple rules, consistent across `=`, `+=`, and `-=`:
+Four orthogonal commands operate on arrays at two levels:
 
-- **With brackets** `["a","b"]` — TOML inline array. Commas separate items. Quotes protect literal commas.
-- **Without brackets** `value` — always **one item**. The entire value is taken literally.
-
-| Syntax | Result |
-|--------|--------|
-| `["-static","-nostdlib"]` | 2 items: `-static`, `-nostdlib` |
-| `["-Wl,--gc-sections"]` | 1 item: `-Wl,--gc-sections` (comma inside quotes is literal) |
-| `-static` | 1 item: `-static` |
-| `-Wl,--gc-sections` | 1 item: `-Wl,--gc-sections` |
-| `core,alloc` | 1 item: `core,alloc` (NOT two items — use `["core","alloc"]`) |
+| Level | Command | Purpose |
+|-------|---------|---------|
+| Field-level | `ts set` | Replace entire array with new values |
+| Field-level | `ts unset` | Remove the array field entirely |
+| Item-level | `ts add` | Append items (or insert at position with `-i`) |
+| Item-level | `ts remove` | Remove items by value (or by index with `-i`) |
 
 ```bash
-# Replace entire array with multiple items (bracket syntax, quote for shell)
-tspec ts set 'linker.args=["-static","-nostdlib"]'
-tspec ts set 'rustc.build_std=["core","alloc"]'
-
-# Replace entire array with a single item (no brackets needed)
-tspec ts set linker.args=-static                   # array becomes ["-static"]
-
-# Append to an existing array
-tspec ts set 'linker.args+=-nostdlib'              # append one item
-tspec ts set 'linker.args+=["-nostdlib","-pie"]'   # append multiple items
-
-# Remove from an array
-tspec ts set 'linker.args-=-nostdlib'              # remove one item
-tspec ts set 'linker.args-=["-static","-pie"]'     # remove multiple items
-
-# += skips duplicates; -= is a no-op if the value isn't present.
-# If -= removes the last entry, the field is removed entirely.
-
-# To remove the entire field, use unset:
-tspec ts unset linker.args                         # removes the field completely
+tspec ts set linker.args -static -nostdlib   # replace all with these
+tspec ts unset linker.args                   # clear the field
+tspec ts add linker.args -Wl,--gc-sections   # append (skips duplicates)
+tspec ts add -i 0 linker.args -nostartfiles  # insert at position
+tspec ts remove linker.args -static          # remove by value
+tspec ts remove -i 2 linker.args             # remove by index
 ```
+
+Values starting with `-` work without quoting thanks to `allow_hyphen_values`.
+Use `--` as an escape hatch if a value collides with a flag like `-p`, `-t`, or `-i`.
 
 Note: Use `ts` as the subcommand (short for "tspec management").
 

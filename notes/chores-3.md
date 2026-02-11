@@ -42,7 +42,7 @@ New module with:
 
 - **`set_field(doc, key, value) -> Result<()>`** - for scalars: parse key path -> ensure table exists -> set `doc["section"]["field"] = value`. Value parsing: booleans as `toml_edit::value(true/false)`, integers as `toml_edit::value(i64)`, everything else as string. For arrays: parse `[a,b,c]` or `"a","b"` syntax -> replace the array.
 
-- **`unset_field(doc, key) -> Result<()>`** - parse key path -> remove from table. If table becomes empty, remove the table too.
+- **`unset_field(doc, key) -> Result<()>`** - parse key path -> remove from table. Does not remove the containing table, even if it becomes empty.
 
 - **`validate_value(key, value) -> Result<()>`** - reuse existing parse functions (`parse_panic_mode`, `parse_strip_mode`, etc.) for enum keys. Accept anything for string/array keys.
 
@@ -422,11 +422,11 @@ New functions in `src/ts_cmd/edit.rs`:
   without dedup (user explicitly chose the position).
 
 - **`remove_items_by_value(doc, key, values: &[String])`** — like
-  `remove_from_field` but takes `Vec<String>` directly. If array becomes empty,
-  removes the field (existing behavior).
+  `remove_from_field` but takes `Vec<String>` directly. Keeps the field as an
+  empty array if all items are removed (tables are never auto-removed).
 
 - **`remove_item_by_index(doc, key, index: usize)`** — removes the item at
-  the given index. If array becomes empty, removes the field.
+  the given index. Keeps the field as an empty array if the last item is removed.
 
 - **`set_field_from_strings(doc, key, values: &[String], kind)`** — for `ts set`.
   Scalars: `values[0]`. Arrays: builds array from all values. Replaces
@@ -507,7 +507,7 @@ pub fn remove_value(
 
 - Rewrite `set.rs` tests to use the new `values: &[String]` signature
 - Add `add.rs` tests: append, insert-at-index, dedup, scalar-rejection
-- Add `remove.rs` tests: by-value, by-index, empty-removes-field,
+- Add `remove.rs` tests: by-value, by-index, empty-keeps-array,
   scalar-rejection, out-of-bounds index error
 - Add `edit.rs` unit tests for the new functions
 - Remove tests for old bracket-syntax parsing (dead code)
