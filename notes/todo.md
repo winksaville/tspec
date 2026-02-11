@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
-
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -16,6 +14,7 @@
 
 See older [done.md](done.md)
 
+- Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
 - `ts set` array append/remove: `linker.args+=-Wl,--gc-sections` / `linker.args-=-static`
 - `ts set/unset` rewritten with `toml_edit` - supports all fields (including arrays: `rustc.build_std`, `linker.args`, `cargo.unstable`, `rustc.flags`), preserves comments/formatting
 - `ts unset` command added - removes fields from tspecs

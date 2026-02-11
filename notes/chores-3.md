@@ -250,7 +250,7 @@ a=[fx]
 **Conclusion:** Square brackets are safe unquoted in `tspec ts set key+=[values]`
 syntax. No quoting needed for normal use.
 
-## 20260211 - Orthogonal `ts set`/`add`/`remove` with separate key and value args
+## 20260211 - Orthogonal `ts set`/`add`/`remove` with separate key and value args ✓
 
 ### Problem
 
