@@ -208,3 +208,44 @@ The TOML-first path is preserved so that properly quoted strings with embedded c
 still work — `"-Wl,--gc-sections"` contains a comma that must not be split on.
 
 **Files changed:** `src/ts_cmd/edit.rs` (7 new tests)
+
+### Bash glob safety of square brackets
+
+Square brackets are bash glob characters — `[fx]` matches a single-character filename
+from the set {f, x}. Initial concern was that `linker.args+=[-static,-nostdlib]` could
+be glob-expanded. Investigation showed this is safe because **bash globs the entire
+token**, not just the bracket portion. The token `linker.args+=[-static,-nostdlib]`
+would only match a file literally named `linker.args+=-` (or `s`, `t`, etc.), which
+will never exist.
+
+Standalone brackets DO expand:
+
+```bash
+$ echo [fx]          # no f or x file
+[fx]
+$ touch f
+$ echo [fx]          # f exists
+f
+$ touch x
+$ echo [fx]          # both exist
+f x
+$ rm f
+$ echo [fx]          # only x
+x
+$ rm x
+$ echo [fx]          # neither exists, passes through
+[fx]
+```
+
+But with a prefix, the whole token fails to match any file:
+
+```bash
+$ touch f x
+$ echo [fx]          # standalone: expands
+f x
+$ echo a=[fx]        # prefixed: no file matches "a=f" or "a=x"
+a=[fx]
+```
+
+**Conclusion:** Square brackets are safe unquoted in `tspec ts set key+=[values]`
+syntax. No quoting needed for normal use.
