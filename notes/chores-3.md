@@ -249,3 +249,306 @@ a=[fx]
 
 **Conclusion:** Square brackets are safe unquoted in `tspec ts set key+=[values]`
 syntax. No quoting needed for normal use.
+
+## 20260211 - Orthogonal `ts set`/`add`/`remove` with separate key and value args
+
+### Problem
+
+`ts set` takes the entire assignment as a single positional argument (`key=value`),
+which forces users to fight the shell:
+
+```bash
+# Scalar — fine
+tspec ts set rustc.lto=true
+
+# Array — bracket/quote gymnastics
+tspec ts set 'linker.args=["-static","-nostdlib"]'
+
+# Append — still awkward
+tspec ts set 'linker.args+=-Wl,--gc-sections'
+```
+
+The root cause is two-fold:
+
+1. **Key and value crammed into one shell token** — any special characters in
+   the value (brackets, quotes, spaces) force quoting the entire `key=value`.
+2. **Overloaded operators (`=`, `+=`, `-=`) encoded in a string** — three
+   fundamentally different operations (replace, append, remove) masquerade as
+   modes of one command via string parsing.
+
+### Design: Orthogonal verbs with separate args
+
+Split into four commands on two axes:
+
+| Axis | Command | Purpose |
+|---|---|---|
+| Field-level | `ts set` | Set scalar or replace entire array |
+| Field-level | `ts unset` | Remove entire field (already exists) |
+| Item-level | `ts add` | Add items to array (append or insert) |
+| Item-level | `ts remove` | Remove items from array (by value or index) |
+
+Key and value are separate clap positional arguments. Array values are variadic
+(each element is its own shell arg — no brackets, no inner quotes).
+
+### Hyphen-prefixed values and `allow_hyphen_values`
+
+Values like `-static` and `-nostdlib` start with `-`, which clap normally tries
+to parse as flags. The fix is `#[arg(allow_hyphen_values = true)]` on the
+`value` field — clap then treats unknown hyphen-prefixed tokens as positional
+values. This means **no `--` needed** in normal use:
+
+```bash
+tspec ts set linker.args -static -nostdlib      # just works
+tspec ts add linker.args -Wl,--gc-sections      # just works
+```
+
+The only edge case is a value that exactly matches a defined short flag (`-p`,
+`-t`, `-i`). In practice no real linker/rustc flag is just `-p` or `-t`, but
+`--` remains available as an escape hatch for that theoretical collision.
+
+### Syntax
+
+```bash
+# === Field-level (set/unset) ===
+
+# Scalars — just two words
+tspec ts set rustc.lto true
+tspec ts set cargo.profile release
+tspec ts set panic abort
+
+# Replace entire array — each element is a separate arg
+tspec ts set linker.args -static -nostdlib
+tspec ts set rustc.build_std core alloc
+
+# Remove entire field
+tspec ts unset linker.args
+
+# === Item-level (add/remove) ===
+
+# Append (default add behavior)
+tspec ts add linker.args -Wl,--gc-sections
+tspec ts add rustc.flags -Cforce-frame-pointers=yes -Clink-dead-code=no
+
+# Insert at position
+tspec ts add -i 0 linker.args -nostdlib
+
+# Remove by value
+tspec ts remove linker.args -static
+tspec ts remove linker.args -static -nostdlib
+
+# Remove by index
+tspec ts remove -i 2 linker.args
+```
+
+### The six array operations
+
+| # | Operation | Command | Example |
+|---|---|---|---|
+| 1 | Replace all | `ts set` | `ts set linker.args -static -nostdlib` |
+| 2 | Clear field | `ts unset` | `ts unset linker.args` |
+| 3 | Append items | `ts add` | `ts add linker.args -Wl,--gc-sections` |
+| 4 | Insert at position | `ts add -i N` | `ts add -i 0 linker.args -nostdlib` |
+| 5 | Remove by value | `ts remove` | `ts remove linker.args -static` |
+| 6 | Remove by index | `ts remove -i N` | `ts remove -i 2 linker.args` |
+
+### Clap definitions
+
+```rust
+/// Set a field (scalar value or replace entire array)
+Set {
+    /// Field key (e.g., "rustc.lto", "linker.args")
+    key: String,
+    /// Value(s). For scalars, one value. For arrays, each arg is an element.
+    #[arg(required = true, allow_hyphen_values = true)]
+    value: Vec<String>,
+    #[arg(short = 'p', long = "package")]
+    package: Option<String>,
+    #[arg(short = 't', long = "tspec")]
+    tspec: Option<String>,
+}
+
+/// Add items to an array field (append by default, or insert at position)
+Add {
+    /// Field key (must be an array field)
+    key: String,
+    /// Items to add
+    #[arg(required = true, allow_hyphen_values = true)]
+    value: Vec<String>,
+    /// Insert at this index instead of appending
+    #[arg(short = 'i', long = "index")]
+    index: Option<usize>,
+    #[arg(short = 'p', long = "package")]
+    package: Option<String>,
+    #[arg(short = 't', long = "tspec")]
+    tspec: Option<String>,
+}
+
+/// Remove items from an array field (by value or by index)
+Remove {
+    /// Field key (must be an array field)
+    key: String,
+    /// Items to remove by value (not used with --index)
+    #[arg(allow_hyphen_values = true)]
+    value: Vec<String>,
+    /// Remove item at this index instead of by value
+    #[arg(short = 'i', long = "index")]
+    index: Option<usize>,
+    #[arg(short = 'p', long = "package")]
+    package: Option<String>,
+    #[arg(short = 't', long = "tspec")]
+    tspec: Option<String>,
+}
+```
+
+### Validation rules
+
+- `ts set` on a scalar field: exactly one value required
+- `ts set` on an array field: one or more values (replaces entire array)
+- `ts add`: key must be an array field (error on scalar)
+- `ts add -i N`: index must be ≤ current array length
+- `ts remove` without `--index`: at least one value required
+- `ts remove -i N` with `--index`: no values expected (index is the selector)
+- `ts remove -i N`: index must be < current array length
+
+### Implementation steps
+
+#### Step 1: Add `add_items` and `remove_items` to `edit.rs`
+
+New functions in `src/ts_cmd/edit.rs`:
+
+- **`add_items(doc, key, values: &[String], index: Option<usize>)`** — like
+  `append_field` but takes a `Vec<String>` directly (no string parsing), with
+  optional insert-at-index. Deduplicates on append; for insert, adds at position
+  without dedup (user explicitly chose the position).
+
+- **`remove_items_by_value(doc, key, values: &[String])`** — like
+  `remove_from_field` but takes `Vec<String>` directly. If array becomes empty,
+  removes the field (existing behavior).
+
+- **`remove_item_by_index(doc, key, index: usize)`** — removes the item at
+  the given index. If array becomes empty, removes the field.
+
+- **`set_field_from_strings(doc, key, values: &[String], kind)`** — for `ts set`.
+  Scalars: `values[0]`. Arrays: builds array from all values. Replaces
+  `set_field(doc, key, value_str, kind)` which parsed from a single string.
+
+Keep `parse_array_value()` and `parse_scalar_value()` as internal helpers but
+the public API takes `&[String]` — the shell already did the splitting.
+
+#### Step 2: Add `add_value` and `remove_value` to `ts_cmd/`
+
+**New file:** `src/ts_cmd/add.rs`
+
+```rust
+pub fn add_value(
+    project_root: &Path,
+    package: Option<&str>,
+    key: &str,
+    values: &[String],
+    index: Option<usize>,
+    tspec: Option<&str>,
+) -> Result<()>
+```
+
+- Validate key is an array field (error if scalar)
+- Read, parse DocumentMut, call `edit::add_items()`, write back
+
+**New file:** `src/ts_cmd/remove.rs`
+
+```rust
+pub fn remove_value(
+    project_root: &Path,
+    package: Option<&str>,
+    key: &str,
+    values: &[String],
+    index: Option<usize>,
+    tspec: Option<&str>,
+) -> Result<()>
+```
+
+- Validate key is an array field (error if scalar)
+- If `index` is Some: call `edit::remove_item_by_index()`
+- If `index` is None and values non-empty: call `edit::remove_items_by_value()`
+- If neither: error
+
+#### Step 3: Rewrite `set_value` to accept `&[String]`
+
+**File:** `src/ts_cmd/set.rs`
+
+- Change signature: `value: &str` → `values: &[String]`
+- For scalar fields: validate `values.len() == 1`, then use `values[0]`
+- For array fields: pass all values to `edit::set_field_from_strings()`
+- Remove `parse_assignment()` from `src/cmd/ts.rs`
+
+#### Step 4: Wire up `Add` and `Remove` in CLI
+
+**File:** `src/cmd/ts.rs`
+
+- Add `Add` and `Remove` variants to `TsCommands`
+- Add match arms in `TsCmd::execute()`
+- Remove `parse_assignment()` (no longer needed)
+- Update `Set` variant: `assignment: String` → `key: String` + `value: Vec<String>`
+
+**File:** `src/ts_cmd/mod.rs`
+
+- Add `mod add; mod remove;`
+- Add `pub use add::add_value; pub use remove::remove_value;`
+- Remove `pub use edit::SetOp;` (no longer needed in public API)
+
+#### Step 5: Clean up dead code
+
+- Remove `SetOp` enum from `edit.rs` (or make it `pub(crate)`)
+- Remove `append_field()`, `remove_from_field()`, `parse_array_value()`
+  if no longer called (the new functions take `&[String]` instead of
+  parsing bracket syntax)
+- Remove `parse_assignment()` from `cmd/ts.rs`
+
+#### Step 6: Update tests
+
+- Rewrite `set.rs` tests to use the new `values: &[String]` signature
+- Add `add.rs` tests: append, insert-at-index, dedup, scalar-rejection
+- Add `remove.rs` tests: by-value, by-index, empty-removes-field,
+  scalar-rejection, out-of-bounds index error
+- Add `edit.rs` unit tests for the new functions
+- Remove tests for old bracket-syntax parsing (dead code)
+
+#### Step 7: Update README
+
+- Update `ts set` examples to new syntax
+- Document `ts add` and `ts remove` commands
+
+### Files to modify
+
+| File | Change |
+|---|---|
+| `src/ts_cmd/edit.rs` | Add `add_items`, `remove_items_by_value`, `remove_item_by_index`, `set_field_from_strings`; clean up old API |
+| `src/ts_cmd/set.rs` | Rewrite to accept `&[String]` |
+| `src/ts_cmd/add.rs` | **NEW** — `add_value` |
+| `src/ts_cmd/remove.rs` | **NEW** — `remove_value` |
+| `src/ts_cmd/mod.rs` | Register new modules, update exports |
+| `src/cmd/ts.rs` | Add `Add`/`Remove` variants, rewrite `Set`, remove `parse_assignment()` |
+| `README.md` | Update syntax examples |
+
+### Backward compatibility
+
+The old single-arg `key=value` / `key+=value` / `key-=value` syntax is removed.
+This is a breaking change, but the old syntax is the problem — keeping it as a
+fallback perpetuates the quoting issues.
+
+### Verification
+
+```bash
+tspec test -p tspec
+tspec clippy
+tspec fmt --check
+
+# Manual smoke tests:
+tspec ts set rustc.lto true
+tspec ts set cargo.profile release
+tspec ts set linker.args -static -nostdlib
+tspec ts add linker.args -Wl,--gc-sections
+tspec ts add -i 0 linker.args -nostartfiles
+tspec ts remove linker.args -static
+tspec ts remove -i 0 linker.args
+tspec ts unset linker.args
+```
