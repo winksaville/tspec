@@ -86,7 +86,19 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 - **Granularity:** tspec operates at the Cargo package level, not the crate level. "Package" = directory with Cargo.toml. A package may contain multiple crates (targets), but they all share one tspec.
 - **Markdown refs:** Multiple references use `[1],[2]` not `[1,2]` or `[1][2]` (both break in markdown)
 
-## Workflow
+## Feature Workflow
+
+**Before starting feature or fix work:**
+1. Create a branch: `git checkout -b <type>-<short-description>` (e.g., `fix-compare-optional-p`)
+2. Create a dated entry in `notes/chores-N.md` with context and plan
+3. Update `notes/todo.md` to move items to In Progress
+4. Bump version to `X.Y.Z-dev` in `Cargo.toml`
+5. Commit the above as a chore marker commit before starting code changes
+6. Use todo list to track progress during implementation
+
+**Branch naming:** `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`
+
+## Verification Workflow
 
 **After code changes, run verification and install immediately:**
 ```bash

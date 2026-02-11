@@ -2,12 +2,13 @@
 
 ## In Progress
 
+- Fix compare: optional `-p` and glob `-t` handling [18]
+
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
 - Improve `classify_crate` - using name alone is brittle [4]
-- -p shouldn't be needed for `ts compare` if in a POP
-- for build, run ... a -t should suppor glob like in compare
+- for build, run ... a -t should support glob like in compare
  
 
 ## Done
@@ -30,3 +31,4 @@ See older [done.md](done.md)
 [15]: chores-2.md#20260207---in-place-set-add-backup-and-restore-subcommands
 [16]: chores-2.md#20260208---rename---all-to---workspace
 [17]: chores-3.md#20260211---orthogonal-ts-setaddremove-with-separate-key-and-value-args
+[18]: chores-4.md#20260211---fix-compare-optional--p-and-glob--t-handling
