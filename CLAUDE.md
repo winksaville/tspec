@@ -6,20 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tspec** is a spec-driven build system wrapper for Rust that sits on top of cargo. It configures builds at the **package** level (one tspec per Cargo package) via translation spec files (TOML-based) with support for target triples, compiler flags, linker options, and high-level build options like panic strategies and symbol stripping. For per-crate control, use separate packages in a workspace.
 
-## Build Commands
+## Build Commands — Dogfood tspec
 
-Ensure a recent tspec is installed:
+**Always use `tspec` itself for development.** Never use bare `cargo test`, `cargo clippy`, `cargo fmt`, or `cargo install` — use the tspec equivalents. This is how we catch real-world issues.
+
 ```bash
-cargo install --path .         # Install from local source
+tspec test -p tspec            # Run tests (NEVER cargo test)
+tspec clippy                   # Run lints (NEVER cargo clippy)
+tspec fmt --check              # Check formatting (NEVER cargo fmt --check)
+tspec install --path .         # Install from local source (NEVER cargo install)
 ```
 
-Development workflow:
-```bash
-tspec test -p tspec            # Run tests
-tspec clean                    # Clean build artifacts
-tspec clippy                   # Run lints
-tspec fmt --check              # Check formatting
-```
+**After code changes pass tests, immediately install the new version** with `tspec install --path .` so subsequent commands use the latest binary. Do not defer installation — the sooner we run the real binary, the sooner we catch issues.
 
 ## Architecture
 
@@ -59,15 +57,18 @@ enum Commands {
 - `cargo_build.rs` - Package build orchestration with spec application
 - `workspace.rs` - Workspace package discovery
 - `all.rs` - Batch operations (build_all, test_all, run_all)
-- `ts_cmd/edit.rs` - `toml_edit` helpers: field registry, `set_field()`, `unset_field()`, validation
-- `ts_cmd/unset.rs` - `ts unset` command
+- `ts_cmd/edit.rs` - `toml_edit` helpers: field registry, `set_field()`, `unset_field()`, `add_items()`, `remove_items_by_value()`, `remove_item_by_index()`, validation
+- `ts_cmd/set.rs` - `ts set` command (scalar or replace entire array)
+- `ts_cmd/unset.rs` - `ts unset` command (remove field entirely)
+- `ts_cmd/add.rs` - `ts add` command (append or insert at position)
+- `ts_cmd/remove.rs` - `ts remove` command (by value or by index)
 
 ### Three Write Strategies
 
 | Operation | Strategy | Why |
 |---|---|---|
 | load, hash, build | serde (`toml`) | Need typed `Spec` struct for build logic |
-| set, unset | `toml_edit` (`DocumentMut`) | Surgical edit preserving comments/formatting |
+| set, unset, add, remove | `toml_edit` (`DocumentMut`) | Surgical edit preserving comments/formatting |
 | backup, restore, new -f | raw `fs::copy` | Exact byte-for-byte preservation |
 
 ### Translation Spec Structure
@@ -87,9 +88,11 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 
 ## Workflow
 
-**Before committing, run verification:**
+**After code changes, run verification and install immediately:**
 ```bash
-tspec test -p tspec
+tspec test -p tspec            # Run tests to verify changes with "old" binary if all pass:
+tspec install --path .         # Install ASAP so we dogfood the new binary
+tspec test -p tspec            # Run tests again with the new binary to potentially catch issues early
 tspec clippy
 tspec fmt --check
 ```
