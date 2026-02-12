@@ -7,12 +7,14 @@
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
 - Improve `classify_crate` - using name alone is brittle [4]
 - for build, run ... a -t should support glob like in compare
+- Design: what should tspec do when package has real build.rs and spec has linker.args? Currently silently drops linker.args
  
 
 ## Done
 
 See older [done.md](done.md)
 
+- Detect and remove stale tspec-generated build.rs [20]
 - Always include `cargo --release` baseline in compare [19]
 - Fix compare: optional `-p` and glob `-t` handling [18]
 - Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
@@ -33,3 +35,4 @@ See older [done.md](done.md)
 [17]: chores-3.md#20260211---orthogonal-ts-setaddremove-with-separate-key-and-value-args
 [18]: chores-4.md#20260211---fix-compare-optional--p-and-glob--t-handling
 [19]: chores-4.md#20260212---always-include-cargo---release-baseline-in-compare
+[20]: chores-4.md#20260212---detect-and-remove-stale-tspec-generated-buildrs
