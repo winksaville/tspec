@@ -639,6 +639,38 @@ version = "0.1.0"
         );
     }
 
+    #[test]
+    fn find_tspecs_glob_matches_multi_dot_filenames() {
+        let tmp = TempDir::new().unwrap();
+        let crate_dir = tmp.path().join("crate");
+        fs::create_dir(&crate_dir).unwrap();
+
+        let default_name = format!("tspec{}", SUFFIX);
+        let musl_name = format!("tspec.musl{}", SUFFIX);
+        let other_name = format!("t1{}", SUFFIX);
+        fs::write(crate_dir.join(&default_name), "# default").unwrap();
+        fs::write(crate_dir.join(&musl_name), "# musl").unwrap();
+        fs::write(crate_dir.join(&other_name), "# other").unwrap();
+
+        // Default pattern should match tspec* but not t1*
+        let found = find_tspecs(&crate_dir, &[]).unwrap();
+        assert_eq!(found.len(), 2);
+        assert!(
+            found
+                .iter()
+                .any(|p| p.file_name().unwrap() == default_name.as_str())
+        );
+        assert!(
+            found
+                .iter()
+                .any(|p| p.file_name().unwrap() == musl_name.as_str())
+        );
+
+        // Wildcard should match all three
+        let found_all = find_tspecs(&crate_dir, &[format!("*{}", SUFFIX)]).unwrap();
+        assert_eq!(found_all.len(), 3);
+    }
+
     // ==================== get_binary_path tests ====================
 
     #[test]
