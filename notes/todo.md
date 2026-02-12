@@ -2,6 +2,8 @@
 
 ## In Progress
 
+- Always include `cargo --release` baseline in compare [19]
+
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -31,3 +33,4 @@ See older [done.md](done.md)
 [16]: chores-2.md#20260208---rename---all-to---workspace
 [17]: chores-3.md#20260211---orthogonal-ts-setaddremove-with-separate-key-and-value-args
 [18]: chores-4.md#20260211---fix-compare-optional--p-and-glob--t-handling
+[19]: chores-4.md#20260212---always-include-cargo---release-baseline-in-compare

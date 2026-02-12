@@ -30,3 +30,25 @@ Done. `-p` is now optional (defaults to cwd package), `-t` accepts shell-expande
 ### References
 
 - todo.md items: "-p shouldn't be needed for `ts compare` if in a POP" and "for build, run ... a -t should support glob like in compare"
+
+## 20260212 - Always include cargo --release baseline in compare
+
+### Context
+
+`tspec compare` only compares builds using tspec files. If no tspec files exist, it errors out. We want a plain `cargo build --release` result always included as a baseline reference point — even with zero tspec files.
+
+### Problems
+
+- `build_package(pkg_name, None, release)` auto-discovers default `tspec.ts.toml` if it exists — no way to force a plain build
+- `find_tspecs()` errors when no tspec files match — compare can't run without specs
+- `compare_specs()` only iterates spec paths, no baseline concept
+
+### Plan
+
+1. Add `build_package_plain()` in `cargo_build.rs` — always does plain cargo build, skips spec lookup
+2. Add `build_baseline()` helper in `compare.rs`, modify `compare_specs()` to build cargo --release first
+3. Allow empty tspec list in `cmd/compare.rs` — default pattern returns empty vec instead of erroring
+
+### Result
+
+(pending)
