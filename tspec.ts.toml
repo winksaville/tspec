@@ -1,0 +1,3 @@
+[cargo]
+profile = "debug"
+target_dir = "{name}-{hash}"

@@ -1,0 +1,3 @@
+[cargo]
+profile = "release"
+target_dir = "{name}-{hash}"

@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Always include `cargo --release` baseline in compare [19]
-
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -15,6 +13,7 @@
 
 See older [done.md](done.md)
 
+- Always include `cargo --release` baseline in compare [19]
 - Fix compare: optional `-p` and glob `-t` handling [18]
 - Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
 - `ts set` array append/remove: `linker.args+=-Wl,--gc-sections` / `linker.args-=-static`

@@ -51,4 +51,7 @@ Done. `-p` is now optional (defaults to cwd package), `-t` accepts shell-expande
 
 ### Result
 
-(pending)
+Done. `compare` now always builds a `cargo --release` baseline first, then any tspec builds. Three changes:
+- `build_package_plain()` in `cargo_build.rs` — plain cargo build that skips tspec lookup
+- `build_baseline()` + modified `compare_specs()` in `compare.rs` — baseline always first in results
+- `cmd/compare.rs` — default tspec pattern gracefully returns empty vec (explicit `-t` still errors if no match)
