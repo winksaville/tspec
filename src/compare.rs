@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::binary::{binary_size, strip_binary};
-use crate::cargo_build::build_package;
+use crate::cargo_build::{build_package, plain_cargo_build_release};
 use crate::{print_header, print_hline};
 
 /// Result of building a spec
@@ -24,9 +24,16 @@ pub fn compare_specs(
         pkg_name,
         if strip { " (stripped)" } else { "" }
     );
-    //println!("Using specs: {:?}", spec_paths);
 
     let mut results = Vec::new();
+
+    // Always build cargo --release baseline first
+    let baseline_size = build_baseline(pkg_name, strip)?;
+    results.push(SpecResult {
+        name: "cargo --release".to_string(),
+        size: baseline_size,
+    });
+    println!();
 
     for spec_path in spec_paths {
         let spec_path = spec_path.as_ref();
@@ -46,6 +53,21 @@ pub fn compare_specs(
     print_comparison(&results);
 
     Ok(())
+}
+
+fn build_baseline(pkg_name: &str, strip: bool) -> Result<u64> {
+    println!("  cargo --release:");
+
+    let build_result = plain_cargo_build_release(pkg_name)?;
+
+    if strip {
+        strip_binary(&build_result.binary_path)?;
+    }
+
+    let size = binary_size(&build_result.binary_path)?;
+    println!("    size: {} bytes", format_size(size));
+
+    Ok(size)
 }
 
 fn build_spec(pkg_name: &str, spec_path: &Path, release: bool, strip: bool) -> Result<u64> {

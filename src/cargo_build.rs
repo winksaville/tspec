@@ -98,6 +98,35 @@ pub fn build_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resu
     })
 }
 
+/// Plain `cargo build --release` with no spec lookup.
+/// Used by compare to produce a baseline build.
+pub fn plain_cargo_build_release(pkg_name: &str) -> Result<BuildResult> {
+    let workspace = find_project_root()?;
+    let pkg_dir = find_package_dir(&workspace, pkg_name)?;
+    let pkg_name = get_package_name(&pkg_dir)?;
+
+    let binary_path = get_binary_path_simple(&workspace, &pkg_name, true);
+    let target_base = workspace.join("target");
+
+    println!("Building {} (no tspec)", pkg_name);
+    let mut cmd = Command::new("cargo");
+    cmd.arg("build");
+    cmd.arg("-p").arg(&pkg_name);
+    cmd.current_dir(&workspace);
+    cmd.arg("--release");
+    let status = cmd.status().context("failed to run cargo")?;
+
+    if !status.success() {
+        bail!("cargo build failed");
+    }
+
+    println!("  {}", binary_path.display());
+    Ok(BuildResult {
+        binary_path,
+        target_base,
+    })
+}
+
 /// Generate a temporary build.rs with scoped linker flags from tspec.toml
 pub fn generate_build_rs(path: &Path, crate_name: &str, spec: &Spec) -> Result<()> {
     let mut lines = vec![

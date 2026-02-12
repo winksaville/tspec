@@ -37,7 +37,11 @@ impl Execute for CompareCmd {
             })?;
         let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;
         let pkg_name = get_package_name(&package_dir)?;
-        let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
+        let spec_paths = if self.tspec.is_empty() {
+            find_tspecs(&package_dir, &self.tspec).unwrap_or_default()
+        } else {
+            find_tspecs(&package_dir, &self.tspec)?
+        };
         compare_specs(&pkg_name, &spec_paths, self.release, self.strip)?;
         Ok(ExitCode::SUCCESS)
     }
