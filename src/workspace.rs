@@ -64,7 +64,7 @@ impl WorkspaceInfo {
                 let kind = if is_pop {
                     PackageKind::App
                 } else {
-                    classify_package(&path, &pkg.name)
+                    classify_package(&path, &pkg.name, &root)
                 };
 
                 PackageMember {
@@ -104,9 +104,14 @@ impl WorkspaceInfo {
     }
 }
 
-/// Classify a package based on its path and name
-fn classify_package(path: &Path, name: &str) -> PackageKind {
+/// Classify a package based on its path, name, and workspace root
+fn classify_package(path: &Path, name: &str, workspace_root: &Path) -> PackageKind {
     let path_str = path.to_string_lossy();
+
+    // Root package of a workspace is the main app
+    if path == workspace_root {
+        return PackageKind::App;
+    }
 
     // Build tools at workspace root level
     if name == "tspec" || name == "xt" || name == "xtask" {
@@ -126,8 +131,8 @@ fn classify_package(path: &Path, name: &str) -> PackageKind {
     } else if path_str.contains("tools/") {
         PackageKind::Tool
     } else {
-        // Unknown location, treat as build tool (excluded)
-        PackageKind::BuildTool
+        // Root-level members default to Lib
+        PackageKind::Lib
     }
 }
 
@@ -135,46 +140,87 @@ fn classify_package(path: &Path, name: &str) -> PackageKind {
 mod tests {
     use super::*;
 
+    const WS: &str = "/workspace";
+
     #[test]
     fn classify_app() {
         let path = PathBuf::from("/workspace/apps/ex-x1");
-        assert_eq!(classify_package(&path, "ex-x1"), PackageKind::App);
+        assert_eq!(
+            classify_package(&path, "ex-x1", Path::new(WS)),
+            PackageKind::App
+        );
+    }
+
+    #[test]
+    fn classify_root_package_is_app() {
+        let path = PathBuf::from("/workspace");
+        assert_eq!(
+            classify_package(&path, "tspec", Path::new(WS)),
+            PackageKind::App
+        );
     }
 
     #[test]
     fn classify_lib() {
         let path = PathBuf::from("/workspace/libs/rlibc-x1");
-        assert_eq!(classify_package(&path, "rlibc-x1"), PackageKind::Lib);
+        assert_eq!(
+            classify_package(&path, "rlibc-x1", Path::new(WS)),
+            PackageKind::Lib
+        );
+    }
+
+    #[test]
+    fn classify_root_level_member_is_lib() {
+        let path = PathBuf::from("/workspace/tspec-build");
+        assert_eq!(
+            classify_package(&path, "tspec-build", Path::new(WS)),
+            PackageKind::Lib
+        );
     }
 
     #[test]
     fn classify_tool() {
         let path = PathBuf::from("/workspace/tools/is-libc-used");
-        assert_eq!(classify_package(&path, "is-libc-used"), PackageKind::Tool);
+        assert_eq!(
+            classify_package(&path, "is-libc-used", Path::new(WS)),
+            PackageKind::Tool
+        );
     }
 
     #[test]
     fn classify_test_by_path() {
         let path = PathBuf::from("/workspace/libs/rlibc-x2/tests");
-        assert_eq!(classify_package(&path, "rlibc-x2-tests"), PackageKind::Test);
+        assert_eq!(
+            classify_package(&path, "rlibc-x2-tests", Path::new(WS)),
+            PackageKind::Test
+        );
     }
 
     #[test]
     fn classify_test_by_name() {
         let path = PathBuf::from("/workspace/somewhere");
-        assert_eq!(classify_package(&path, "foo-tests"), PackageKind::Test);
+        assert_eq!(
+            classify_package(&path, "foo-tests", Path::new(WS)),
+            PackageKind::Test
+        );
     }
 
     #[test]
     fn classify_build_tool_xt() {
         let path = PathBuf::from("/workspace/xt");
-        assert_eq!(classify_package(&path, "xt"), PackageKind::BuildTool);
+        assert_eq!(
+            classify_package(&path, "xt", Path::new(WS)),
+            PackageKind::BuildTool
+        );
     }
 
     #[test]
     fn classify_build_tool_xtask() {
         let path = PathBuf::from("/workspace/xtask");
-        assert_eq!(classify_package(&path, "xtask"), PackageKind::BuildTool);
+        assert_eq!(
+            classify_package(&path, "xtask", Path::new(WS)),
+            PackageKind::BuildTool
+        );
     }
 
     #[test]

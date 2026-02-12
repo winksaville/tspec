@@ -112,13 +112,15 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
         return Ok(as_path.canonicalize().unwrap_or(as_path));
     }
 
-    // For POPs, check if name matches the root package
+    // Check if name matches the root package
+    if let Ok(pkg_name) = get_package_name(project_root)
+        && pkg_name == name
+    {
+        return Ok(project_root.to_path_buf());
+    }
+
+    // For POPs, nothing else to search
     if is_pop(project_root) {
-        if let Ok(pkg_name) = get_package_name(project_root)
-            && pkg_name == name
-        {
-            return Ok(project_root.to_path_buf());
-        }
         bail!(
             "package '{}' not found (this is a single-package project with package '{}')",
             name,
@@ -126,7 +128,12 @@ pub fn find_package_dir(project_root: &Path, name: &str) -> Result<PathBuf> {
         );
     }
 
-    // Workspace: search libs/, apps/, tools/
+    // Workspace: search root-level members, then libs/, apps/, tools/
+    let root_path = project_root.join(name);
+    if root_path.join("Cargo.toml").exists() {
+        return Ok(root_path);
+    }
+
     for prefix in ["libs", "apps", "tools"] {
         let path = project_root.join(prefix).join(name);
         if path.join("Cargo.toml").exists() {

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use super::Execute;
+use crate::find_paths::get_package_name;
 
 /// Install a package from a local path
 #[derive(Args)]
@@ -25,6 +26,12 @@ impl Execute for InstallCmd {
 
         let mut cmd = std::process::Command::new("cargo");
         cmd.arg("install").arg("--path").arg(&resolved);
+
+        // Pass package name if we can determine it (needed for workspaces)
+        if let Ok(name) = get_package_name(&resolved) {
+            cmd.arg(&name);
+        }
+
         if self.force {
             cmd.arg("--force");
         }

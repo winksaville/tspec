@@ -20,6 +20,8 @@ cargo run -- build
 ```bash
 tspec build                                # Build current package (or all in workspace) with tspec.ts.toml if present
 tspec build -p myapp                       # Build specific package with tspec.ts.toml if present
+tspec build myapp                          # Same, using positional argument
+tspec build .                              # Build the package in current directory
 tspec build -p myapp -t tspec-opt          # Build with alternative spec tspec-opt.ts.toml
 tspec build -p myapp -t tspec-opt.ts.toml  # Build with alternative spec tspec-opt.ts.toml
 tspec build -p myapp -r -s                 # Build release, strip symbol with tspec.ts.toml if present
@@ -31,9 +33,11 @@ tspec compare -t *.ts.toml                 # Compare using shell-expanded glob
 tspec compare -p myapp                     # Compare for a specific package
 ```
 
-The `-p` flag specifies a package (defaults to current directory if in a package, otherwise all packages).
+The `-p` flag or positional argument specifies a package by name or path (defaults to current directory if in a package, otherwise all packages). Paths like `.` are resolved to the actual cargo package name. At a pure workspace root (no `[package]`), `.` means "all packages."
 Use `-w, --workspace` to force all-packages mode even when inside a package directory.
 The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically.
+
+**Note on `cmd` vs `cmd .`:** For passthrough commands (clean, clippy, fmt), `tspec cmd` passes no `-p` to cargo (operates on everything), while `tspec cmd .` resolves to `cargo cmd -p <name>` (package-specific). The difference is most visible with `clean`: `cargo clean` removes all of target/ while `cargo clean -p <name>` leaves shared metadata files. This matches cargo's own behavior. Use `tspec clean` or `tspec clean -w` for a full clean.
 
 ## tspec Files
 
@@ -208,32 +212,37 @@ Note: Use `ts` as the subcommand (short for "tspec management").
 ## Testing
 
 ```bash
-tspec test -p tspec           # Run all tests
+tspec test -p tspec           # Run tspec tests
+tspec test -p tspec-build     # Run tspec-build tests
 ```
 
 ## Project Structure
 
 ```
-tspec/
+tspec/                  # Workspace root (also the main tspec package)
+  Cargo.toml            # [workspace] + [package] — workspace with root package
   src/
-    lib.rs          # Library root, exposes modules
-    main.rs         # Entry point, dispatch
-    cli.rs          # Clap CLI definitions
-    types.rs        # Spec parameter types
-    tspec.rs        # Spec loading/saving/hashing
-    find_paths.rs   # Project/package/tspec/binary path discovery
-    workspace.rs    # Workspace package discovery
-    cargo_build.rs  # Build command + generated build.rs
-    run.rs          # Run command implementation
-    testing.rs      # Test command implementation
-    compare.rs      # Compare command (size comparison)
-    all.rs          # Batch operations (build_all, run_all, test_all)
-    ts_cmd/         # Tspec management subcommands
-    binary.rs       # Binary operations (strip, size)
+    lib.rs              # Library root, exposes modules
+    main.rs             # Entry point, dispatch
+    cli.rs              # Clap CLI definitions
+    types.rs            # Spec parameter types
+    tspec.rs            # Spec loading/saving/hashing
+    find_paths.rs       # Project/package/tspec/binary path discovery
+    workspace.rs        # Workspace package discovery
+    cargo_build.rs      # Build command + generated build.rs
+    run.rs              # Run command implementation
+    testing.rs          # Test command implementation
+    compare.rs          # Compare command (size comparison)
+    all.rs              # Batch operations (build_all, run_all, test_all)
+    cmd/                # Command implementations (one file per command)
+    ts_cmd/             # Tspec management subcommands
+    binary.rs           # Binary operations (strip, size)
   tests/
-    data/           # Test fixtures (TOML specs)
-    tspec_test.rs   # Integration tests
-  notes/            # Design docs and todo tracking
+    data/               # Test fixtures (TOML specs)
+    tspec_test.rs       # Integration tests
+  tspec-build/          # Library crate for build.rs integration
+    src/lib.rs          # Reads TSPEC_SPEC_FILE env var at build time
+  notes/                # Design docs and todo tracking
 ```
 
 ## Development
@@ -244,6 +253,7 @@ See [notes/todo.md](notes/todo.md) for current tasks.
 
 ```bash
 tspec test -p tspec
+tspec test -p tspec-build
 tspec clippy
 tspec fmt --check
 ```

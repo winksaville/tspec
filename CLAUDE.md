@@ -6,12 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tspec** is a spec-driven build system wrapper for Rust that sits on top of cargo. It configures builds at the **package** level (one tspec per Cargo package) via translation spec files (TOML-based) with support for target triples, compiler flags, linker options, and high-level build options like panic strategies and symbol stripping. For per-crate control, use separate packages in a workspace.
 
+**Repository structure:** This is a Cargo workspace with a root package (`tspec`) and one member (`tspec-build`). The root `Cargo.toml` has both `[workspace]` and `[package]` sections — no subdirectory restructuring needed.
+
+- **tspec** — the main CLI binary
+- **tspec-build** — a library crate that packages can use in their `build.rs` to read tspec settings at build time via the `TSPEC_SPEC_FILE` env var
+
 ## Build Commands — Dogfood tspec
 
 **Always use `tspec` itself for development.** Never use bare `cargo test`, `cargo clippy`, `cargo fmt`, or `cargo install` — use the tspec equivalents. This is how we catch real-world issues.
 
 ```bash
-tspec test -p tspec            # Run tests (NEVER cargo test)
+tspec test -p tspec            # Run tspec tests (NEVER cargo test)
+tspec test -p tspec-build      # Run tspec-build tests
 tspec clippy                   # Run lints (NEVER cargo clippy)
 tspec fmt --check              # Check formatting (NEVER cargo fmt --check)
 tspec install --path .         # Install from local source (NEVER cargo install)
@@ -49,7 +55,7 @@ enum Commands {
 ### Key Modules
 
 - `cmd/` - Command implementations (one file per command)
-  - `mod.rs` - Execute trait, execute_cargo_subcommand helper, re-exports
+  - `mod.rs` - Execute trait, `execute_cargo_subcommand` helper, `resolve_package_arg()` (resolves paths like "." to package names), `current_package_name()` (workspace-aware), re-exports
   - `build.rs`, `clean.rs`, `clippy.rs`, `compare.rs`, `fmt.rs`, `install.rs`, `run.rs`, `test.rs`, `version.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
 - `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
@@ -62,6 +68,7 @@ enum Commands {
 - `ts_cmd/unset.rs` - `ts unset` command (remove field entirely)
 - `ts_cmd/add.rs` - `ts add` command (append or insert at position)
 - `ts_cmd/remove.rs` - `ts remove` command (by value or by index)
+- `tspec-build/` - Library crate for build.rs integration (reads `TSPEC_SPEC_FILE` env var)
 
 ### Three Write Strategies
 
@@ -84,6 +91,8 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 - **Commit style:** Conventional commits (feat:, docs:, refactor:)
 - **Naming:** POP (Plain Old Package) refers to single-package projects (no workspace); tspec treats them as trivial workspaces
 - **Granularity:** tspec operates at the Cargo package level, not the crate level. "Package" = directory with Cargo.toml. A package may contain multiple crates (targets), but they all share one tspec.
+- **Package argument pattern:** All commands accept both `-p <name-or-path>` and a positional `<PACKAGE>` argument. Paths (like `.`) are resolved to the actual cargo package name via `resolve_package_arg()`. At a pure workspace root (no `[package]`), `.` resolves to None (all-packages mode). Resolution order: positional > `-p` > current directory > all packages.
+- **`cmd` vs `cmd .` for passthroughs:** For passthrough commands (clean, clippy, fmt), `tspec cmd` passes no `-p` to cargo (operates on everything), but `tspec cmd .` resolves to `cargo cmd -p <name>` (package-specific). The difference is most visible with `clean`: `cargo clean` removes all of target/ while `cargo clean -p <name>` leaves shared metadata. This matches cargo's own behavior. Use `tspec clean` or `tspec clean -w` for a full clean.
 - **Markdown refs:** Multiple references use `[1],[2]` not `[1,2]` or `[1][2]` (both break in markdown)
 
 ## Feature Workflow
@@ -108,9 +117,10 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 
 **After code changes, run verification and install immediately:**
 ```bash
-tspec test -p tspec            # Run tests to verify changes with "old" binary if all pass:
+tspec test -p tspec            # Run tspec tests to verify changes with "old" binary; if all pass:
+tspec test -p tspec-build      # Run tspec-build tests
 tspec install --path .         # Install ASAP so we dogfood the new binary
-tspec test -p tspec            # Run tests again with the new binary to potentially catch issues early
+tspec test -p tspec            # Run tests again with the new binary to catch issues early
 tspec clippy
 tspec fmt --check
 ```

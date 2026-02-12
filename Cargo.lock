@@ -509,7 +509,7 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "tspec"
-version = "0.10.2"
+version = "0.10.3-dev4"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -521,6 +521,15 @@ dependencies = [
  "tempfile",
  "toml",
  "toml_edit",
+]
+
+[[package]]
+name = "tspec-build"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]

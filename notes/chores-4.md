@@ -70,3 +70,56 @@ When a spec with `linker.args` (e.g., musl with `-static -nostdlib`) is built, t
 - Warning printed after build completes (so it's visible after cargo output scrolls by)
 - 8 new tests for detection and removal logic
 - Added todo item for the larger design question: what to do when a package has a real `build.rs` and the spec has `linker.args`
+
+## 20260212 - Design: tspec-build library for linker.args
+
+### Problem
+
+When a package has its own `build.rs` and a spec has `linker.args`, tspec silently drops the linker args (no warning, no error). The current approach of generating a temporary `build.rs` is fundamentally incompatible with user-owned build scripts.
+
+### Options considered
+
+1. **Error out** — refuse to build, safest but unhelpful
+2. **Warn and skip** — build without linker.args, visible but still broken
+3. **Merge into existing build.rs** — fragile, modifies user code
+4. **Move to RUSTFLAGS** (`-C link-arg=`) — affects all crates including host/proc-macros
+5. **Temporarily rename user's build.rs** — interrupt-vulnerable, loses user functionality during build
+6. **`tspec-build` library crate** — user calls `tspec_build::emit_linker_flags()` from their build.rs
+
+### Proposed: option 6 — `tspec-build` crate
+
+A small library crate that reads linker.args from the spec and emits `cargo:rustc-link-arg-bin=` directives. User adds it to `[build-dependencies]` and calls it from their build.rs:
+
+```rust
+fn main() {
+    // user's existing logic
+    tspec_build::emit_linker_flags();
+}
+```
+
+**Benefits:** no file conflicts, interrupt-safe, explicit opt-in, composable with any build.rs logic.
+
+**Open questions:**
+- How does the library find the right spec file at build time?
+- Should tspec set an env var (e.g., `TSPEC_FILE`) before invoking cargo?
+- For packages without build.rs, keep auto-generating or always require the library?
+
+### Decision
+
+Option 6 with a thin implementation:
+- `tspec-build` is a standalone crate (no dependency on tspec)
+- Only depends on `toml` and `serde` to read the spec file
+- Reads `TSPEC_SPEC_FILE` env var (set by tspec before invoking cargo)
+- Extracts `linker.args` from the spec
+- Emits `cargo:rustc-link-arg-bin=` for each arg using `CARGO_PKG_NAME`
+- tspec sets the env var in `apply_spec_to_command()`
+
+### Plan
+
+1. Create `tspec-build/` crate with minimal dependencies
+2. Have tspec set `TSPEC_SPEC_FILE` env var when building with a spec
+3. Test independently first, then integrate as tspec's own build.rs later
+
+### Status
+
+Implementation in progress

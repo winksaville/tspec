@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::{Execute, current_package_name};
+use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{build_all, print_summary};
 use crate::binary::strip_binary;
 use crate::cargo_build::build_package;
@@ -12,6 +12,9 @@ use crate::workspace::WorkspaceInfo;
 /// Build package(s) with a translation spec
 #[derive(Args)]
 pub struct BuildCmd {
+    /// Package to build (name or path, e.g. "." for current dir)
+    #[arg(value_name = "PACKAGE")]
+    pub positional: Option<String>,
     /// Package to build (defaults to current directory or all packages)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
@@ -34,11 +37,14 @@ pub struct BuildCmd {
 
 impl Execute for BuildCmd {
     fn execute(&self, _project_root: &Path) -> Result<ExitCode> {
-        // Resolve package: --workspace > -p PKG > cwd > all
+        // Resolve package: --workspace > -p/positional PKG > cwd > all
         let resolved = if self.workspace {
             None
         } else {
-            self.package.clone().or_else(current_package_name)
+            match self.positional.as_deref().or(self.package.as_deref()) {
+                Some(pkg) => resolve_package_arg(pkg)?,
+                None => current_package_name(),
+            }
         };
 
         match resolved {

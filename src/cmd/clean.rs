@@ -4,11 +4,14 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::{Execute, execute_cargo_subcommand};
+use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
 
 /// Clean build artifacts
 #[derive(Args)]
 pub struct CleanCmd {
+    /// Package to clean (name or path, e.g. "." for current dir)
+    #[arg(value_name = "PACKAGE")]
+    pub positional: Option<String>,
     /// Package to clean (defaults to entire workspace/project)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
@@ -20,9 +23,12 @@ pub struct CleanCmd {
 impl Execute for CleanCmd {
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
         let mut args: Vec<OsString> = Vec::new();
-        if let Some(pkg) = &self.package {
+        let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
+        if let Some(pkg) = pkg_arg
+            && let Some(name) = resolve_package_arg(pkg)?
+        {
             args.push("-p".into());
-            args.push(pkg.into());
+            args.push(name.into());
         }
         if self.release {
             args.push("--release".into());

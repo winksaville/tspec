@@ -2,8 +2,10 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::process::Command;
 
-use crate::cargo_build::{apply_spec_to_command, generate_build_rs};
-use crate::find_paths::{find_package_dir, find_project_root, find_tspec};
+use crate::cargo_build::{
+    apply_spec_to_command, generate_build_rs, remove_stale_tspec_build_rs, warn_stale_build_rs,
+};
+use crate::find_paths::{find_package_dir, find_project_root, find_tspec, get_package_name};
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
 /// Check if spec requires nightly toolchain
 fn requires_nightly(spec: &crate::types::Spec) -> bool {
@@ -23,6 +25,12 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
     let pkg_dir = find_package_dir(&workspace, pkg_name)?;
     let tspec_path = find_tspec(&pkg_dir, tspec)?;
 
+    // Resolve actual package name from Cargo.toml (needed when pkg_name is a path)
+    let pkg_name = get_package_name(&pkg_dir)?;
+
+    // Clean up any stale tspec-generated build.rs from interrupted builds
+    let had_stale_build_rs = remove_stale_tspec_build_rs(&pkg_dir);
+
     // Track if we generated a build.rs
     let build_rs_path = pkg_dir.join("build.rs");
     let had_build_rs = build_rs_path.exists();
@@ -37,7 +45,7 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
         if has_linker_args && !had_build_rs {
-            generate_build_rs(&build_rs_path, pkg_name, &spec)?;
+            generate_build_rs(&build_rs_path, &pkg_name, &spec)?;
         }
 
         let mut cmd = Command::new("cargo");
@@ -47,6 +55,9 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
         cmd.arg("test");
         cmd.arg("-p").arg(pkg_name);
         cmd.current_dir(&workspace);
+
+        // Set spec path for tspec-build library to read in build.rs
+        cmd.env("TSPEC_SPEC_FILE", path.as_os_str());
 
         apply_spec_to_command(&mut cmd, &spec, &workspace, release, expanded_td.as_deref())?;
         cmd.status().context("failed to run cargo test")?
@@ -71,5 +82,6 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
         bail!("cargo test failed");
     }
 
+    warn_stale_build_rs(had_stale_build_rs);
     Ok(())
 }

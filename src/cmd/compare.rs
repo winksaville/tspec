@@ -3,13 +3,16 @@ use clap::Args;
 use std::path::Path;
 use std::process::ExitCode;
 
-use super::{Execute, current_package_name};
+use super::{Execute, current_package_name, resolve_package_arg};
 use crate::compare::compare_specs;
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
 
 /// Compare specs for a package (size only)
 #[derive(Args)]
 pub struct CompareCmd {
+    /// Package to compare (name or path, e.g. "." for current dir)
+    #[arg(value_name = "PACKAGE")]
+    pub positional: Option<String>,
     /// Package to compare (defaults to current directory)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
@@ -26,15 +29,13 @@ pub struct CompareCmd {
 
 impl Execute for CompareCmd {
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
-        let pkg_name = self
-            .package
-            .clone()
-            .or_else(current_package_name)
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "not in a package directory (no Cargo.toml found). Use -p to specify a package."
-                )
-            })?;
+        let pkg_name = match self.positional.as_deref().or(self.package.as_deref()) {
+            Some(pkg) => resolve_package_arg(pkg)?,
+            None => current_package_name(),
+        }
+        .ok_or_else(|| {
+            anyhow::anyhow!("not in a package directory. Use -p to specify a package.")
+        })?;
         let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;
         let pkg_name = get_package_name(&package_dir)?;
         let spec_paths = if self.tspec.is_empty() {
