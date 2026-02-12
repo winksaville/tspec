@@ -23,6 +23,10 @@ The `compare` command has two issues:
 - CLI parse tests for `CompareCmd`: optional `-p`, `-t` with multiple values, no `-t` defaults
 - `find_tspecs` test for multi-dot filenames (`tspec.musl.ts.toml` matching `tspec*.ts.toml`)
 
+### Result
+
+Done. `-p` is now optional (defaults to cwd package), `-t` accepts shell-expanded globs via `num_args = 1..`. Removed broken spec files (dyn-opt, static-opt). 8 new tests added.
+
 ### References
 
 - todo.md items: "-p shouldn't be needed for `ts compare` if in a POP" and "for build, run ... a -t should support glob like in compare"

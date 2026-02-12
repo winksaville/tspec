@@ -15,7 +15,9 @@
       "Bash(tspec clippy:*)",
       "Bash(git -C /home/wink/data/prgs/rust/tspec diff)",
       "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline -3)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(ls:*)",
+      "Bash(tspec compare:*)"
     ]
   }
 }

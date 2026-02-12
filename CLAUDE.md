@@ -96,6 +96,12 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 5. Commit the above as a chore marker commit before starting code changes
 6. Use todo list to track progress during implementation
 
+**On completion:**
+1. Update `notes/chores-N.md` with result
+2. Move items from In Progress to Done in `notes/todo.md`
+3. Remove `-dev` from version in `Cargo.toml`
+4. Commit as a release chore (include `Cargo.lock` if changed)
+
 **Branch naming:** `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`
 
 ## Verification Workflow

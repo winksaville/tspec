@@ -26,7 +26,9 @@ tspec build -p myapp -r -s                 # Build release, strip symbol with ts
 tspec run -p myapp                         # Build and run with tspec.ts.toml if present
 tspec test -p myapp                        # Build and test with tspec.ts.toml if present
 tspec build -w                             # Build all packages (even from inside a package dir)
-tspec compare -p myapp -r                  # Compare all tspec*.ts.toml by binary size
+tspec compare                              # Compare all tspec*.ts.toml by binary size
+tspec compare -t *.ts.toml                 # Compare using shell-expanded glob
+tspec compare -p myapp                     # Compare for a specific package
 ```
 
 The `-p` flag specifies a package (defaults to current directory if in a package, otherwise all packages).
@@ -206,9 +208,7 @@ Note: Use `ts` as the subcommand (short for "tspec management").
 ## Testing
 
 ```bash
-cargo test                    # Run all tests
-cargo test -- --nocapture     # See println output
-cargo test spec_default       # Run specific test
+tspec test -p tspec           # Run all tests
 ```
 
 ## Project Structure
@@ -243,9 +243,9 @@ See [notes/todo.md](notes/todo.md) for current tasks.
 ### Verification
 
 ```bash
-cargo test
-cargo clippy --all-targets
-cargo fmt --check
+tspec test -p tspec
+tspec clippy
+tspec fmt --check
 ```
 
 ## Origin

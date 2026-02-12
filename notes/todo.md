@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Fix compare: optional `-p` and glob `-t` handling [18]
-
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -15,6 +13,7 @@
 
 See older [done.md](done.md)
 
+- Fix compare: optional `-p` and glob `-t` handling [18]
 - Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
 - `ts set` array append/remove: `linker.args+=-Wl,--gc-sections` / `linker.args-=-static`
 - `ts set/unset` rewritten with `toml_edit` - supports all fields (including arrays: `rustc.build_std`, `linker.args`, `cargo.unstable`, `rustc.flags`), preserves comments/formatting

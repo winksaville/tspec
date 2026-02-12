@@ -1,0 +1,10 @@
+[cargo]
+unstable = []
+target_dir = "{name}-{hash}"
+
+[rustc]
+build_std = []
+flags = []
+
+[linker]
+args = []
