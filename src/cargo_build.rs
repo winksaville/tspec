@@ -259,6 +259,7 @@ pub fn apply_spec_to_command(
     }
 
     if let Some(ref path) = spec.cargo.target_json {
+        cmd.arg("-Z").arg("json-target-spec");
         cmd.arg("--target").arg(path);
     }
 
@@ -437,6 +438,44 @@ mod tests {
     fn is_tspec_generated_rejects_user_build_rs() {
         let content = "fn main() {\n    println!(\"cargo:rerun-if-changed=src\");\n}\n";
         assert!(!is_tspec_generated_build_rs(content));
+    }
+
+    #[test]
+    fn target_json_adds_json_target_spec_flag() {
+        let mut spec = Spec::default();
+        spec.cargo.target_json = Some(PathBuf::from("x86_64-custom.json"));
+
+        let mut cmd = Command::new("cargo");
+        cmd.arg("build");
+        let workspace = PathBuf::from("/tmp/fake");
+        apply_spec_to_command(&mut cmd, &spec, &workspace, false, None).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into()).collect();
+        // Should have: -Z json-target-spec --target x86_64-custom.json
+        let z_pos = args.iter().position(|a| a == "-Z").unwrap();
+        assert_eq!(args[z_pos + 1], "json-target-spec");
+        let target_pos = args.iter().position(|a| a == "--target").unwrap();
+        assert_eq!(args[target_pos + 1], "x86_64-custom.json");
+        assert!(
+            z_pos < target_pos,
+            "-Z json-target-spec should come before --target"
+        );
+    }
+
+    #[test]
+    fn target_triple_does_not_add_json_target_spec_flag() {
+        let mut spec = Spec::default();
+        spec.cargo.target_triple = Some("x86_64-unknown-linux-gnu".to_string());
+
+        let mut cmd = Command::new("cargo");
+        cmd.arg("build");
+        let workspace = PathBuf::from("/tmp/fake");
+        apply_spec_to_command(&mut cmd, &spec, &workspace, false, None).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(!args.contains(&"json-target-spec".to_string()));
+        let target_pos = args.iter().position(|a| a == "--target").unwrap();
+        assert_eq!(args[target_pos + 1], "x86_64-unknown-linux-gnu");
     }
 
     #[test]
