@@ -28,11 +28,17 @@ pub fn compare_specs(
     let mut results = Vec::new();
 
     // Always build cargo --release baseline first
-    let baseline_size = build_baseline(pkg_name, strip)?;
-    results.push(SpecResult {
-        name: "cargo --release".to_string(),
-        size: baseline_size,
-    });
+    match build_baseline(pkg_name, strip) {
+        Ok(size) => {
+            results.push(SpecResult {
+                name: "cargo --release".to_string(),
+                size,
+            });
+        }
+        Err(_) => {
+            println!("    baseline build failed, skipping");
+        }
+    }
     println!();
 
     for spec_path in spec_paths {
