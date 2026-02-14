@@ -136,3 +136,10 @@ already support `-w`/`--workspace` for all-packages mode. Add the same pattern t
 1. Add `-w`/`--workspace` and `--fail-fast` flags to CompareCmd
 2. Add `compare_all()` and `print_compare_summary()` to `all.rs`
 3. Disallow `-t` in all-packages mode (each package uses its own tspecs)
+
+### Result
+
+Done. Compare now supports `-w`/`--workspace` and `--fail-fast`, matching build and test.
+In all-packages mode, per-package comparison tables are deferred to the end summary.
+With a single package, only the per-package table is shown (no redundant overall summary).
+`compare_specs` returns results for callers to print via `print_comparison`.
