@@ -16,23 +16,21 @@ struct SpecResult {
 pub fn compare_specs(
     pkg_name: &str,
     spec_paths: &[impl AsRef<Path> + std::fmt::Debug],
-    release: bool,
-    strip: bool,
 ) -> Result<()> {
-    println!(
-        "Comparing {} builds{}:\n",
-        pkg_name,
-        if strip { " (stripped)" } else { "" }
-    );
+    println!("Comparing {} builds:\n", pkg_name);
 
     let mut results = Vec::new();
 
-    // Always build cargo --release baseline first
-    match build_baseline(pkg_name, strip) {
-        Ok(size) => {
+    // Always build cargo --release baseline first (unstripped + stripped)
+    match build_baseline(pkg_name) {
+        Ok((size, stripped_size)) => {
             results.push(SpecResult {
                 name: "cargo --release".to_string(),
                 size,
+            });
+            results.push(SpecResult {
+                name: "cargo --release-strip".to_string(),
+                size: stripped_size,
             });
         }
         Err(_) => {
@@ -48,7 +46,7 @@ pub fn compare_specs(
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| spec_path.display().to_string());
 
-        let size = build_spec(pkg_name, spec_path, release, strip)?;
+        let size = build_spec(pkg_name, spec_path)?;
         results.push(SpecResult { name, size });
         println!();
     }
@@ -61,37 +59,31 @@ pub fn compare_specs(
     Ok(())
 }
 
-fn build_baseline(pkg_name: &str, strip: bool) -> Result<u64> {
+/// Build baseline and return (unstripped_size, stripped_size)
+fn build_baseline(pkg_name: &str) -> Result<(u64, u64)> {
     println!("  cargo --release:");
 
     let build_result = plain_cargo_build_release(pkg_name)?;
 
-    if strip {
-        strip_binary(&build_result.binary_path)?;
-    }
-
     let size = binary_size(&build_result.binary_path)?;
     println!("    size: {} bytes", format_size(size));
 
-    Ok(size)
+    strip_binary(&build_result.binary_path)?;
+    let stripped_size = binary_size(&build_result.binary_path)?;
+
+    Ok((size, stripped_size))
 }
 
-fn build_spec(pkg_name: &str, spec_path: &Path, release: bool, strip: bool) -> Result<u64> {
+fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
     let spec_str = spec_path.to_string_lossy();
     println!(
         "  {}:",
         spec_path.file_name().unwrap_or_default().to_string_lossy()
     );
 
-    // Build
-    let build_result = build_package(pkg_name, Some(&spec_str), release)?;
+    // Build using spec settings (profile, strip, etc. are all in the spec)
+    let build_result = build_package(pkg_name, Some(&spec_str), false)?;
 
-    // Optionally strip
-    if strip {
-        strip_binary(&build_result.binary_path)?;
-    }
-
-    // Get size
     let size = binary_size(&build_result.binary_path)?;
     println!("    size: {} bytes", format_size(size));
 

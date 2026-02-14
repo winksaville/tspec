@@ -24,7 +24,7 @@ tspec build myapp                          # Same, using positional argument
 tspec build .                              # Build the package in current directory
 tspec build -p myapp -t tspec-opt          # Build with alternative spec tspec-opt.ts.toml
 tspec build -p myapp -t tspec-opt.ts.toml  # Build with alternative spec tspec-opt.ts.toml
-tspec build -p myapp -r -s                 # Build release, strip symbol with tspec.ts.toml if present
+tspec build -p myapp -r -s                 # Build release, strip symbols with tspec.ts.toml if present
 tspec run -p myapp                         # Build and run with tspec.ts.toml if present
 tspec test -p myapp                        # Build and test with tspec.ts.toml if present
 tspec build -w                             # Build all packages (even from inside a package dir)
@@ -53,7 +53,7 @@ strip = "symbols"                          # "none" (default), "debuginfo", "sym
 [cargo]
 profile = "release"                        # "debug" (default), "release"
 target_triple = "x86_64-unknown-linux-musl"
-target_json = "path/to/custom-target.json" # custom target spec (mutually exclusive with target_triple)
+target_json = "path/to/custom-target.json" # custom target spec (auto-adds -Z json-target-spec)
 unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
 target_dir = "{name}"                      # per-spec target dir; supports {name} and {hash} placeholders
 
@@ -81,7 +81,7 @@ top-level `panic` and `rustc.panic` are set, both are applied (prefer one or the
 - **One tspec per package** - A tspec applies to all crates (targets) within a Cargo package. For per-crate control, use separate packages in a workspace.
 - **tspec.ts.toml is optional** - Packages without one get plain `cargo build/test`
 - **Generated build.rs** - tspec generates temporary build.rs for scoped linker flags
-- **Spec comparison** - Compare binary sizes across different specs
+- **Spec comparison** - Compare binary sizes across different specs; always shows both `cargo --release` and `cargo --release-strip` baselines
 
 ### How Linker Flags Work
 

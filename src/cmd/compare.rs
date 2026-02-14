@@ -19,12 +19,6 @@ pub struct CompareCmd {
     /// Spec file(s) or glob pattern(s) (defaults to tspec* pattern)
     #[arg(short = 't', long = "tspec", num_args = 1..)]
     pub tspec: Vec<String>,
-    /// Release build
-    #[arg(short, long)]
-    pub release: bool,
-    /// Strip symbols before comparing sizes
-    #[arg(short, long)]
-    pub strip: bool,
 }
 
 impl Execute for CompareCmd {
@@ -43,7 +37,7 @@ impl Execute for CompareCmd {
         } else {
             find_tspecs(&package_dir, &self.tspec)?
         };
-        compare_specs(&pkg_name, &spec_paths, self.release, self.strip)?;
+        compare_specs(&pkg_name, &spec_paths)?;
         Ok(ExitCode::SUCCESS)
     }
 }
@@ -102,20 +96,9 @@ mod tests {
     }
 
     #[test]
-    fn tspec_with_other_flags() {
-        // Shell-expanded glob followed by other flags
-        let cmd = parse(&["-t", "a.ts.toml", "b.ts.toml", "-r", "-s"]);
-        assert_eq!(cmd.tspec, vec!["a.ts.toml", "b.ts.toml"]);
-        assert!(cmd.release);
-        assert!(cmd.strip);
-    }
-
-    #[test]
     fn all_flags_together() {
-        let cmd = parse(&["-p", "myapp", "-t", "spec.ts.toml", "-r", "-s"]);
+        let cmd = parse(&["-p", "myapp", "-t", "spec.ts.toml"]);
         assert_eq!(cmd.package.as_deref(), Some("myapp"));
         assert_eq!(cmd.tspec, vec!["spec.ts.toml"]);
-        assert!(cmd.release);
-        assert!(cmd.strip);
     }
 }
