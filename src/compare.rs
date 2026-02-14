@@ -54,7 +54,7 @@ pub fn compare_specs(
     // Sort by size (smallest first)
     results.sort_by_key(|r| r.size);
 
-    print_comparison(&results);
+    print_comparison(pkg_name, &results);
 
     Ok(())
 }
@@ -90,7 +90,7 @@ fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
     Ok(size)
 }
 
-fn print_comparison(results: &[SpecResult]) {
+fn print_comparison(pkg_name: &str, results: &[SpecResult]) {
     let largest_size = results.iter().map(|r| r.size).max().unwrap_or(0);
     let max_name_len = results.iter().map(|r| r.name.len()).max().unwrap_or(4);
 
@@ -108,7 +108,7 @@ fn print_comparison(results: &[SpecResult]) {
     };
 
     println!();
-    print_header!("COMPARE SUMMARY");
+    print_header!(format!("{} COMPARE SUMMARY", pkg_name));
     println!(
         "  {:width$}  {:>10}  {:>8}",
         "Spec",
