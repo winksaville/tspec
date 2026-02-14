@@ -4,11 +4,12 @@
 
 ## Todo
 
+- for build, run ... a -t should support glob like in compare
+- Add a permanent test workspace for integration testing (external repo or embedded?)
+- Add benchmark support, especially cold-start vs hot-start build timing
+- Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
 - Improve `classify_crate` - using name alone is brittle [4]
-- for build, run ... a -t should support glob like in compare
-- Design: `tspec-build` library crate for linker.args when package has its own build.rs [21]
- 
 
 ## Done
 
@@ -18,6 +19,7 @@ See older [done.md](done.md)
 - Detect and remove stale tspec-generated build.rs [20]
 - Always include `cargo --release` baseline in compare [19]
 - Fix compare: optional `-p` and glob `-t` handling [18]
+- Design: `tspec-build` library crate for linker.args when package has its own build.rs [21]
 - Orthogonal `ts set`/`add`/`remove` with separate key and value args [17]
 - `ts set` array append/remove: `linker.args+=-Wl,--gc-sections` / `linker.args-=-static`
 - `ts set/unset` rewritten with `toml_edit` - supports all fields (including arrays: `rustc.build_std`, `linker.args`, `cargo.unstable`, `rustc.flags`), preserves comments/formatting
