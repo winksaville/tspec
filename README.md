@@ -2,7 +2,7 @@
 
 A spec-driven build system for Rust that wraps cargo with configurable target triples, compiler flags, and linker options. Each tspec applies to a Cargo **package** — the unit with a `Cargo.toml`. If different crates need different compilation settings, they should be in separate packages.
 
-**Status:** Active development. Works with both workspaces and single-package projects (POPs).
+**Status:** Active development. Works with both workspaces and single-package projects, Plain Old Packages (POPs).
 
 ## Installation
 
@@ -28,9 +28,11 @@ tspec build -p myapp -r -s                 # Build release, strip symbols with t
 tspec run -p myapp                         # Build and run with tspec.ts.toml if present
 tspec test -p myapp                        # Build and test with tspec.ts.toml if present
 tspec build -w                             # Build all packages (even from inside a package dir)
-tspec compare                              # Compare all tspec*.ts.toml by binary size
-tspec compare -t *.ts.toml                 # Compare using shell-expanded glob
-tspec compare -p myapp                     # Compare for a specific package
+tspec compare -p myapp                     # Compare binary sizes for a package
+tspec compare -p myapp -t *.ts.toml        # Compare using shell-expanded glob
+tspec compare                              # Compare all packages (workspace mode)
+tspec compare -w                           # Force workspace mode from inside a package
+tspec compare -w -f                        # Workspace mode, stop on first failure
 ```
 
 The `-p` flag or positional argument specifies a package by name or path (defaults to current directory if in a package, otherwise all packages). Paths like `.` are resolved to the actual cargo package name. At a pure workspace root (no `[package]`), `.` means "all packages."
@@ -81,7 +83,7 @@ top-level `panic` and `rustc.panic` are set, both are applied (prefer one or the
 - **One tspec per package** - A tspec applies to all crates (targets) within a Cargo package. For per-crate control, use separate packages in a workspace.
 - **tspec.ts.toml is optional** - Packages without one get plain `cargo build/test`
 - **Generated build.rs** - tspec generates temporary build.rs for scoped linker flags
-- **Spec comparison** - Compare binary sizes across different specs; always shows both `cargo --release` and `cargo --release-strip` baselines
+- **Spec comparison** - Compare binary sizes across different specs; always shows both `cargo --release` and `cargo --release-strip` baselines. Supports `-w` for all-packages mode — per-package tables are collected and printed together at the end. With a single package, only its comparison table is shown
 
 ### How Linker Flags Work
 
@@ -233,7 +235,7 @@ tspec/                  # Workspace root (also the main tspec package)
     run.rs              # Run command implementation
     testing.rs          # Test command implementation
     compare.rs          # Compare command (size comparison)
-    all.rs              # Batch operations (build_all, run_all, test_all)
+    all.rs              # Batch operations (build_all, run_all, test_all, compare_all)
     cmd/                # Command implementations (one file per command)
     ts_cmd/             # Tspec management subcommands
     binary.rs           # Binary operations (strip, size)
