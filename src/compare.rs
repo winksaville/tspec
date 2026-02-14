@@ -7,16 +7,16 @@ use crate::cargo_build::{build_package, plain_cargo_build_release};
 use crate::{print_header, print_hline};
 
 /// Result of building a spec
-struct SpecResult {
-    name: String,
-    size: u64,
+pub struct SpecResult {
+    pub name: String,
+    pub size: u64,
 }
 
 /// Compare multiple specs for a package
 pub fn compare_specs(
     pkg_name: &str,
     spec_paths: &[impl AsRef<Path> + std::fmt::Debug],
-) -> Result<()> {
+) -> Result<Vec<SpecResult>> {
     println!("Comparing {} builds:\n", pkg_name);
 
     let mut results = Vec::new();
@@ -54,9 +54,7 @@ pub fn compare_specs(
     // Sort by size (smallest first)
     results.sort_by_key(|r| r.size);
 
-    print_comparison(pkg_name, &results);
-
-    Ok(())
+    Ok(results)
 }
 
 /// Build baseline and return (unstripped_size, stripped_size)
@@ -90,7 +88,7 @@ fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
     Ok(size)
 }
 
-fn print_comparison(pkg_name: &str, results: &[SpecResult]) {
+pub fn print_comparison(pkg_name: &str, results: &[SpecResult]) {
     let largest_size = results.iter().map(|r| r.size).max().unwrap_or(0);
     let max_name_len = results.iter().map(|r| r.name.len()).max().unwrap_or(4);
 

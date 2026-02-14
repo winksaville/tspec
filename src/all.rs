@@ -7,7 +7,7 @@ use std::process::ExitCode;
 
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::build_package;
-use crate::compare::compare_specs;
+use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
 use crate::testing::test_package;
@@ -360,8 +360,14 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
+/// Result of a compare operation on a single package
+pub struct CompareResult {
+    pub op: OpResult,
+    pub specs: Vec<SpecResult>,
+}
+
 /// Compare all workspace packages that have binaries
-pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<OpResult> {
+pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<CompareResult> {
     let mut results = Vec::new();
 
     for member in workspace.buildable_members() {
@@ -373,23 +379,29 @@ pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<OpResult> 
 
         println!("=== {} ===", member.name);
 
-        let result = match compare_specs(&member.name, &spec_paths) {
-            Ok(()) => OpResult {
-                name: member.name.clone(),
-                success: true,
-                message: "ok".to_string(),
-                size: None,
-            },
-            Err(e) => OpResult {
-                name: member.name.clone(),
-                success: false,
-                message: e.to_string(),
-                size: None,
-            },
+        let (op, specs) = match compare_specs(&member.name, &spec_paths) {
+            Ok(spec_results) => (
+                OpResult {
+                    name: member.name.clone(),
+                    success: true,
+                    message: "ok".to_string(),
+                    size: None,
+                },
+                spec_results,
+            ),
+            Err(e) => (
+                OpResult {
+                    name: member.name.clone(),
+                    success: false,
+                    message: e.to_string(),
+                    size: None,
+                },
+                Vec::new(),
+            ),
         };
 
-        let failed = !result.success;
-        results.push(result);
+        let failed = !op.success;
+        results.push(CompareResult { op, specs });
 
         if failed && fail_fast {
             break;
@@ -400,38 +412,56 @@ pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<OpResult> 
 }
 
 /// Print a summary for compare operations
-pub fn print_compare_summary(results: &[OpResult]) -> ExitCode {
-    let max_name_len = results
-        .iter()
-        .map(|r| r.name.len())
-        .max()
-        .unwrap_or(5)
-        .max(5);
+///
+/// With a single package, just prints its comparison table.
+/// With multiple packages, reprints all per-package tables then an overall OK/FAIL summary.
+pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
+    let has_failure = results.iter().any(|r| !r.op.success);
 
-    println!();
-    print_header!("COMPARE SUMMARY");
-    println!("  {:width$}  Status", "Package", width = max_name_len);
-
-    let mut ok_count = 0;
-    let mut failed_count = 0;
-
+    // Reprint per-package comparison tables together
     for result in results {
-        let status = if result.success {
-            ok_count += 1;
-            "[ OK ]"
-        } else {
-            failed_count += 1;
-            "[FAIL]"
-        };
-        println!("  {:width$}  {status}", result.name, width = max_name_len);
+        if !result.specs.is_empty() {
+            print_comparison(&result.op.name, &result.specs);
+        }
     }
 
-    println!();
-    println!("  Compare: {} ok, {} failed", ok_count, failed_count);
-    print_hline!();
-    println!();
+    // Only show overall COMPARE SUMMARY when there are multiple packages
+    if results.len() > 1 {
+        let max_name_len = results
+            .iter()
+            .map(|r| r.op.name.len())
+            .max()
+            .unwrap_or(5)
+            .max(5);
 
-    if failed_count > 0 {
+        print_header!("COMPARE SUMMARY");
+        println!("  {:width$}  Status", "Package", width = max_name_len);
+
+        let mut ok_count = 0;
+        let mut failed_count = 0;
+
+        for result in results {
+            let status = if result.op.success {
+                ok_count += 1;
+                "[ OK ]"
+            } else {
+                failed_count += 1;
+                "[FAIL]"
+            };
+            println!(
+                "  {:width$}  {status}",
+                result.op.name,
+                width = max_name_len
+            );
+        }
+
+        println!();
+        println!("  Compare: {} ok, {} failed", ok_count, failed_count);
+        print_hline!();
+        println!();
+    }
+
+    if has_failure {
         ExitCode::from(1)
     } else {
         ExitCode::SUCCESS

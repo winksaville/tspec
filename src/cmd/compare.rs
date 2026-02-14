@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{compare_all, print_compare_summary};
-use crate::compare::compare_specs;
+use crate::compare::{compare_specs, print_comparison};
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
 use crate::workspace::WorkspaceInfo;
 
@@ -60,7 +60,8 @@ impl Execute for CompareCmd {
                 } else {
                     find_tspecs(&package_dir, &self.tspec)?
                 };
-                compare_specs(&pkg_name, &spec_paths)?;
+                let results = compare_specs(&pkg_name, &spec_paths)?;
+                print_comparison(&pkg_name, &results);
                 Ok(ExitCode::SUCCESS)
             }
         }
