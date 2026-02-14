@@ -7,6 +7,8 @@ use std::process::ExitCode;
 
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::build_package;
+use crate::compare::compare_specs;
+use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
 use crate::testing::test_package;
 use crate::workspace::{PackageKind, WorkspaceInfo};
@@ -355,6 +357,84 @@ fn format_size(bytes: u64) -> String {
         format!("{:.1}K", bytes as f64 / 1_000.0)
     } else {
         format!("{}", bytes)
+    }
+}
+
+/// Compare all workspace packages that have binaries
+pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<OpResult> {
+    let mut results = Vec::new();
+
+    for member in workspace.buildable_members() {
+        if !member.has_binary {
+            continue;
+        }
+
+        let spec_paths = find_tspecs(&member.path, &[]).unwrap_or_default();
+
+        println!("=== {} ===", member.name);
+
+        let result = match compare_specs(&member.name, &spec_paths) {
+            Ok(()) => OpResult {
+                name: member.name.clone(),
+                success: true,
+                message: "ok".to_string(),
+                size: None,
+            },
+            Err(e) => OpResult {
+                name: member.name.clone(),
+                success: false,
+                message: e.to_string(),
+                size: None,
+            },
+        };
+
+        let failed = !result.success;
+        results.push(result);
+
+        if failed && fail_fast {
+            break;
+        }
+    }
+
+    results
+}
+
+/// Print a summary for compare operations
+pub fn print_compare_summary(results: &[OpResult]) -> ExitCode {
+    let max_name_len = results
+        .iter()
+        .map(|r| r.name.len())
+        .max()
+        .unwrap_or(5)
+        .max(5);
+
+    println!();
+    print_header!("COMPARE SUMMARY");
+    println!("  {:width$}  Status", "Package", width = max_name_len);
+
+    let mut ok_count = 0;
+    let mut failed_count = 0;
+
+    for result in results {
+        let status = if result.success {
+            ok_count += 1;
+            "[ OK ]"
+        } else {
+            failed_count += 1;
+            "[FAIL]"
+        };
+        println!("  {:width$}  {status}", result.name, width = max_name_len);
+    }
+
+    println!();
+    println!("  Compare: {} ok, {} failed", ok_count, failed_count);
+    print_hline!();
+    println!();
+
+    if failed_count > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
     }
 }
 

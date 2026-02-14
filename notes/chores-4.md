@@ -123,3 +123,16 @@ Option 6 with a thin implementation:
 ### Status
 
 Implementation in progress
+
+## 20260214 - Add compare --workspace for all-packages mode
+
+### Context
+
+`tspec compare` requires a specific package and errors at workspace root. Build and test
+already support `-w`/`--workspace` for all-packages mode. Add the same pattern to compare.
+
+### Plan
+
+1. Add `-w`/`--workspace` and `--fail-fast` flags to CompareCmd
+2. Add `compare_all()` and `print_compare_summary()` to `all.rs`
+3. Disallow `-t` in all-packages mode (each package uses its own tspecs)

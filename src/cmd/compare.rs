@@ -4,8 +4,10 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{Execute, current_package_name, resolve_package_arg};
+use crate::all::{compare_all, print_compare_summary};
 use crate::compare::compare_specs;
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
+use crate::workspace::WorkspaceInfo;
 
 /// Compare specs for a package (size only)
 #[derive(Args)]
@@ -16,29 +18,52 @@ pub struct CompareCmd {
     /// Package to compare (defaults to current directory)
     #[arg(short = 'p', long = "package")]
     pub package: Option<String>,
+    /// Compare all workspace packages (even when in a package directory)
+    #[arg(short = 'w', long = "workspace")]
+    pub workspace: bool,
     /// Spec file(s) or glob pattern(s) (defaults to tspec* pattern)
     #[arg(short = 't', long = "tspec", num_args = 1..)]
     pub tspec: Vec<String>,
+    /// Stop on first failure (for all-packages mode)
+    #[arg(short, long)]
+    pub fail_fast: bool,
 }
 
 impl Execute for CompareCmd {
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
-        let pkg_name = match self.positional.as_deref().or(self.package.as_deref()) {
-            Some(pkg) => resolve_package_arg(pkg)?,
-            None => current_package_name(),
-        }
-        .ok_or_else(|| {
-            anyhow::anyhow!("not in a package directory. Use -p to specify a package.")
-        })?;
-        let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;
-        let pkg_name = get_package_name(&package_dir)?;
-        let spec_paths = if self.tspec.is_empty() {
-            find_tspecs(&package_dir, &self.tspec).unwrap_or_default()
+        // Resolve package: --workspace > -p/positional PKG > cwd > all
+        let resolved = if self.workspace {
+            None
         } else {
-            find_tspecs(&package_dir, &self.tspec)?
+            match self.positional.as_deref().or(self.package.as_deref()) {
+                Some(pkg) => resolve_package_arg(pkg)?,
+                None => current_package_name(),
+            }
         };
-        compare_specs(&pkg_name, &spec_paths)?;
-        Ok(ExitCode::SUCCESS)
+
+        match resolved {
+            None => {
+                if !self.tspec.is_empty() {
+                    anyhow::bail!(
+                        "-t/--tspec cannot be used in all-packages mode. Each package uses its own tspecs."
+                    );
+                }
+                let workspace = WorkspaceInfo::discover()?;
+                let results = compare_all(&workspace, self.fail_fast);
+                Ok(print_compare_summary(&results))
+            }
+            Some(pkg_name) => {
+                let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;
+                let pkg_name = get_package_name(&package_dir)?;
+                let spec_paths = if self.tspec.is_empty() {
+                    find_tspecs(&package_dir, &self.tspec).unwrap_or_default()
+                } else {
+                    find_tspecs(&package_dir, &self.tspec)?
+                };
+                compare_specs(&pkg_name, &spec_paths)?;
+                Ok(ExitCode::SUCCESS)
+            }
+        }
     }
 }
 
@@ -100,5 +125,37 @@ mod tests {
         let cmd = parse(&["-p", "myapp", "-t", "spec.ts.toml"]);
         assert_eq!(cmd.package.as_deref(), Some("myapp"));
         assert_eq!(cmd.tspec, vec!["spec.ts.toml"]);
+    }
+
+    #[test]
+    fn workspace_flag_short() {
+        let cmd = parse(&["-w"]);
+        assert!(cmd.workspace);
+    }
+
+    #[test]
+    fn workspace_flag_long() {
+        let cmd = parse(&["--workspace"]);
+        assert!(cmd.workspace);
+    }
+
+    #[test]
+    fn workspace_default_false() {
+        let cmd = parse(&[]);
+        assert!(!cmd.workspace);
+    }
+
+    #[test]
+    fn fail_fast_flag() {
+        let cmd = parse(&["-w", "-f"]);
+        assert!(cmd.workspace);
+        assert!(cmd.fail_fast);
+    }
+
+    #[test]
+    fn fail_fast_long() {
+        let cmd = parse(&["--workspace", "--fail-fast"]);
+        assert!(cmd.workspace);
+        assert!(cmd.fail_fast);
     }
 }

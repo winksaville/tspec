@@ -2,6 +2,8 @@
 
 ## In Progress
 
+- Add `tspec compare -w/--workspace` for all-packages mode [22]
+
 ## Todo
 
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -37,3 +39,4 @@ See older [done.md](done.md)
 [19]: chores-4.md#20260212---always-include-cargo---release-baseline-in-compare
 [20]: chores-4.md#20260212---detect-and-remove-stale-tspec-generated-buildrs
 [21]: chores-4.md#20260212---design-tspec-build-library-for-linkerargs
+[22]: chores-4.md#20260214---add-compare---workspace-for-all-packages-mode
