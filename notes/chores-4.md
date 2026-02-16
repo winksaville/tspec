@@ -285,6 +285,111 @@ Design discussion in progress. Next steps:
 - Decide which remaining `[rustc]` fields to remove vs keep
 - Prototype `cargo --config` integration in `apply_spec_to_command()`
 
+## 20260216 - Design: Passing tspec fields via build.rs vs cargo --config
+
+### Context
+
+Follow-up to the profile support design discussion. Investigated whether all tspec fields
+associated with a package's cargo parameters for compilation and linking could be passed
+via `build.rs` instead of RUSTFLAGS.
+
+### Key findings
+
+**build.rs cannot carry compilation settings**
+
+Cargo deliberately restricts what build script directives can influence. The available
+directives and their usefulness for codegen control:
+
+| Directive                    | Effect                          | Useful for codegen? |
+|------------------------------|---------------------------------|---------------------|
+| `cargo:rustc-cfg=KEY`        | Adds `--cfg KEY`                | No — conditional compilation only |
+| `cargo:rustc-env=VAR=VALUE`  | Sets `env!()` at compile time   | No — data, not compiler behavior  |
+| `cargo:rustc-flags=FLAGS`    | Restricted to `-l` and `-L`     | No — cargo rejects `-C` flags     |
+| `cargo:rustc-link-arg=`      | Passed to linker                | Linker phase only   |
+| `cargo:rustc-link-lib=`      | Link a library                  | Linker phase only   |
+
+There is no `cargo:rustc-codegen-option=` or `cargo:rustc-arg=`. This is a deliberate
+cargo design choice — codegen settings are controlled centrally by the root manifest,
+not by individual packages.
+
+**Dependency Cargo.toml profile settings are ignored**
+
+Cargo only honors `[profile.*]` from the root manifest. Dependencies' profile settings
+are silently ignored (workspace members get a warning). The one exception: when a crate
+is the root via `cargo install`, its profiles are honored.
+
+Ref: [Profiles - The Cargo Book](https://doc.rust-lang.org/cargo/reference/profiles.html)
+
+**Dependency build.rs scripts ARE always executed**
+
+Unlike profiles, a dependency's `build.rs` always runs — it must, because it can compile
+C code, generate source files, probe the system, etc. This is the one place a dependency
+gets a voice in its own compilation, but only for linker args, link search paths, cfg
+flags, and environment — not codegen options.
+
+**`cargo --config` supports per-package profile overrides**
+
+`cargo --config` can target specific packages:
+
+```bash
+# Global — applies to everything
+cargo --config 'profile.release.opt-level="s"'
+
+# Per-package — applies ONLY to the named package
+cargo --config 'profile.release.package.foo.opt-level=2'
+```
+
+This maps to the Cargo.toml `[profile.release.package.<name>]` syntax.
+
+Ref: [Configuration - The Cargo Book](https://doc.rust-lang.org/cargo/reference/config.html)
+
+**Per-package profile overrides have field restrictions**
+
+Not all profile fields are available in per-package overrides. The supported fields:
+
+- `opt-level`, `codegen-units`, `overflow-checks`, `debug`, `debug-assertions`,
+  `strip`, `lto`
+
+The following are **excluded** from per-package overrides (profile-global only):
+
+- `panic` — must be consistent across the dependency graph
+- `rpath` — whole-build-graph concern (runtime library search paths in the binary)
+
+Ref: [Profiles - Overrides](https://doc.rust-lang.org/cargo/reference/profiles.html#overrides)
+
+**rpath note:** "rpath" = runtime search path, not relative path. It's the `-rpath` linker
+flag that embeds library search paths into the ELF/Mach-O binary header so the dynamic
+linker finds `.so`/`.dylib` files at runtime without `LD_LIBRARY_PATH`. Most Rust projects
+use static linking and never touch it.
+
+### Decision: use `cargo --config profile.*.package.<name>`
+
+For the initial implementation:
+1. Use `cargo --config 'profile.*.package.<name>.<field>=<value>'` for profile settings
+2. Document the known-supported fields (`opt-level`, `codegen-units`, `overflow-checks`,
+   `debug`, `debug-assertions`, `strip`, `lto`) but don't restrict the tspec schema to
+   only those — cargo will reject unknown keys with a clear error, and this future-proofs
+   against cargo adding new profile fields
+3. `panic` and `lto` at the profile-global level (not per-package), `rpath` not needed
+
+### Future thought: build.rs invoking rustc directly
+
+Technically, nothing stops a build.rs from invoking `rustc` directly — the same way the
+`cc` crate invokes `gcc`/`clang` to compile C code. A build.rs could:
+1. Invoke `rustc` with exact flags the package author wants
+2. Output an `.rlib`/`.a` into `OUT_DIR`
+3. Emit `cargo:rustc-link-search=` and `cargo:rustc-link-lib=static=`
+
+This would bypass cargo's codegen restrictions entirely. However, it fights cargo hard:
+- No incremental compilation, no dep-tracking, no feature resolution
+- The "real" crate cargo compiles would be a thin shell linking the pre-compiled artifact
+- Crate metadata, proc macros, and cross-crate generics all assume cargo-managed compilation
+
+The restriction on build.rs not passing `-C` flags is a **policy** choice, not a technical
+limitation. Cargo is fine with dependencies controlling compilation of other languages
+(C/C++ via `cc` crate) but not Rust itself. Filed as "theoretically possible, don't go
+there" — stick with `--config` as the practical path.
+
 ## 20260215 - Remove rustc.panic (duplicate of global panic)
 
 ### Context

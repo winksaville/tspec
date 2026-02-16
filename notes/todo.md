@@ -2,9 +2,9 @@
 
 ## In Progress
 
-## Todo
+- Support profile defintion/modification in tspecs (e.g. `ts set profile.release.opt-level=3`) taking precedence over over Cargot.toml. [25],[26]
 
-- Support profile defintion/modification in tspecs (e.g. `ts set profile.release.opt-level=3`) taking precedence over over Cargot.toml.
+## Todo
 - Commands like build, run ... should support glob and -w like in compare
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
@@ -44,3 +44,5 @@ See older [done.md](done.md)
 [21]: chores-4.md#20260212---design-tspec-build-library-for-linkerargs
 [22]: chores-4.md#20260214---add-compare---workspace-for-all-packages-mode
 [24]: chores-4.md#20260215---remove-rustcpanic-duplicate-of-global-panic
+[25]: chores-4.md#20260215---design-profile-support-and-tspec-section-scoping
+[26]: chores-4.md#20260216---design-passing-tspec-fields-via-buildrs-vs-cargo---config
