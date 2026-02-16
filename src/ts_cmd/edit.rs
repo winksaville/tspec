@@ -20,7 +20,6 @@ const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("cargo.target_dir", FieldKind::Scalar),
     ("cargo.unstable", FieldKind::Array),
     ("rustc.opt_level", FieldKind::Scalar),
-    ("rustc.panic", FieldKind::Scalar),
     ("rustc.lto", FieldKind::Scalar),
     ("rustc.codegen_units", FieldKind::Scalar),
     ("rustc.build_std", FieldKind::Array),
@@ -68,13 +67,6 @@ pub fn validate_value(key: &str, value: &str) -> Result<()> {
         "rustc.opt_level" => match value {
             "0" | "1" | "2" | "3" | "s" | "z" => Ok(()),
             _ => bail!("invalid opt-level: {} (expected: 0, 1, 2, 3, s, z)", value),
-        },
-        "rustc.panic" => match value {
-            "abort" | "unwind" | "immediate-abort" => Ok(()),
-            _ => bail!(
-                "invalid panic strategy: {} (expected: abort, unwind, immediate-abort)",
-                value
-            ),
         },
         "rustc.lto" => match value {
             "true" | "false" | "yes" | "no" | "1" | "0" => Ok(()),

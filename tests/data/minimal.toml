@@ -1,7 +1,8 @@
 # Minimal spec for testing
+panic = "abort"
+
 [cargo]
 profile = "release"
 
 [rustc]
 opt_level = "z"
-panic = "abort"

@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
 use tspec::types::*;
 
@@ -12,13 +13,14 @@ fn test_data(name: &str) -> PathBuf {
 fn load_minimal_spec() {
     let spec = load_spec(&test_data("minimal.toml")).unwrap();
 
+    assert_eq!(spec.panic, Some(PanicMode::Abort));
+
     assert_eq!(spec.cargo.profile, Some(Profile::Release));
     assert!(spec.cargo.target_triple.is_none());
     assert!(spec.cargo.target_json.is_none());
     assert!(spec.cargo.unstable.is_empty());
 
     assert_eq!(spec.rustc.opt_level, Some(OptLevel::Oz));
-    assert_eq!(spec.rustc.panic, Some(PanicStrategy::Abort));
     assert!(spec.rustc.lto.is_none());
     assert!(spec.rustc.codegen_units.is_none());
     assert!(spec.rustc.build_std.is_empty());

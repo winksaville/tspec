@@ -16,6 +16,7 @@
 
 See older [done.md](done.md)
 
+- Remove `rustc.panic` (duplicate of global panic) [24]
 - Add `tspec compare -w/--workspace` for all-packages mode [22]
 - Detect and remove stale tspec-generated build.rs [20]
 - Always include `cargo --release` baseline in compare [19]
@@ -42,3 +43,4 @@ See older [done.md](done.md)
 [20]: chores-4.md#20260212---detect-and-remove-stale-tspec-generated-buildrs
 [21]: chores-4.md#20260212---design-tspec-build-library-for-linkerargs
 [22]: chores-4.md#20260214---add-compare---workspace-for-all-packages-mode
+[24]: chores-4.md#20260215---remove-rustcpanic-duplicate-of-global-panic

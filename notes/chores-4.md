@@ -143,3 +143,177 @@ Done. Compare now supports `-w`/`--workspace` and `--fail-fast`, matching build 
 In all-packages mode, per-package comparison tables are deferred to the end summary.
 With a single package, only the per-package table is shown (no redundant overall summary).
 `compare_specs` returns results for callers to print via `print_comparison`.
+
+## 20260215 - Design: Profile support and tspec section scoping
+
+### Context
+
+tspec currently has three sections (`[cargo]`, `[rustc]`, `[linker]`) but their scope and
+interaction with cargo profiles isn't well-defined. The todo item "Support profile
+definition/modification in tspecs" prompted a design discussion.
+
+### Goal
+
+Long-term: tspec should apply compilation settings at the narrowest possible granularity.
+Today that's per-package (one tspec per Cargo.toml). Future direction: per-dependency tspecs,
+where a dependency carries its own tspec that the top-level build can honor.
+
+### Key findings
+
+**Current tspec sections (5 total)**
+
+A tspec has 5 sections today:
+1. Unnamed "global" — top-level fields: `panic` (PanicMode), `strip` (StripMode)
+2. `[cargo]` — profile, target_triple, target_json, unstable, target_dir
+3. `[rustc]` — opt_level, panic (PanicStrategy), lto, codegen_units, build_std, flags
+4. `[linker]` — args
+5. `[linker.version_script]` — global, local
+
+**Panic overlap: global vs `[rustc]`**
+
+`panic` exists at two levels with no conflict detection:
+- Global `panic` (PanicMode): high-level intent (unwind/abort/immediate-abort), expands to
+  both cargo `-Z` flags and rustc `-C panic=` flags
+- `rustc.panic` (PanicStrategy): low-level rustc `-C panic=` directly
+
+If both are set, duplicate `-C panic=` flags are emitted into RUSTFLAGS. This overlap
+should be resolved — likely by keeping only the global high-level version (which handles
+the immediate-abort case that needs both cargo and rustc flags).
+
+**Cargo profile mechanism: `cargo --config`**
+
+Cargo supports inline TOML config overrides via `--config`:
+```bash
+cargo build --config 'profile.release.opt-level=3' --config 'profile.release.lto=true'
+```
+This is a cargo CLI flag (not rustc). It overrides `[profile.*]` settings from Cargo.toml.
+
+Note: `rustc --cfg` is completely different (conditional compilation flags for `#[cfg(...)]`).
+
+**RUSTFLAGS vs `cargo --config` — same blast radius today**
+
+Both RUSTFLAGS and `cargo --config` profile settings apply to the target package AND all
+its dependencies within a single `cargo build -p <pkg>` invocation. Since tspec runs a
+separate cargo invocation per package, neither leaks across packages.
+
+The real reasons to prefer `cargo --config` are:
+1. **Per-package targeting** — `--config 'profile.release.package.serde.opt-level=2'`
+   lets you set different options per dependency. RUSTFLAGS has no equivalent. This is
+   the only path to dependency tspecs.
+2. **Settings with no `-C` flag** — `debug`, `overflow-checks`, `incremental`,
+   `split-debuginfo` can only be set via profiles, not RUSTFLAGS.
+3. **Fingerprinting** — cargo understands `--config` profile changes and recompiles
+   correctly. RUSTFLAGS changes also trigger recompiles but cargo treats it as a blunt
+   "rebuild everything" signal.
+
+**Current section scopes**
+
+| Section                | Intended scope | Actual scope        | Mechanism                              |
+|------------------------|----------------|---------------------|----------------------------------------|
+| Global (panic, strip)  | Package        | Package + all deps  | Expands to cargo -Z + RUSTFLAGS        |
+| `[cargo]`              | Package        | Package             | `--release`, `--target`, `-Z` flags    |
+| `[rustc]`              | Package        | Package + all deps  | `RUSTFLAGS` env var                    |
+| `[linker]`             | Per-binary     | Per-binary          | Generated `build.rs` with link-arg-bin |
+| `[linker.version_script]` | Per-binary  | Per-binary          | Generated version script + link-arg    |
+
+**Overlap between `[rustc]` and cargo profiles**
+
+Several `[rustc]` fields duplicate what cargo profiles already express:
+- `rustc.opt_level` -> `-C opt-level=N` (same as `profile.*.opt-level`)
+- `rustc.lto` -> `-C lto=true` (same as `profile.*.lto`)
+- `rustc.codegen_units` -> `-C codegen-units=N` (same as `profile.*.codegen-units`)
+- `rustc.panic` -> `-C panic=abort` (same as `profile.*.panic`)
+- High-level `strip` -> `-C strip=symbols` (same as `profile.*.strip`)
+
+These should move to `[cargo.profile.*]` because:
+1. `cargo --config` is the only path to per-dependency profile control
+2. Some settings only exist as profile options with no RUSTFLAGS equivalent
+   (`debug`, `overflow-checks`, `incremental`, `split-debuginfo`)
+3. Cargo profiles support per-package overrides: `[profile.release.package.dep-name]`
+   (subset: `opt-level`, `codegen-units`, `overflow-checks`, `debug`, `debug-assertions`,
+   `strip`, `lto`)
+4. Not yet released, so removal > deprecation
+
+**Proposed section scoping**
+
+| Section               | Role                                              | Mechanism            |
+|-----------------------|---------------------------------------------------|----------------------|
+| `[cargo]`             | Build settings: target, unstable flags, target_dir | Cargo CLI args       |
+| `[cargo.profile.*]`   | New: profile settings cargo can scope per-package  | `cargo --config`     |
+| `[rustc]`             | Shrinks to raw flags with no profile equivalent    | `RUSTFLAGS` / `-C`   |
+| `[linker]`            | Per-binary link args, version scripts              | Generated `build.rs` |
+
+**Compiler-level attributes (beyond profiles)**
+
+Rust offers limited function-level control:
+- Stable: `#[inline]`, `#[inline(always)]`, `#[cold]`, `#[target_feature(enable = "avx2")]`
+- Nightly: `#[optimize(size)]` / `#[optimize(speed)]` (closest to per-block opt-level)
+- Nothing at per-file or per-block level for full profile control
+
+**Dependency tspecs are viable**
+
+Key discovery: `cargo package` preserves `*.ts.toml` files in published crates.
+Verified with `cargo package --list -p tspec --allow-dirty` — tspec files appear in
+the package list and would travel through crates.io.
+
+This means dependency tspecs work for all scenarios:
+- Workspace members (local)
+- Path/git dependencies (local)
+- crates.io dependencies (tspec files preserved in registry at `~/.cargo/registry/src/...`)
+
+Cargo's `build.rs` is also preserved for published crates, so dependencies already
+influence their own compilation. A dependency's `build.rs` runs during the build and can
+emit `cargo:rustc-cfg=`, `cargo:rustc-link-arg=`, etc.
+
+The mechanism for applying dependency tspecs would be:
+1. Walk the dependency tree
+2. Find each dep's tspec file (if any)
+3. Translate to `cargo --config 'profile.release.package.<dep>.<setting>=...'`
+
+Note: `panic` strategy cannot be per-package (must be consistent across dependency graph).
+
+**Package exclude for publishing**
+
+Added `exclude = [".claude/", "notes/"]` to Cargo.toml to avoid publishing session
+files and internal notes.
+
+### Status
+
+Design discussion in progress. Next steps:
+- Remove `rustc.panic` (duplicate of global panic) [24]
+- Define exact fields for `[cargo.profile.*]`
+- Decide which remaining `[rustc]` fields to remove vs keep
+- Prototype `cargo --config` integration in `apply_spec_to_command()`
+
+## 20260215 - Remove rustc.panic (duplicate of global panic)
+
+### Context
+
+Global `panic` (PanicMode) and `rustc.panic` (PanicStrategy) overlap:
+- Both emit `-C panic=` into RUSTFLAGS
+- If both set, duplicate `-C panic=` flags are emitted (no conflict detection)
+- Global `panic` also handles the cargo `-Z panic-immediate-abort` flag for the
+  `immediate-abort` case — `rustc.panic` cannot do this
+- Real tspec files already use global `panic` and comment out `rustc.panic` with
+  the note "prefer top-level panic"
+- Tested: setting both vs global-only produces identical builds
+
+`rustc.panic` is strictly a subset of global `panic` with no unique capability.
+
+### Plan
+
+1. `types.rs` — remove `panic` field from `RustcConfig`
+2. `cargo_build.rs` — remove the `rustc.panic` RUSTFLAGS block (lines ~300-307)
+3. `ts_cmd/edit.rs` — remove `rustc.panic` from field registry and validation
+4. Remove any tests referencing `rustc.panic`
+5. Verify: `tspec test -p tspec && tspec install --path . && tspec test -p tspec`
+
+### Result
+
+Done. Removed `rustc.panic` (PanicStrategy) — global `panic` (PanicMode) is the sole
+panic mechanism. Changes:
+- `types.rs` — removed `PanicStrategy` enum and `panic` field from `RustcConfig`
+- `cargo_build.rs` — removed `rustc.panic` RUSTFLAGS block, removed `PanicStrategy` import
+- `ts_cmd/edit.rs` — removed `rustc.panic` from field registry and validation
+- `tests/data/minimal.toml` — moved `panic = "abort"` from `[rustc]` to global
+- `tests/tspec_test.rs` — updated to assert `spec.panic` (PanicMode) instead of `spec.rustc.panic`

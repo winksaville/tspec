@@ -9,9 +9,3 @@ target_dir = "{name}-{hash}"
 opt_level = "z"                            # "0", "1", "2", "3", "s", "z"
 codegen_units = 1
 
-# error: options `-C embed-bitcode=no` and `-C lto` are incompatible
-# error: could not compile `proc-macro2` (build script) due to 1 previous error
-#lto = true
-
-[linker]
-args = ["-static"]

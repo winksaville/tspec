@@ -28,16 +28,6 @@ pub enum OptLevel {
     Oz,
 }
 
-/// Panic strategy - mutually exclusive
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum PanicStrategy {
-    Abort,
-    Unwind,
-    /// Nightly only: -C panic=immediate-abort (eliminates panic formatting)
-    ImmediateAbort,
-}
-
 /// Cargo-specific configuration (flat struct)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CargoConfig {
@@ -60,8 +50,6 @@ pub struct CargoConfig {
 pub struct RustcConfig {
     /// Optimization level (-C opt-level=)
     pub opt_level: Option<OptLevel>,
-    /// Panic strategy (-C panic=)
-    pub panic: Option<PanicStrategy>,
     /// Enable LTO (-C lto=true)
     pub lto: Option<bool>,
     /// Codegen units (-C codegen-units=)
