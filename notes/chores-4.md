@@ -422,3 +422,37 @@ panic mechanism. Changes:
 - `ts_cmd/edit.rs` — removed `rustc.panic` from field registry and validation
 - `tests/data/minimal.toml` — moved `panic = "abort"` from `[rustc]` to global
 - `tests/tspec_test.rs` — updated to assert `spec.panic` (PanicMode) instead of `spec.rustc.panic`
+
+## 20260216 - Implement [cargo.config_key_value] support
+
+### Context
+
+Follow-up to the `cargo --config` design decisions in [25] and [26]. Adds a
+`[cargo.config_key_value]` TOML table to tspec specs. Each entry becomes a
+`--config 'KEY=VALUE'` argument to cargo, enabling per-package profile overrides
+without bleeding settings through RUSTFLAGS.
+
+### Changes
+
+- `types.rs` — `ConfigValue` enum (Bool, Integer, String) with `#[serde(untagged)]`,
+  `config_key_value: BTreeMap<String, ConfigValue>` in `CargoConfig`
+- `cargo_build.rs` — inject `--config` args in `apply_spec_to_command()` after unstable flags
+- `ts_cmd/edit.rs` — `Table` variant in `FieldKind`, `parse_table_key()` for dotted sub-keys,
+  `set_table_value()` and `unset_table_value()` helpers
+- `ts_cmd/set.rs` — route Table kind to `set_table_value()`, error on bare table name
+- `ts_cmd/unset.rs` — route Table sub-keys to `unset_table_value()`, bare name removes entire table
+- `ts_cmd/add.rs`, `ts_cmd/remove.rs` — error text "is not an array field" (was "is a scalar")
+- `tests/data/ex-config-kv.ts.toml` — test fixture
+- `tests/tspec_test.rs` — 3 integration tests (load, hash stability, hash differs)
+
+### Design decisions
+
+- **BTreeMap** for deterministic ordering (stable hashing and reproducible `--config` arg order)
+- **ConfigValue enum** instead of `toml::Value` — avoids `Eq` incompatibility from `Float(f64)`
+- **No auto-scoping** — user writes exact cargo config keys
+- **No field restrictions** — cargo validates unknown keys with clear errors
+- **Existing `[rustc]` fields stay** — migration is a separate follow-up
+
+### Result
+
+Done. 208 unit tests + 8 integration tests pass, clippy clean, fmt clean.

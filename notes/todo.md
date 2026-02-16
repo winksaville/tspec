@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Support profile defintion/modification in tspecs (e.g. `ts set profile.release.opt-level=3`) taking precedence over over Cargot.toml. [25],[26]
-
 ## Todo
 - Commands like build, run ... should support glob and -w like in compare
 - Add a permanent test workspace for integration testing (external repo or embedded?)
@@ -16,6 +14,7 @@
 
 See older [done.md](done.md)
 
+- Add `[cargo.config_key_value]` for `--config KEY=VALUE` args [25],[26],[27]
 - Remove `rustc.panic` (duplicate of global panic) [24]
 - Add `tspec compare -w/--workspace` for all-packages mode [22]
 - Detect and remove stale tspec-generated build.rs [20]
@@ -46,3 +45,4 @@ See older [done.md](done.md)
 [24]: chores-4.md#20260215---remove-rustcpanic-duplicate-of-global-panic
 [25]: chores-4.md#20260215---design-profile-support-and-tspec-section-scoping
 [26]: chores-4.md#20260216---design-passing-tspec-fields-via-buildrs-vs-cargo---config
+[27]: chores-4.md#20260216---implement-cargoconfig_key_value-support
