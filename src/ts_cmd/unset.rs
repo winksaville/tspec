@@ -23,7 +23,7 @@ pub fn unset_value(
     };
 
     // Validate the key
-    edit::validate_key(key)?;
+    let kind = edit::validate_key(key)?;
 
     // Read, parse, edit, write
     let content = std::fs::read_to_string(&output_path)
@@ -33,7 +33,16 @@ pub fn unset_value(
         .parse()
         .with_context(|| format!("failed to parse: {}", output_path.display()))?;
 
-    edit::unset_field(&mut doc, key)?;
+    if kind == edit::FieldKind::Table {
+        if let Some((table_path, sub_key)) = edit::parse_table_key(key) {
+            edit::unset_table_value(&mut doc, table_path, sub_key)?;
+        } else {
+            // Bare table name (e.g., "cargo.config_key_value") — remove entire table
+            edit::unset_field(&mut doc, key)?;
+        }
+    } else {
+        edit::unset_field(&mut doc, key)?;
+    }
 
     std::fs::write(&output_path, doc.to_string())
         .with_context(|| format!("failed to write: {}", output_path.display()))?;
@@ -63,8 +72,16 @@ mod tests {
         std::fs::write(&path, content).unwrap();
 
         let mut doc: DocumentMut = content.parse().unwrap();
-        edit::validate_key(key).unwrap();
-        edit::unset_field(&mut doc, key).unwrap();
+        let kind = edit::validate_key(key).unwrap();
+        if kind == edit::FieldKind::Table {
+            if let Some((table_path, sub_key)) = edit::parse_table_key(key) {
+                edit::unset_table_value(&mut doc, table_path, sub_key).unwrap();
+            } else {
+                edit::unset_field(&mut doc, key).unwrap();
+            }
+        } else {
+            edit::unset_field(&mut doc, key).unwrap();
+        }
         let output = doc.to_string();
         std::fs::write(&path, &output).unwrap();
 
@@ -110,5 +127,35 @@ mod tests {
     fn unset_unknown_key_errors() {
         let result = edit::validate_key("nonexistent");
         assert!(result.is_err());
+    }
+
+    // --- Table field (config_key_value) tests ---
+
+    #[test]
+    fn unset_config_kv_subkey() {
+        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
+        let (_dir, path, _) = unset_in_file(
+            input,
+            "cargo.config_key_value.\"profile.release.opt-level\"",
+        );
+        let spec = load_spec(&path).unwrap();
+        assert!(
+            spec.cargo
+                .config_key_value
+                .get("profile.release.opt-level")
+                .is_none()
+        );
+        assert_eq!(
+            spec.cargo.config_key_value.get("profile.release.lto"),
+            Some(&crate::types::ConfigValue::Bool(true))
+        );
+    }
+
+    #[test]
+    fn unset_config_kv_entire_table() {
+        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
+        let (_dir, path, _) = unset_in_file(input, "cargo.config_key_value");
+        let spec = load_spec(&path).unwrap();
+        assert!(spec.cargo.config_key_value.is_empty());
     }
 }

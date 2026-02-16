@@ -36,6 +36,50 @@ pub fn set_value(
     // Validate key and value
     let kind = edit::validate_key(key)?;
 
+    // Handle Table fields with sub-keys
+    if kind == FieldKind::Table {
+        if let Some((table_path, sub_key)) = edit::parse_table_key(key) {
+            if values.len() != 1 {
+                anyhow::bail!(
+                    "table sub-key '{}' requires exactly one value, got {}",
+                    key,
+                    values.len()
+                );
+            }
+
+            let content = if output_path.exists() {
+                std::fs::read_to_string(&output_path)
+                    .with_context(|| format!("failed to read: {}", output_path.display()))?
+            } else {
+                String::new()
+            };
+
+            let mut doc: DocumentMut = content
+                .parse()
+                .with_context(|| format!("failed to parse: {}", output_path.display()))?;
+
+            edit::set_table_value(&mut doc, table_path, sub_key, &values[0])?;
+
+            std::fs::write(&output_path, doc.to_string())
+                .with_context(|| format!("failed to write: {}", output_path.display()))?;
+
+            println!(
+                "Saved {}",
+                output_path
+                    .strip_prefix(workspace)
+                    .unwrap_or(&output_path)
+                    .display()
+            );
+            return Ok(());
+        } else {
+            anyhow::bail!(
+                "'ts set' on table field '{}' requires a sub-key, e.g. {}.\"key\"",
+                key,
+                key
+            );
+        }
+    }
+
     // Validate enum constraints for scalar fields
     if kind == FieldKind::Scalar {
         if values.len() != 1 {
@@ -235,5 +279,79 @@ mod tests {
         let (_dir, path, _) = set_in_file("", "rustc.codegen_units", &vs(&["1"]));
         let spec = load_spec(&path).unwrap();
         assert_eq!(spec.rustc.codegen_units, Some(1));
+    }
+
+    // --- Table field (config_key_value) tests ---
+
+    /// Helper for table sub-key set operations
+    fn set_table_in_file(
+        content: &str,
+        key: &str,
+        values: &[String],
+    ) -> (tempfile::TempDir, std::path::PathBuf, String) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("tspec{}", SUFFIX));
+        std::fs::write(&path, content).unwrap();
+
+        let kind = edit::validate_key(key).unwrap();
+        assert_eq!(kind, edit::FieldKind::Table);
+        let (table_path, sub_key) = edit::parse_table_key(key).unwrap();
+
+        let mut doc: DocumentMut = content.parse().unwrap();
+        edit::set_table_value(&mut doc, table_path, sub_key, &values[0]).unwrap();
+        let output = doc.to_string();
+        std::fs::write(&path, &output).unwrap();
+
+        (dir, path, output)
+    }
+
+    #[test]
+    fn set_config_kv_string() {
+        let (_dir, path, _) = set_table_in_file(
+            "",
+            "cargo.config_key_value.\"profile.release.opt-level\"",
+            &vs(&["s"]),
+        );
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.cargo.config_key_value.get("profile.release.opt-level"),
+            Some(&crate::types::ConfigValue::String("s".to_string()))
+        );
+    }
+
+    #[test]
+    fn set_config_kv_bool() {
+        let (_dir, path, _) = set_table_in_file(
+            "",
+            "cargo.config_key_value.\"profile.release.lto\"",
+            &vs(&["true"]),
+        );
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.cargo.config_key_value.get("profile.release.lto"),
+            Some(&crate::types::ConfigValue::Bool(true))
+        );
+    }
+
+    #[test]
+    fn set_config_kv_integer() {
+        let (_dir, path, _) = set_table_in_file(
+            "",
+            "cargo.config_key_value.\"profile.release.codegen-units\"",
+            &vs(&["1"]),
+        );
+        let spec = load_spec(&path).unwrap();
+        assert_eq!(
+            spec.cargo
+                .config_key_value
+                .get("profile.release.codegen-units"),
+            Some(&crate::types::ConfigValue::Integer(1))
+        );
+    }
+
+    #[test]
+    fn set_config_kv_bare_table_errors() {
+        let result = edit::parse_table_key("cargo.config_key_value");
+        assert!(result.is_none());
     }
 }

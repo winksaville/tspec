@@ -28,7 +28,7 @@ pub fn remove_value(
     let kind = edit::validate_key(key)?;
     if kind != FieldKind::Array {
         bail!(
-            "'ts remove' only works on array fields, but '{}' is a scalar",
+            "'ts remove' only works on array fields, but '{}' is not an array field",
             key
         );
     }

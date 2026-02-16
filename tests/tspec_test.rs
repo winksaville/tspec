@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
@@ -74,4 +75,41 @@ fn load_ex_x2_spec() {
         ]
     );
     assert!(spec.linker.version_script.is_none());
+}
+
+#[test]
+fn load_ex_config_kv_spec() {
+    let spec = load_spec(&test_data("ex-config-kv.ts.toml")).unwrap();
+
+    assert_eq!(spec.cargo.profile, Some(Profile::Release));
+
+    let expected = BTreeMap::from([
+        (
+            "profile.release.opt-level".to_string(),
+            ConfigValue::String("s".to_string()),
+        ),
+        ("profile.release.lto".to_string(), ConfigValue::Bool(true)),
+        (
+            "profile.release.codegen-units".to_string(),
+            ConfigValue::Integer(1),
+        ),
+    ]);
+    assert_eq!(spec.cargo.config_key_value, expected);
+}
+
+#[test]
+fn config_kv_hash_is_stable() {
+    let spec = load_spec(&test_data("ex-config-kv.ts.toml")).unwrap();
+    let hash1 = hash_spec(&spec).unwrap();
+    let hash2 = hash_spec(&spec).unwrap();
+    assert_eq!(hash1, hash2);
+}
+
+#[test]
+fn config_kv_hash_differs_from_no_kv() {
+    let spec_kv = load_spec(&test_data("ex-config-kv.ts.toml")).unwrap();
+    let spec_min = load_spec(&test_data("minimal.toml")).unwrap();
+    let hash_kv = hash_spec(&spec_kv).unwrap();
+    let hash_min = hash_spec(&spec_min).unwrap();
+    assert_ne!(hash_kv, hash_min);
 }

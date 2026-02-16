@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::fmt;
 use std::path::PathBuf;
 
 use crate::options::{PanicMode, StripMode};
@@ -28,6 +30,27 @@ pub enum OptLevel {
     Oz,
 }
 
+/// A value in the `[cargo.config_key_value]` table.
+/// Uses `#[serde(untagged)]` so TOML bools/ints/strings are deserialized naturally.
+/// We avoid `toml::Value` because it contains `Float(f64)` which doesn't implement `Eq`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ConfigValue {
+    Bool(bool),
+    Integer(i64),
+    String(String),
+}
+
+impl fmt::Display for ConfigValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigValue::Bool(b) => write!(f, "{}", b),
+            ConfigValue::Integer(n) => write!(f, "{}", n),
+            ConfigValue::String(s) => write!(f, "\"{}\"", s),
+        }
+    }
+}
+
 /// Cargo-specific configuration (flat struct)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CargoConfig {
@@ -43,6 +66,10 @@ pub struct CargoConfig {
     /// Custom target directory subdirectory for per-spec isolation.
     /// Supports `{name}` (spec filename sans .ts.toml) and `{hash}` (8-char content hash).
     pub target_dir: Option<String>,
+    /// Key-value pairs passed as `--config 'KEY=VALUE'` to cargo.
+    /// Each entry becomes a separate `--config` arg.
+    #[serde(default)]
+    pub config_key_value: BTreeMap<String, ConfigValue>,
 }
 
 /// Rustc codegen and compilation configuration (flat struct)

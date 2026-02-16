@@ -28,7 +28,7 @@ pub fn add_value(
     let kind = edit::validate_key(key)?;
     if kind != FieldKind::Array {
         bail!(
-            "'ts add' only works on array fields, but '{}' is a scalar",
+            "'ts add' only works on array fields, but '{}' is not an array field",
             key
         );
     }

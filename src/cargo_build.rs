@@ -274,6 +274,11 @@ pub fn apply_spec_to_command(
         cmd.arg("-Z").arg(flag);
     }
 
+    // Inject --config key=value pairs
+    for (key, value) in &spec.cargo.config_key_value {
+        cmd.arg("--config").arg(format!("{}={}", key, value));
+    }
+
     // If no profile in spec but release flag passed, use release
     if !has_profile && release {
         cmd.arg("--release");
@@ -474,6 +479,65 @@ mod tests {
         assert!(!args.contains(&"json-target-spec".to_string()));
         let target_pos = args.iter().position(|a| a == "--target").unwrap();
         assert_eq!(args[target_pos + 1], "x86_64-unknown-linux-gnu");
+    }
+
+    #[test]
+    fn config_key_value_emits_config_args() {
+        use crate::types::ConfigValue;
+        use std::collections::BTreeMap;
+
+        let mut spec = Spec::default();
+        spec.cargo.config_key_value = BTreeMap::from([
+            (
+                "profile.release.opt-level".to_string(),
+                ConfigValue::String("s".to_string()),
+            ),
+            ("profile.release.lto".to_string(), ConfigValue::Bool(true)),
+            (
+                "profile.release.codegen-units".to_string(),
+                ConfigValue::Integer(1),
+            ),
+        ]);
+
+        let mut cmd = Command::new("cargo");
+        cmd.arg("build");
+        let workspace = PathBuf::from("/tmp/fake");
+        apply_spec_to_command(&mut cmd, &spec, &workspace, false, None).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into()).collect();
+
+        // BTreeMap is sorted, so codegen-units < lto < opt-level
+        let config_positions: Vec<usize> = args
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| *a == "--config")
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(config_positions.len(), 3);
+
+        // Check each --config arg
+        assert_eq!(
+            args[config_positions[0] + 1],
+            "profile.release.codegen-units=1"
+        );
+        assert_eq!(args[config_positions[1] + 1], "profile.release.lto=true");
+        assert_eq!(
+            args[config_positions[2] + 1],
+            "profile.release.opt-level=\"s\""
+        );
+    }
+
+    #[test]
+    fn config_key_value_empty_emits_nothing() {
+        let spec = Spec::default();
+
+        let mut cmd = Command::new("cargo");
+        cmd.arg("build");
+        let workspace = PathBuf::from("/tmp/fake");
+        apply_spec_to_command(&mut cmd, &spec, &workspace, false, None).unwrap();
+
+        let args: Vec<String> = cmd.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(!args.contains(&"--config".to_string()));
     }
 
     #[test]

@@ -1,0 +1,8 @@
+# Test fixture: cargo config_key_value
+[cargo]
+profile = "release"
+
+[cargo.config_key_value]
+"profile.release.opt-level" = "s"
+"profile.release.lto" = true
+"profile.release.codegen-units" = 1
