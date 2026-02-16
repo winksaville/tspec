@@ -6,6 +6,10 @@ name = "tspec"
 version = "0.10.7"
 edition = "2024"
 description = "Translation spec based build system"
+authors = ["Wink Saville <wink@saville.com>, Claude Opus 4.6 <noreply@anthropic.com>"]
+license = "MIT, Apache-2.0"
+repository = "https://github.com/wink/tspec"
+exclude = [".claude/", "notes/"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
