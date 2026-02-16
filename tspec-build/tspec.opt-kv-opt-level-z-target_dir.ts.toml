@@ -1,0 +1,9 @@
+strip="symbols"
+
+[cargo]
+profile = "release"
+target_dir = "target_dir"
+
+[cargo.config_key_value]
+"profile.release.opt-level" = "z"
+"profile.release.codegen-units" = 1

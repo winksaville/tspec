@@ -1,5 +1,4 @@
-panic = "abort"
-strip = "symbols"
+strip="symbols"
 
 [cargo]
 profile = "release"
@@ -8,4 +7,3 @@ target_dir = "{name}-{hash}"
 [rustc]
 opt_level = "z"                            # "0", "1", "2", "3", "s", "z"
 codegen_units = 1
-

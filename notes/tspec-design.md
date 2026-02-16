@@ -172,4 +172,88 @@ Approach 1 fights Cargo's design for marginal benefit. For the common case
 the lib and bin differently. When you truly need different settings, the Rust
 answer is "make them separate packages."
 
+## 20260216 - Build mechanisms and per-package scoping
 
+### Current mechanisms (as of 0.10.9)
+
+tspec passes settings to cargo/rustc through five mechanisms, each with different
+scoping behavior:
+
+| Mechanism | tspec source | How it's passed | Scope |
+|---|---|---|---|
+| Top-level fields (`panic`, `strip`) | Global fields in spec | RUSTFLAGS `-C` + cargo `-Z` | Package + all deps |
+| `[cargo]` fields | `profile`, `target_triple`, `target_json`, `unstable`, `target_dir` | Cargo CLI args (`--release`, `--target`, `-Z`, `--target-dir`) | Package-scoped |
+| `[cargo.config_key_value]` | Arbitrary key-value pairs | `cargo --config 'KEY=VALUE'` | Depends on key (see below) |
+| `[rustc]` fields | `opt_level`, `lto`, `codegen_units`, `build_std`, `flags` | RUSTFLAGS `-C` | Package + all deps |
+| `[linker]` fields | `args`, `version_script` | Generated `build.rs` or `tspec-build` library | Per-binary |
+
+### The config_key_value scoping spectrum
+
+`[cargo.config_key_value]` is the most flexible mechanism because the scoping is
+determined by the key the user writes:
+
+```toml
+# Global — applies to the package and all its dependencies
+[cargo.config_key_value]
+"profile.release.opt-level" = "z"
+"profile.release.codegen-units" = 1
+
+# Per-package — applies ONLY to the named package
+[cargo.config_key_value]
+"profile.release.package.serde.opt-level" = 2
+"profile.release.package.tspec.codegen-units" = 1
+```
+
+This maps to cargo's `[profile.release.package.<name>]` syntax. The supported
+per-package profile fields are: `opt-level`, `codegen-units`, `overflow-checks`,
+`debug`, `debug-assertions`, `strip`, `lto`. Notably excluded: `panic` (must be
+consistent across the dependency graph) and `rpath` (whole-build concern).
+
+### Per-package status
+
+We now have the **mechanism** for per-package settings — users can manually write
+`profile.release.package.<name>.<field>` keys in `config_key_value` today. What's
+missing for full per-dependency tspec support:
+
+1. **Dependency tspec discovery** — walking the dep tree to find each dependency's
+   tspec file (known viable: `cargo package` preserves `*.ts.toml` files)
+2. **Automatic key scoping** — translating a dependency's tspec fields into
+   `--config 'profile.release.package.<dep>.<field>=...'` args
+3. **Conflict detection** — ensuring `panic` strategy is consistent across the
+   dependency graph
+
+None of these are implemented yet. The manual path works for experimentation.
+
+### The [rustc] field overlap
+
+Several `[rustc]` fields duplicate what `[cargo.config_key_value]` can express:
+
+| `[rustc]` field | Equivalent `config_key_value` key | Mechanism |
+|---|---|---|
+| `opt_level = "z"` | `"profile.release.opt-level" = "z"` | RUSTFLAGS vs `--config` |
+| `lto = true` | `"profile.release.lto" = true` | RUSTFLAGS vs `--config` |
+| `codegen_units = 1` | `"profile.release.codegen-units" = 1` | RUSTFLAGS vs `--config` |
+
+Tested: both paths produce identical binary sizes (confirmed with tspec-build test
+runner: 1,117,880 bytes both ways). Binaries are not bit-identical (~6.5% byte
+difference) but the optimization effect is the same. See chores-5 for details.
+
+The `[rustc]` fields that have NO `config_key_value` equivalent and must stay:
+- `build_std` — cargo `-Z build-std`, not a profile setting
+- `flags` — raw rustc flags with no profile equivalent
+
+Migration of the overlapping fields is possible but not urgent. Both paths work.
+The advantage of migrating: `config_key_value` supports per-package scoping via
+`profile.*.package.<name>`, while RUSTFLAGS hits everything uniformly.
+
+### Relationship to earlier design discussions
+
+- [chores-4: Profile support and section scoping][25] — design analysis
+- [chores-4: build.rs vs cargo --config][26] — confirmed `--config` is the right path
+- [chores-4: config_key_value implementation][27] — the implementation
+- [chores-5: RUSTFLAGS vs --config binary comparison][28] — same size, different bytes
+
+[25]: chores-4.md#20260215---design-profile-support-and-tspec-section-scoping
+[26]: chores-4.md#20260216---design-passing-tspec-fields-via-buildrs-vs-cargo---config
+[27]: chores-4.md#20260216---implement-cargoconfig_key_value-support
+[28]: chores-5.md#finding-rustflags-vs---config-produce-same-size-but-non-identical-binaries
