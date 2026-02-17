@@ -42,6 +42,26 @@ optimization effect is the same.
 
 Done — see next section.
 
+## 20260216 - Add glob support for `-t` flag on build, run, test
+
+### Context
+
+The compare command already supported glob patterns for `-t` and `-w`/`--workspace` for
+all-packages mode. Build, run, and test commands only accepted a single `-t` value and
+had no `-w` flag.
+
+### Changes
+
+- Changed `-t`/`--tspec` from `Option<String>` to `Vec<String>` with `num_args=1..`
+  on build, run, and test commands, matching compare's pattern
+- When multiple specs match a glob, the operation executes once per spec in sequence
+- Block `-t` in all-packages mode (`-w`) with a clear error
+- Added clap parsing tests to all three commands
+
+### Status
+
+Done — released in v0.11.3.
+
 ## 20260216 - Remove `rustc.opt_level`, `rustc.lto`, `rustc.codegen_units` — migrate to `config_key_value`
 
 ### Context
