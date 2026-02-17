@@ -21,6 +21,21 @@ General maintenance tasks and considerations for the project see other files for
 ```
 
 
+## Versioning during development
+
+For simple changes a single commit is fine. For larger changes, use a multi-step
+process:
+
+1. Bump version to `X.Y.Z-devN` with a plan and commit as a chore marker
+2. Implement in one or more `-devN` commits (bump N as needed)
+3. Final commit removes `-devN`, updates todo/chores — this is the "done" marker
+
+The final release commit (without `-devN`) signals completion rather than amending
+prior commits. This keeps the git history readable and makes it easy to see which
+commits were exploratory vs final.
+
+## Todo format
+
 Todo.md contains two main sections "Todo" and "Done" each item is a
 short explanations of a tasks and links to more details using 1 or more
 references.
