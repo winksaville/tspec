@@ -220,4 +220,4 @@ rustflags = ["-C", "some-thing"]
 
 ### Status
 
-In progress.
+Done — released in v0.11.6. Also renamed `config_key_value` to `config` with nested table support (dev2).
