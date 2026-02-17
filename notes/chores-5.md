@@ -144,3 +144,41 @@ mutations, each test owns a private copy.
 ### Status
 
 Done.
+
+## 20260217 - Refactor cargo runner functions into unified fn
+
+### Context
+
+Three functions share nearly identical structure:
+- `cargo_build::build_package` — builds with optional spec, returns `BuildResult`
+- `testing::test_package` — tests with optional spec, returns `()`
+- `cargo_build::plain_cargo_build_release` — builds without spec, returns `BuildResult`
+
+They all follow the same skeleton: find workspace/package/tspec, clean stale build.rs,
+optionally load spec, generate build.rs if needed, construct `Command` (with optional
+`+nightly`), run, clean up, warn about stale files.
+
+`plain_cargo_build_release` is just `build_package` with `tspec=None` and `release=true`.
+`test_package` differs only in the subcommand (`test` vs `build`) and has its own
+duplicate `requires_nightly()` function in `testing.rs`.
+
+### Plan
+
+Unify into a single `run_cargo` function that takes the subcommand as a parameter.
+`plain_cargo_build_release` becomes a thin call. `test_package` becomes a wrapper that
+calls the unified function and discards `BuildResult`. The duplicate `requires_nightly()`
+in `testing.rs` is eliminated.
+
+### Differences to reconcile
+
+| Aspect | `build_package` | `test_package` | `plain_cargo_build_release` |
+|---|---|---|---|
+| Subcommand | `build` | `test` | `build` |
+| Spec | optional | optional | never |
+| Returns | `BuildResult` | `()` | `BuildResult` |
+| `+nightly` | via `build_cargo_command()` | inlined `requires_nightly()` | no (no spec) |
+| build.rs gen | yes (checks bin target) | yes (no bin check) | no |
+
+### Status
+
+Not started.
