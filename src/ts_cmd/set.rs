@@ -260,7 +260,7 @@ mod tests {
         assert!(output.contains("# Important comment"));
     }
 
-    // --- Table field (config_key_value) tests ---
+    // --- Table field (config) tests ---
 
     /// Helper for table sub-key set operations
     fn set_table_in_file(
@@ -288,26 +288,23 @@ mod tests {
     fn set_config_kv_string() {
         let (_dir, path, _) = set_table_in_file(
             "",
-            "cargo.config_key_value.\"profile.release.opt-level\"",
+            "cargo.config.\"profile.release.opt-level\"",
             &vs(&["s"]),
         );
         let spec = load_spec(&path).unwrap();
         assert_eq!(
-            spec.cargo.config_key_value.get("profile.release.opt-level"),
+            spec.cargo.config.get("profile.release.opt-level"),
             Some(&crate::types::ConfigValue::String("s".to_string()))
         );
     }
 
     #[test]
     fn set_config_kv_bool() {
-        let (_dir, path, _) = set_table_in_file(
-            "",
-            "cargo.config_key_value.\"profile.release.lto\"",
-            &vs(&["true"]),
-        );
+        let (_dir, path, _) =
+            set_table_in_file("", "cargo.config.\"profile.release.lto\"", &vs(&["true"]));
         let spec = load_spec(&path).unwrap();
         assert_eq!(
-            spec.cargo.config_key_value.get("profile.release.lto"),
+            spec.cargo.config.get("profile.release.lto"),
             Some(&crate::types::ConfigValue::Bool(true))
         );
     }
@@ -316,21 +313,19 @@ mod tests {
     fn set_config_kv_integer() {
         let (_dir, path, _) = set_table_in_file(
             "",
-            "cargo.config_key_value.\"profile.release.codegen-units\"",
+            "cargo.config.\"profile.release.codegen-units\"",
             &vs(&["1"]),
         );
         let spec = load_spec(&path).unwrap();
         assert_eq!(
-            spec.cargo
-                .config_key_value
-                .get("profile.release.codegen-units"),
+            spec.cargo.config.get("profile.release.codegen-units"),
             Some(&crate::types::ConfigValue::Integer(1))
         );
     }
 
     #[test]
     fn set_config_kv_bare_table_errors() {
-        let result = edit::parse_table_key("cargo.config_key_value");
+        let result = edit::parse_table_key("cargo.config");
         assert!(result.is_none());
     }
 }

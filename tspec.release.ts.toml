@@ -5,13 +5,13 @@ strip = "symbols"
 profile = "release"
 target_dir = "{name}-{hash}"
 
-[cargo.config_key_value]
-"profile.release.opt-level" = "z"
-"profile.release.codegen-units" = 1
+[cargo.config.profile.release]
+opt-level = "z"
+codegen-units = 1
 
 # error: options `-C embed-bitcode=no` and `-C lto` are incompatible
 # error: could not compile `proc-macro2` (build script) due to 1 previous error
-#"profile.release.lto" = true
+#lto = true
 
 [linker]
 args = ["-static"]

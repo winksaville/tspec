@@ -3,13 +3,17 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 use crate::TSPEC_SUFFIX;
-use crate::types::Spec;
+use crate::types::{Spec, validate_config_profiles};
 
 /// Load a spec from a TOML file
 pub fn load_spec(path: &Path) -> Result<Spec> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read spec file: {}", path.display()))?;
-    parse_spec(&content)
+    let spec = parse_spec(&content)?;
+    if let Err(msg) = validate_config_profiles(&spec.cargo.config) {
+        anyhow::bail!("{}: {}", path.display(), msg);
+    }
+    Ok(spec)
 }
 
 /// Parse a spec from TOML string

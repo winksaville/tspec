@@ -82,7 +82,7 @@ enum Commands {
 
 Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 - Top-level: `panic`, `strip`, `rustflags`
-- `[cargo]` - profile, target_triple, target_json, unstable, target_dir, build_std, config_key_value
+- `[cargo]` - profile, target_triple, target_json, unstable, target_dir, build_std, config
 - `[linker]` - args, version_script
 
 ## Conventions

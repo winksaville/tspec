@@ -4,5 +4,5 @@ panic = "abort"
 [cargo]
 profile = "release"
 
-[cargo.config_key_value]
-"profile.release.opt-level" = "z"
+[cargo.config.profile.release]
+opt-level = "z"

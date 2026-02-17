@@ -61,10 +61,10 @@ unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
 target_dir = "{name}"                      # per-spec target dir; supports {name} and {hash} placeholders
 build_std = ["core", "alloc"]              # crates to rebuild with -Z build-std (nightly)
 
-[cargo.config_key_value]                   # passed as --config KEY=VALUE to cargo
-"profile.release.opt-level" = "z"
-"profile.release.lto" = true
-"profile.release.codegen-units" = 1
+[cargo.config.profile.release]             # nested tables under [cargo.config] become individual
+opt-level = "z"                            # --config KEY=VALUE args to cargo; any valid cargo
+lto = true                                 # config key works (profile, build, target, etc.)
+codegen-units = 1
 
 [linker]
 args = ["-static", "-nostartfiles"]
@@ -95,9 +95,44 @@ fn main() {
 }
 ```
 
-This is necessary because RUSTFLAGS affects ALL compilations (including dependency
-build scripts), causing crashes with flags like `-nostartfiles`. The generated
-build.rs scopes flags to just the binary.
+The only other alternative is to add these linker flags to RUSTFLAGS, but that
+affects ALL compilations (including dependency build scripts), causing crashes
+with flags like `-nostartfiles`. The generated build.rs scopes flags to just
+the binary.
+
+### Cargo Config Passthrough (`cargo.config`)
+
+The `[cargo.config]` section is a general-purpose passthrough to cargo's `--config KEY=VALUE` mechanism. Any nested tables under `[cargo.config]` are flattened into dotted keys and passed as `--config` args. This lets you override any [cargo configuration](https://doc.rust-lang.org/cargo/reference/config.html) value at the command line.
+
+**Profile settings** are the most common use case:
+
+```toml
+[cargo.config.profile.release]
+opt-level = "z"
+codegen-units = 1
+lto = true
+```
+
+This produces: `cargo --config profile.release.opt-level="z" --config profile.release.codegen-units=1 --config profile.release.lto=true`
+
+**Other cargo config keys** work too:
+
+```toml
+[cargo.config.build]
+rustflags = ["-C", "target-cpu=native"]
+
+[cargo.config.target.x86_64-unknown-linux-gnu]
+linker = "clang"
+```
+
+**Profile restrictions:** Only `profile.debug` and `profile.release` are supported. tspec will error if other profile names (e.g. `profile.custom`) are used in `[cargo.config]`.
+
+**Flat dotted keys** also work — TOML treats them equivalently:
+
+```toml
+[cargo.config]
+"profile.release.opt-level" = "z"
+```
 
 ## tspec Management (ts subcommand)
 
@@ -177,7 +212,7 @@ Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`, `rustflags`)
 | `cargo.target_json` | scalar | any path |
 | `cargo.target_dir` | scalar | any string (supports `{name}`, `{hash}`) |
 | `cargo.unstable` | array | e.g. `panic-immediate-abort` |
-| `cargo.config_key_value` | table | e.g. `"profile.release.opt-level" = "z"` |
+| `cargo.config` | table | arbitrary `--config KEY=VALUE` passthrough; supports nested tables (e.g. `[cargo.config.profile.release]`) |
 | `cargo.build_std` | array | e.g. `core alloc` |
 | `linker.args` | array | e.g. `-static -nostdlib` |
 

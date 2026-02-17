@@ -20,14 +20,14 @@ const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("cargo.target_json", FieldKind::Scalar),
     ("cargo.target_dir", FieldKind::Scalar),
     ("cargo.unstable", FieldKind::Array),
-    ("cargo.config_key_value", FieldKind::Table),
+    ("cargo.config", FieldKind::Table),
     ("cargo.build_std", FieldKind::Array),
     ("rustflags", FieldKind::Array),
     ("linker.args", FieldKind::Array),
 ];
 
 /// Validate that a key is in the registry and return its kind.
-/// Also accepts table sub-keys like `cargo.config_key_value."profile.release.opt-level"`.
+/// Also accepts table sub-keys like `cargo.config."profile.release.opt-level"`.
 pub fn validate_key(key: &str) -> Result<FieldKind> {
     for &(k, kind) in FIELD_REGISTRY {
         if k == key {
@@ -47,8 +47,8 @@ pub fn validate_key(key: &str) -> Result<FieldKind> {
 }
 
 /// Parse a key that may reference a sub-key within a Table field.
-/// E.g., `cargo.config_key_value."profile.release.opt-level"` → Some(("cargo.config_key_value", "profile.release.opt-level"))
-/// Also accepts unquoted sub-keys: `cargo.config_key_value.profile.release.opt-level` → same result.
+/// E.g., `cargo.config."profile.release.opt-level"` → Some(("cargo.config", "profile.release.opt-level"))
+/// Also accepts unquoted sub-keys: `cargo.config.profile.release.opt-level` → same result.
 /// Returns None if the key doesn't start with a known Table field prefix.
 pub fn parse_table_key(key: &str) -> Option<(&str, &str)> {
     for &(prefix, kind) in FIELD_REGISTRY {
@@ -320,8 +320,8 @@ fn parse_smart_value(raw: &str) -> Value {
     }
 }
 
-/// Set a value in a table field (e.g., `cargo.config_key_value`).
-/// `table_path` is the dotted path to the table (e.g., "cargo.config_key_value").
+/// Set a value in a table field (e.g., `cargo.config`).
+/// `table_path` is the dotted path to the table (e.g., "cargo.config").
 /// `sub_key` is the key within that table (e.g., "profile.release.opt-level").
 /// `raw_value` is the string value to set (auto-parsed to bool/int/string).
 pub fn set_table_value(
@@ -749,16 +749,13 @@ mod tests {
 
     #[test]
     fn validate_key_table() {
-        assert_eq!(
-            validate_key("cargo.config_key_value").unwrap(),
-            FieldKind::Table
-        );
+        assert_eq!(validate_key("cargo.config").unwrap(), FieldKind::Table);
     }
 
     #[test]
     fn validate_key_table_subkey() {
         assert_eq!(
-            validate_key("cargo.config_key_value.\"profile.release.opt-level\"").unwrap(),
+            validate_key("cargo.config.\"profile.release.opt-level\"").unwrap(),
             FieldKind::Table
         );
     }
@@ -766,27 +763,21 @@ mod tests {
     #[test]
     fn validate_key_table_subkey_unquoted() {
         assert_eq!(
-            validate_key("cargo.config_key_value.profile.release.opt-level").unwrap(),
+            validate_key("cargo.config.profile.release.opt-level").unwrap(),
             FieldKind::Table
         );
     }
 
     #[test]
     fn parse_table_key_quoted() {
-        let result = parse_table_key("cargo.config_key_value.\"profile.release.opt-level\"");
-        assert_eq!(
-            result,
-            Some(("cargo.config_key_value", "profile.release.opt-level"))
-        );
+        let result = parse_table_key("cargo.config.\"profile.release.opt-level\"");
+        assert_eq!(result, Some(("cargo.config", "profile.release.opt-level")));
     }
 
     #[test]
     fn parse_table_key_unquoted() {
-        let result = parse_table_key("cargo.config_key_value.profile.release.opt-level");
-        assert_eq!(
-            result,
-            Some(("cargo.config_key_value", "profile.release.opt-level"))
-        );
+        let result = parse_table_key("cargo.config.profile.release.opt-level");
+        assert_eq!(result, Some(("cargo.config", "profile.release.opt-level")));
     }
 
     #[test]
@@ -797,21 +788,15 @@ mod tests {
 
     #[test]
     fn parse_table_key_bare_table() {
-        assert!(parse_table_key("cargo.config_key_value").is_none());
+        assert!(parse_table_key("cargo.config").is_none());
     }
 
     #[test]
     fn set_table_value_string() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
-        set_table_value(
-            &mut doc,
-            "cargo.config_key_value",
-            "profile.release.opt-level",
-            "s",
-        )
-        .unwrap();
+        set_table_value(&mut doc, "cargo.config", "profile.release.opt-level", "s").unwrap();
         assert_eq!(
-            doc["cargo"]["config_key_value"]["profile.release.opt-level"].as_str(),
+            doc["cargo"]["config"]["profile.release.opt-level"].as_str(),
             Some("s")
         );
     }
@@ -819,15 +804,9 @@ mod tests {
     #[test]
     fn set_table_value_bool() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
-        set_table_value(
-            &mut doc,
-            "cargo.config_key_value",
-            "profile.release.lto",
-            "true",
-        )
-        .unwrap();
+        set_table_value(&mut doc, "cargo.config", "profile.release.lto", "true").unwrap();
         assert_eq!(
-            doc["cargo"]["config_key_value"]["profile.release.lto"].as_bool(),
+            doc["cargo"]["config"]["profile.release.lto"].as_bool(),
             Some(true)
         );
     }
@@ -837,51 +816,40 @@ mod tests {
         let mut doc = "".parse::<DocumentMut>().unwrap();
         set_table_value(
             &mut doc,
-            "cargo.config_key_value",
+            "cargo.config",
             "profile.release.codegen-units",
             "1",
         )
         .unwrap();
         assert_eq!(
-            doc["cargo"]["config_key_value"]["profile.release.codegen-units"].as_integer(),
+            doc["cargo"]["config"]["profile.release.codegen-units"].as_integer(),
             Some(1)
         );
     }
 
     #[test]
     fn set_table_value_overwrites() {
-        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n";
+        let input = "[cargo.config]\n\"profile.release.opt-level\" = \"s\"\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        set_table_value(
-            &mut doc,
-            "cargo.config_key_value",
-            "profile.release.opt-level",
-            "z",
-        )
-        .unwrap();
+        set_table_value(&mut doc, "cargo.config", "profile.release.opt-level", "z").unwrap();
         assert_eq!(
-            doc["cargo"]["config_key_value"]["profile.release.opt-level"].as_str(),
+            doc["cargo"]["config"]["profile.release.opt-level"].as_str(),
             Some("z")
         );
     }
 
     #[test]
     fn unset_table_value_removes_key() {
-        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
+        let input = "[cargo.config]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        unset_table_value(
-            &mut doc,
-            "cargo.config_key_value",
-            "profile.release.opt-level",
-        )
-        .unwrap();
+        unset_table_value(&mut doc, "cargo.config", "profile.release.opt-level").unwrap();
         assert!(
-            doc["cargo"]["config_key_value"]
+            doc["cargo"]["config"]
                 .get("profile.release.opt-level")
                 .is_none()
         );
         assert_eq!(
-            doc["cargo"]["config_key_value"]["profile.release.lto"].as_bool(),
+            doc["cargo"]["config"]["profile.release.lto"].as_bool(),
             Some(true)
         );
     }
@@ -889,6 +857,6 @@ mod tests {
     #[test]
     fn unset_table_value_nonexistent_is_ok() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
-        unset_table_value(&mut doc, "cargo.config_key_value", "nonexistent").unwrap();
+        unset_table_value(&mut doc, "cargo.config", "nonexistent").unwrap();
     }
 }

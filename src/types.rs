@@ -13,8 +13,8 @@ pub enum Profile {
     Release,
 }
 
-/// A value in the `[cargo.config_key_value]` table.
-/// Uses `#[serde(untagged)]` so TOML bools/ints/strings are deserialized naturally.
+/// A value in the `[cargo.config]` table.
+/// Uses `#[serde(untagged)]` so TOML bools/ints/strings/tables are deserialized naturally.
 /// We avoid `toml::Value` because it contains `Float(f64)` which doesn't implement `Eq`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -22,6 +22,7 @@ pub enum ConfigValue {
     Bool(bool),
     Integer(i64),
     String(String),
+    Table(BTreeMap<String, ConfigValue>),
 }
 
 impl fmt::Display for ConfigValue {
@@ -30,6 +31,60 @@ impl fmt::Display for ConfigValue {
             ConfigValue::Bool(b) => write!(f, "{}", b),
             ConfigValue::Integer(n) => write!(f, "{}", n),
             ConfigValue::String(s) => write!(f, "\"{}\"", s),
+            ConfigValue::Table(map) => write!(f, "{:?}", map),
+        }
+    }
+}
+
+/// Validate that config profile keys are only "debug" or "release".
+/// Returns an error if e.g. `profile.custom` is found.
+pub fn validate_config_profiles(config: &BTreeMap<String, ConfigValue>) -> Result<(), String> {
+    if let Some(ConfigValue::Table(profiles)) = config.get("profile") {
+        for name in profiles.keys() {
+            if name != "debug" && name != "release" {
+                return Err(format!(
+                    "unsupported profile in [cargo.config]: \"{}\" (only \"debug\" and \"release\" are supported)",
+                    name
+                ));
+            }
+        }
+    }
+    // Also check flat dotted keys like "profile.foo.opt-level"
+    for key in config.keys() {
+        if let Some(rest) = key.strip_prefix("profile.") {
+            let profile_name = rest.split('.').next().unwrap_or(rest);
+            if profile_name != "debug" && profile_name != "release" {
+                return Err(format!(
+                    "unsupported profile in [cargo.config]: \"{}\" (only \"debug\" and \"release\" are supported)",
+                    profile_name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Flatten nested config into dotted key-value pairs for --config args.
+pub fn flatten_config(config: &BTreeMap<String, ConfigValue>) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    flatten_inner(config, String::new(), &mut result);
+    result
+}
+
+fn flatten_inner(
+    map: &BTreeMap<String, ConfigValue>,
+    prefix: String,
+    result: &mut Vec<(String, String)>,
+) {
+    for (key, value) in map {
+        let full_key = if prefix.is_empty() {
+            key.clone()
+        } else {
+            format!("{}.{}", prefix, key)
+        };
+        match value {
+            ConfigValue::Table(inner) => flatten_inner(inner, full_key, result),
+            other => result.push((full_key, other.to_string())),
         }
     }
 }
@@ -49,10 +104,11 @@ pub struct CargoConfig {
     /// Custom target directory subdirectory for per-spec isolation.
     /// Supports `{name}` (spec filename sans .ts.toml) and `{hash}` (8-char content hash).
     pub target_dir: Option<String>,
-    /// Key-value pairs passed as `--config 'KEY=VALUE'` to cargo.
-    /// Each entry becomes a separate `--config` arg.
+    /// Config values passed as `--config 'KEY=VALUE'` to cargo.
+    /// Supports both flat dotted keys and nested tables.
+    /// Each leaf entry becomes a separate `--config` arg.
     #[serde(default)]
-    pub config_key_value: BTreeMap<String, ConfigValue>,
+    pub config: BTreeMap<String, ConfigValue>,
     /// Crates to rebuild with -Z build-std (nightly only)
     #[serde(default)]
     pub build_std: Vec<String>,
@@ -110,5 +166,100 @@ mod tests {
         assert_eq!(spec.cargo, CargoConfig::default());
         assert!(spec.rustflags.is_empty());
         assert_eq!(spec.linker, LinkerConfig::default());
+    }
+
+    #[test]
+    fn validate_config_profiles_accepts_release() {
+        let config = BTreeMap::from([(
+            "profile".to_string(),
+            ConfigValue::Table(BTreeMap::from([(
+                "release".to_string(),
+                ConfigValue::Table(BTreeMap::from([(
+                    "opt-level".to_string(),
+                    ConfigValue::String("z".to_string()),
+                )])),
+            )])),
+        )]);
+        assert!(validate_config_profiles(&config).is_ok());
+    }
+
+    #[test]
+    fn validate_config_profiles_accepts_debug() {
+        let config = BTreeMap::from([(
+            "profile".to_string(),
+            ConfigValue::Table(BTreeMap::from([(
+                "debug".to_string(),
+                ConfigValue::Table(BTreeMap::from([(
+                    "opt-level".to_string(),
+                    ConfigValue::Integer(2),
+                )])),
+            )])),
+        )]);
+        assert!(validate_config_profiles(&config).is_ok());
+    }
+
+    #[test]
+    fn validate_config_profiles_rejects_custom_nested() {
+        let config = BTreeMap::from([(
+            "profile".to_string(),
+            ConfigValue::Table(BTreeMap::from([(
+                "custom".to_string(),
+                ConfigValue::Table(BTreeMap::from([(
+                    "opt-level".to_string(),
+                    ConfigValue::Integer(3),
+                )])),
+            )])),
+        )]);
+        let err = validate_config_profiles(&config).unwrap_err();
+        assert!(err.contains("custom"));
+    }
+
+    #[test]
+    fn validate_config_profiles_rejects_custom_flat() {
+        let config = BTreeMap::from([(
+            "profile.custom.opt-level".to_string(),
+            ConfigValue::String("z".to_string()),
+        )]);
+        let err = validate_config_profiles(&config).unwrap_err();
+        assert!(err.contains("custom"));
+    }
+
+    #[test]
+    fn validate_config_profiles_accepts_non_profile_keys() {
+        let config = BTreeMap::from([(
+            "build".to_string(),
+            ConfigValue::Table(BTreeMap::from([(
+                "rustflags".to_string(),
+                ConfigValue::String("-C target-cpu=native".to_string()),
+            )])),
+        )]);
+        assert!(validate_config_profiles(&config).is_ok());
+    }
+
+    #[test]
+    fn flatten_config_nested() {
+        let config = BTreeMap::from([(
+            "profile".to_string(),
+            ConfigValue::Table(BTreeMap::from([(
+                "release".to_string(),
+                ConfigValue::Table(BTreeMap::from([
+                    (
+                        "opt-level".to_string(),
+                        ConfigValue::String("z".to_string()),
+                    ),
+                    ("codegen-units".to_string(), ConfigValue::Integer(1)),
+                ])),
+            )])),
+        )]);
+        let flat = flatten_config(&config);
+        assert!(flat.contains(&("profile.release.codegen-units".to_string(), "1".to_string())));
+        assert!(flat.contains(&("profile.release.opt-level".to_string(), "\"z\"".to_string())));
+        assert_eq!(flat.len(), 2);
+    }
+
+    #[test]
+    fn flatten_config_empty() {
+        let config = BTreeMap::new();
+        assert!(flatten_config(&config).is_empty());
     }
 }

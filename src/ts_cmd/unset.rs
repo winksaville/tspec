@@ -37,7 +37,7 @@ pub fn unset_value(
         if let Some((table_path, sub_key)) = edit::parse_table_key(key) {
             edit::unset_table_value(&mut doc, table_path, sub_key)?;
         } else {
-            // Bare table name (e.g., "cargo.config_key_value") — remove entire table
+            // Bare table name (e.g., "cargo.config") — remove entire table
             edit::unset_field(&mut doc, key)?;
         }
     } else {
@@ -132,33 +132,25 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // --- Table field (config_key_value) tests ---
+    // --- Table field (config) tests ---
 
     #[test]
     fn unset_config_kv_subkey() {
-        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
-        let (_dir, path, _) = unset_in_file(
-            input,
-            "cargo.config_key_value.\"profile.release.opt-level\"",
-        );
+        let input = "[cargo.config]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
+        let (_dir, path, _) = unset_in_file(input, "cargo.config.\"profile.release.opt-level\"");
         let spec = load_spec(&path).unwrap();
-        assert!(
-            spec.cargo
-                .config_key_value
-                .get("profile.release.opt-level")
-                .is_none()
-        );
+        assert!(spec.cargo.config.get("profile.release.opt-level").is_none());
         assert_eq!(
-            spec.cargo.config_key_value.get("profile.release.lto"),
+            spec.cargo.config.get("profile.release.lto"),
             Some(&crate::types::ConfigValue::Bool(true))
         );
     }
 
     #[test]
     fn unset_config_kv_entire_table() {
-        let input = "[cargo.config_key_value]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
-        let (_dir, path, _) = unset_in_file(input, "cargo.config_key_value");
+        let input = "[cargo.config]\n\"profile.release.opt-level\" = \"s\"\n\"profile.release.lto\" = true\n";
+        let (_dir, path, _) = unset_in_file(input, "cargo.config");
         let spec = load_spec(&path).unwrap();
-        assert!(spec.cargo.config_key_value.is_empty());
+        assert!(spec.cargo.config.is_empty());
     }
 }

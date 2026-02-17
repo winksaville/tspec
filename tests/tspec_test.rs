@@ -1,8 +1,7 @@
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
-use tspec::types::{CargoConfig, ConfigValue, LinkerConfig, Profile};
+use tspec::types::{CargoConfig, LinkerConfig, Profile, flatten_config};
 
 fn test_data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,10 +19,8 @@ fn load_minimal_spec() {
     assert!(spec.cargo.target_triple.is_none());
     assert!(spec.cargo.target_json.is_none());
     assert!(spec.cargo.unstable.is_empty());
-    assert_eq!(
-        spec.cargo.config_key_value.get("profile.release.opt-level"),
-        Some(&ConfigValue::String("z".to_string()))
-    );
+    let flat = flatten_config(&spec.cargo.config);
+    assert!(flat.contains(&("profile.release.opt-level".to_string(), "\"z\"".to_string())));
 
     assert!(spec.cargo.build_std.is_empty());
     assert!(spec.rustflags.is_empty());
@@ -84,18 +81,11 @@ fn load_ex_config_kv_spec() {
 
     assert_eq!(spec.cargo.profile, Some(Profile::Release));
 
-    let expected = BTreeMap::from([
-        (
-            "profile.release.opt-level".to_string(),
-            ConfigValue::String("s".to_string()),
-        ),
-        ("profile.release.lto".to_string(), ConfigValue::Bool(true)),
-        (
-            "profile.release.codegen-units".to_string(),
-            ConfigValue::Integer(1),
-        ),
-    ]);
-    assert_eq!(spec.cargo.config_key_value, expected);
+    let flat = flatten_config(&spec.cargo.config);
+    assert!(flat.contains(&("profile.release.opt-level".to_string(), "\"s\"".to_string())));
+    assert!(flat.contains(&("profile.release.lto".to_string(), "true".to_string())));
+    assert!(flat.contains(&("profile.release.codegen-units".to_string(), "1".to_string())));
+    assert_eq!(flat.len(), 3);
 }
 
 #[test]

@@ -4,6 +4,6 @@ strip="symbols"
 profile = "release"
 target_dir = "{name}-{hash}"
 
-[cargo.config_key_value]
-"profile.release.opt-level" = "z"
-"profile.release.codegen-units" = 1
+[cargo.config.profile.release]
+opt-level = "z"
+codegen-units = 1

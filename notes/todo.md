@@ -4,6 +4,7 @@
 - Remove `[rustc]` section, promote `build_std` to `[cargo]`, add top-level `rustflags` escape hatch [31]
 
 ## Todo
+- Add custom profile support and CLI profile selection (e.g. `tspec build --profile custom`) — extend `cargo.profile` beyond debug/release, add `cargo --profile` flag passthrough
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
