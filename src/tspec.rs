@@ -151,7 +151,7 @@ mod tests {
     fn parse_empty_spec() {
         let spec = parse_spec("").unwrap();
         assert_eq!(spec.cargo, CargoConfig::default());
-        assert_eq!(spec.rustc, RustcConfig::default());
+        assert!(spec.rustflags.is_empty());
         assert_eq!(spec.linker, LinkerConfig::default());
     }
 
@@ -189,10 +189,7 @@ mod tests {
                 profile: Some(Profile::Release),
                 ..Default::default()
             },
-            rustc: RustcConfig {
-                flags: vec!["-Cforce-frame-pointers=yes".to_string()],
-                ..Default::default()
-            },
+            rustflags: vec!["-Cforce-frame-pointers=yes".to_string()],
             linker: LinkerConfig {
                 args: vec!["-static".to_string()],
                 ..Default::default()
@@ -205,7 +202,7 @@ mod tests {
         let loaded = load_spec(&path).unwrap();
 
         assert_eq!(spec.cargo, loaded.cargo);
-        assert_eq!(spec.rustc, loaded.rustc);
+        assert_eq!(spec.rustflags, loaded.rustflags);
         assert_eq!(spec.linker, loaded.linker);
     }
 

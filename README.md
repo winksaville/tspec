@@ -51,6 +51,7 @@ Translation specs are TOML files (conventionally `*.ts.toml`) that configure bui
 # Top-level high-level options (expand to lower-level cargo/rustc flags)
 panic = "abort"                            # "unwind" (default), "abort", "immediate-abort" (nightly)
 strip = "symbols"                          # "none" (default), "debuginfo", "symbols"
+rustflags = ["-C", "relocation-model=static"]  # raw flags passed through to RUSTFLAGS
 
 [cargo]
 profile = "release"                        # "debug" (default), "release"
@@ -58,14 +59,12 @@ target_triple = "x86_64-unknown-linux-musl"
 target_json = "path/to/custom-target.json" # custom target spec (auto-adds -Z json-target-spec)
 unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
 target_dir = "{name}"                      # per-spec target dir; supports {name} and {hash} placeholders
-
-[rustc]
-opt_level = "z"                            # "0", "1", "2", "3", "s", "z"
-panic = "abort"                            # "abort", "unwind", "immediate-abort" (prefer top-level panic)
-lto = true
-codegen_units = 1
 build_std = ["core", "alloc"]              # crates to rebuild with -Z build-std (nightly)
-flags = ["-C", "relocation-model=static"]  # raw rustc flags passed through
+
+[cargo.config_key_value]                   # passed as --config KEY=VALUE to cargo
+"profile.release.opt-level" = "z"
+"profile.release.lto" = true
+"profile.release.codegen-units" = 1
 
 [linker]
 args = ["-static", "-nostartfiles"]
@@ -75,8 +74,7 @@ global = ["_start"]                        # symbols to keep
 local = "*"                                # default: "*" (hide everything else)
 ```
 
-The top-level `panic` sets both cargo `-Z` and rustc `-C` flags automatically. If both
-top-level `panic` and `rustc.panic` are set, both are applied (prefer one or the other).
+The top-level `panic` sets both cargo `-Z` and rustc `-C` flags automatically.
 
 ### Key Concepts
 
@@ -133,12 +131,12 @@ tspec ts new opt2 -p myapp -f tspec-opt  # Copy from existing spec (byte-for-byt
 
 # Set scalar values
 tspec ts set strip symbols -p myapp              # Set a scalar field
-tspec ts set rustc.lto true -t tspec-opt         # Set in a specific tspec
 tspec ts set cargo.profile release               # No quoting needed
 
 # Set (replace) entire arrays — each element is a separate arg
 tspec ts set linker.args -static -nostdlib        # Replace array
-tspec ts set rustc.build_std core alloc           # Replace array
+tspec ts set cargo.build_std core alloc           # Replace array
+tspec ts set rustflags -C relocation-model=static # Replace array
 
 # Add items to arrays (append by default)
 tspec ts add linker.args -Wl,--gc-sections        # Append one item
@@ -151,7 +149,7 @@ tspec ts remove linker.args -static -pie           # Remove multiple by value
 tspec ts remove -i 2 linker.args                   # Remove by index
 
 # Remove a field entirely
-tspec ts unset rustc.lto -p myapp                  # Remove scalar field
+tspec ts unset strip -p myapp                      # Remove scalar field
 tspec ts unset linker.args -t tspec-opt            # Remove array field
 
 # Backup and restore (byte-for-byte copies)
@@ -167,23 +165,20 @@ Backups are valid spec files and can be used directly with `-t`.
 
 ### Supported keys
 
-Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`) or `TABLE.FIELD` for nested fields (`rustc.lto`, `linker.args`).
+Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`, `rustflags`) or `TABLE.FIELD` for nested fields (`cargo.profile`, `linker.args`).
 
 | Key | Type | Values |
 |-----|------|--------|
 | `panic` | scalar | `unwind`, `abort`, `immediate-abort` |
 | `strip` | scalar | `none`, `debuginfo`, `symbols` |
+| `rustflags` | array | e.g. `-C relocation-model=static` |
 | `cargo.profile` | scalar | `debug`, `release` |
 | `cargo.target_triple` | scalar | any string |
 | `cargo.target_json` | scalar | any path |
 | `cargo.target_dir` | scalar | any string (supports `{name}`, `{hash}`) |
 | `cargo.unstable` | array | e.g. `panic-immediate-abort` |
-| `rustc.opt_level` | scalar | `0`, `1`, `2`, `3`, `s`, `z` |
-| `rustc.panic` | scalar | `abort`, `unwind`, `immediate-abort` |
-| `rustc.lto` | scalar | `true`, `false` |
-| `rustc.codegen_units` | scalar | integer |
-| `rustc.build_std` | array | e.g. `core alloc` |
-| `rustc.flags` | array | e.g. `-Cforce-frame-pointers=yes` |
+| `cargo.config_key_value` | table | e.g. `"profile.release.opt-level" = "z"` |
+| `cargo.build_std` | array | e.g. `core alloc` |
 | `linker.args` | array | e.g. `-static -nostdlib` |
 
 ### Array operations

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
-use tspec::types::{CargoConfig, ConfigValue, LinkerConfig, Profile, RustcConfig};
+use tspec::types::{CargoConfig, ConfigValue, LinkerConfig, Profile};
 
 fn test_data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -25,8 +25,8 @@ fn load_minimal_spec() {
         Some(&ConfigValue::String("z".to_string()))
     );
 
-    assert!(spec.rustc.build_std.is_empty());
-    assert!(spec.rustc.flags.is_empty());
+    assert!(spec.cargo.build_std.is_empty());
+    assert!(spec.rustflags.is_empty());
 
     assert_eq!(spec.linker, LinkerConfig::default());
 }
@@ -50,7 +50,7 @@ fn load_ex_x1_spec() {
     let spec = load_spec(&test_data("ex-x1.ts.toml")).unwrap();
 
     assert_eq!(spec.cargo, CargoConfig::default());
-    assert_eq!(spec.rustc, RustcConfig::default());
+    assert!(spec.rustflags.is_empty());
     assert_eq!(
         spec.linker.args,
         vec!["-static".to_string(), "-nostartfiles".to_string()]
@@ -63,7 +63,7 @@ fn load_ex_x2_spec() {
     let spec = load_spec(&test_data("ex-x2.ts.toml")).unwrap();
 
     assert_eq!(spec.cargo, CargoConfig::default());
-    assert_eq!(spec.rustc, RustcConfig::default());
+    assert!(spec.rustflags.is_empty());
     assert_eq!(
         spec.linker.args,
         vec![

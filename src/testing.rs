@@ -12,7 +12,7 @@ fn requires_nightly(spec: &crate::types::Spec) -> bool {
     // High-level panic mode may require nightly
     let panic_needs_nightly = spec.panic.map(|p| p.requires_nightly()).unwrap_or(false);
 
-    let has_build_std = !spec.rustc.build_std.is_empty();
+    let has_build_std = !spec.cargo.build_std.is_empty();
 
     let has_unstable = !spec.cargo.unstable.is_empty();
 

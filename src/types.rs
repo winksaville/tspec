@@ -53,17 +53,9 @@ pub struct CargoConfig {
     /// Each entry becomes a separate `--config` arg.
     #[serde(default)]
     pub config_key_value: BTreeMap<String, ConfigValue>,
-}
-
-/// Rustc codegen and compilation configuration (flat struct)
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustcConfig {
     /// Crates to rebuild with -Z build-std (nightly only)
     #[serde(default)]
     pub build_std: Vec<String>,
-    /// Raw flags passed through
-    #[serde(default)]
-    pub flags: Vec<String>,
 }
 
 /// Version script configuration for symbol visibility
@@ -101,8 +93,9 @@ pub struct Spec {
 
     #[serde(default)]
     pub cargo: CargoConfig,
+    /// Raw flags passed through to RUSTFLAGS
     #[serde(default)]
-    pub rustc: RustcConfig,
+    pub rustflags: Vec<String>,
     #[serde(default)]
     pub linker: LinkerConfig,
 }
@@ -115,7 +108,7 @@ mod tests {
     fn spec_default_is_empty() {
         let spec = Spec::default();
         assert_eq!(spec.cargo, CargoConfig::default());
-        assert_eq!(spec.rustc, RustcConfig::default());
+        assert!(spec.rustflags.is_empty());
         assert_eq!(spec.linker, LinkerConfig::default());
     }
 }

@@ -182,3 +182,42 @@ in `testing.rs` is eliminated.
 ### Status
 
 Not started.
+
+## 20260217 - Remove `[rustc]` section, promote `build_std`, add `rustflags`
+
+### Context
+
+The `[rustc]` section has two remaining fields: `build_std` (actually a cargo `-Z` flag,
+not a rustc flag) and `flags` (raw RUSTFLAGS passthrough). `build_std` belongs under
+`[cargo]` since it triggers `+nightly` and `-Z build-std=...`. `flags` becomes a
+top-level `rustflags` array — a simple escape hatch mirroring `RUSTFLAGS` semantics.
+
+### Before → After
+
+```toml
+# Before
+[rustc]
+build_std = ["core", "alloc"]
+flags = ["-C", "some-thing"]
+
+# After
+[cargo]
+build_std = ["core", "alloc"]
+
+rustflags = ["-C", "some-thing"]
+```
+
+### Changes
+
+1. **types.rs:** Move `build_std` to `CargoConfig`, add `rustflags` to `Spec`, delete `RustcConfig`
+2. **cargo_build.rs:** Update all `spec.rustc` references to new locations
+3. **testing.rs:** Update duplicate `requires_nightly()` to use `spec.cargo.build_std`
+4. **ts_cmd/edit.rs:** Update field registry and tests
+5. **ts_cmd/set.rs, unset.rs:** Update tests
+6. **tspec.rs:** Update tests (remove `RustcConfig` references)
+7. **tests/tspec_test.rs:** Update integration tests
+8. **README.md, CLAUDE.md:** Update documentation
+
+### Status
+
+In progress.

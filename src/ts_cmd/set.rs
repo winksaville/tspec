@@ -214,11 +214,11 @@ mod tests {
     }
 
     #[test]
-    fn set_rustc_build_std() {
-        let (_dir, path, _) = set_in_file("", "rustc.build_std", &vs(&["core", "alloc"]));
+    fn set_cargo_build_std() {
+        let (_dir, path, _) = set_in_file("", "cargo.build_std", &vs(&["core", "alloc"]));
         let spec = load_spec(&path).unwrap();
         assert_eq!(
-            spec.rustc.build_std,
+            spec.cargo.build_std,
             vec!["core".to_string(), "alloc".to_string()]
         );
     }
@@ -244,11 +244,11 @@ mod tests {
     }
 
     #[test]
-    fn set_rustc_flags() {
-        let (_dir, path, _) = set_in_file("", "rustc.flags", &vs(&["-Cforce-frame-pointers=yes"]));
+    fn set_rustflags() {
+        let (_dir, path, _) = set_in_file("", "rustflags", &vs(&["-Cforce-frame-pointers=yes"]));
         let spec = load_spec(&path).unwrap();
         assert_eq!(
-            spec.rustc.flags,
+            spec.rustflags,
             vec!["-Cforce-frame-pointers=yes".to_string()]
         );
     }

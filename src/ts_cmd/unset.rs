@@ -99,13 +99,13 @@ mod tests {
 
     #[test]
     fn unset_nested_field() {
-        let input = "[rustc]\nbuild_std = [\"core\"]\nflags = [\"-Cforce-frame-pointers=yes\"]\n";
-        let (_dir, path, _) = unset_in_file(input, "rustc.build_std");
+        let input = "[cargo]\nbuild_std = [\"core\"]\nunstable = [\"panic-immediate-abort\"]\n";
+        let (_dir, path, _) = unset_in_file(input, "cargo.build_std");
         let spec = load_spec(&path).unwrap();
-        assert!(spec.rustc.build_std.is_empty());
+        assert!(spec.cargo.build_std.is_empty());
         assert_eq!(
-            spec.rustc.flags,
-            vec!["-Cforce-frame-pointers=yes".to_string()]
+            spec.cargo.unstable,
+            vec!["panic-immediate-abort".to_string()]
         );
     }
 

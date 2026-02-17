@@ -58,7 +58,7 @@ enum Commands {
   - `mod.rs` - Execute trait, `execute_cargo_subcommand` helper, `resolve_package_arg()` (resolves paths like "." to package names), `current_package_name()` (workspace-aware), re-exports
   - `build.rs`, `clean.rs`, `clippy.rs`, `compare.rs`, `fmt.rs`, `install.rs`, `run.rs`, `test.rs`, `version.rs` - Individual commands
 - `cli.rs` - Clap CLI definitions
-- `types.rs` - Spec types (CargoConfig, RustcConfig, LinkerConfig)
+- `types.rs` - Spec types (CargoConfig, LinkerConfig)
 - `tspec.rs` - Spec loading/saving/hashing, `copy_spec_snapshot()` for byte-for-byte backups
 - `cargo_build.rs` - Package build orchestration with spec application
 - `workspace.rs` - Workspace package discovery
@@ -80,9 +80,9 @@ enum Commands {
 
 ### Translation Spec Structure
 
-Specs are TOML files (`*.ts.toml`) with three sections:
-- `[cargo]` - profile, target_triple, target_json, unstable flags
-- `[rustc]` - panic, build_std, config_key_value, flags
+Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
+- Top-level: `panic`, `strip`, `rustflags`
+- `[cargo]` - profile, target_triple, target_json, unstable, target_dir, build_std, config_key_value
 - `[linker]` - args, version_script
 
 ## Conventions

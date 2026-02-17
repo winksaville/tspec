@@ -21,8 +21,8 @@ const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("cargo.target_dir", FieldKind::Scalar),
     ("cargo.unstable", FieldKind::Array),
     ("cargo.config_key_value", FieldKind::Table),
-    ("rustc.build_std", FieldKind::Array),
-    ("rustc.flags", FieldKind::Array),
+    ("cargo.build_std", FieldKind::Array),
+    ("rustflags", FieldKind::Array),
     ("linker.args", FieldKind::Array),
 ];
 
@@ -392,10 +392,10 @@ mod tests {
 
     #[test]
     fn validate_key_valid_array() {
-        assert_eq!(validate_key("rustc.build_std").unwrap(), FieldKind::Array);
+        assert_eq!(validate_key("cargo.build_std").unwrap(), FieldKind::Array);
         assert_eq!(validate_key("linker.args").unwrap(), FieldKind::Array);
         assert_eq!(validate_key("cargo.unstable").unwrap(), FieldKind::Array);
-        assert_eq!(validate_key("rustc.flags").unwrap(), FieldKind::Array);
+        assert_eq!(validate_key("rustflags").unwrap(), FieldKind::Array);
     }
 
     #[test]
@@ -530,27 +530,27 @@ mod tests {
 
     #[test]
     fn unset_nested() {
-        let input = "[rustc]\nbuild_std = [\"core\"]\nflags = [\"-Cforce-frame-pointers=yes\"]\n";
+        let input = "[cargo]\nbuild_std = [\"core\"]\nunstable = [\"panic-immediate-abort\"]\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        unset_field(&mut doc, "rustc.build_std").unwrap();
-        assert!(doc["rustc"].get("build_std").is_none());
-        assert!(doc["rustc"].get("flags").is_some());
+        unset_field(&mut doc, "cargo.build_std").unwrap();
+        assert!(doc["cargo"].get("build_std").is_none());
+        assert!(doc["cargo"].get("unstable").is_some());
     }
 
     #[test]
     fn unset_keeps_empty_table() {
-        let input = "[rustc]\nbuild_std = [\"core\"]\n";
+        let input = "[cargo]\nbuild_std = [\"core\"]\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        unset_field(&mut doc, "rustc.build_std").unwrap();
-        assert!(doc.get("rustc").is_some());
-        assert!(doc["rustc"].get("build_std").is_none());
+        unset_field(&mut doc, "cargo.build_std").unwrap();
+        assert!(doc.get("cargo").is_some());
+        assert!(doc["cargo"].get("build_std").is_none());
     }
 
     #[test]
     fn unset_nonexistent_is_ok() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
         unset_field(&mut doc, "panic").unwrap();
-        unset_field(&mut doc, "rustc.build_std").unwrap();
+        unset_field(&mut doc, "cargo.build_std").unwrap();
     }
 
     // --- add_items tests ---
@@ -791,7 +791,7 @@ mod tests {
 
     #[test]
     fn parse_table_key_not_table() {
-        assert!(parse_table_key("rustc.build_std").is_none());
+        assert!(parse_table_key("cargo.build_std").is_none());
         assert!(parse_table_key("panic").is_none());
     }
 
