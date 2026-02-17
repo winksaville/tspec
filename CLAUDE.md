@@ -82,7 +82,7 @@ enum Commands {
 
 Specs are TOML files (`*.ts.toml`) with three sections:
 - `[cargo]` - profile, target_triple, target_json, unstable flags
-- `[rustc]` - opt_level, panic, lto, codegen_units, build_std, flags
+- `[rustc]` - panic, build_std, config_key_value, flags
 - `[linker]` - args, version_script
 
 ## Conventions
@@ -101,9 +101,10 @@ Specs are TOML files (`*.ts.toml`) with three sections:
 1. Create a branch: `git checkout -b <type>-<short-description>` (e.g., `fix-compare-optional-p`)
 2. Create a dated entry in `notes/chores-N.md` with context and plan
 3. Update `notes/todo.md` to move items to In Progress
-4. Bump version to `X.Y.Z-dev` in `Cargo.toml`
-5. Commit the above as a chore marker commit before starting code changes
-6. Use todo list to track progress during implementation
+4. Bump version in `Cargo.toml` (always required — use `X.Y.Z-dev` for multi-step, direct bump for single-step)
+5. For plans: recommend single-step (one commit) vs multi-step (`-devN` series) and get user approval
+6. Commit the above as a chore marker commit before starting code changes
+7. Use todo list to track progress during implementation
 
 **On completion:**
 1. Update `notes/chores-N.md` with result

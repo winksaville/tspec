@@ -23,9 +23,16 @@ General maintenance tasks and considerations for the project see other files for
 
 ## Versioning during development
 
-For simple changes a single commit is fine. For larger changes, use a multi-step
-process:
+Every plan must start with a version bump. Choose the approach based on scope:
 
+- **Single-step** (recommended for mechanical/focused changes): bump directly to
+  `X.Y.Z`, implement in one commit. Simpler history.
+- **Multi-step** (for exploratory/large changes): bump to `X.Y.Z-devN`, implement
+  across multiple commits, final commit removes `-devN`.
+
+The plan should recommend one approach and get user approval before starting.
+
+For multi-step:
 1. Bump version to `X.Y.Z-devN` with a plan and commit as a chore marker
 2. Implement in one or more `-devN` commits (bump N as needed)
 3. Final commit removes `-devN`, updates todo/chores — this is the "done" marker
