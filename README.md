@@ -2,7 +2,7 @@
 
 A spec-driven build system for Rust that wraps cargo with configurable target triples, compiler flags, and linker options. Each tspec applies to a Cargo **package** — the unit with a `Cargo.toml`. If different crates need different compilation settings, they should be in separate packages.
 
-**Status:** Active development. Works with both workspaces and single-package projects, Plain Old Packages (POPs).
+**Status:** Active development. Works with both workspaces and single-package projects (i.e. Plain Old Packages, POPs).
 
 ## Installation
 
@@ -14,6 +14,22 @@ Or run directly:
 ```bash
 cargo run -- build
 ```
+
+## Contributing
+
+**All non-trivial changes must be on a feature branch** — never commit directly to `main`. This applies even for solo development.
+
+```bash
+git checkout -b feat-my-feature    # Create a branch
+# ... make changes, commit ...
+git checkout main                  # Switch back
+git merge --no-ff feat-my-feature  # Merge with merge commit (or squash-merge)
+git push
+```
+
+Branch naming: `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`.
+
+**Protect main on GitHub:** Enable branch protection (Settings > Branches) to block force pushes and optionally require PRs.
 
 ## Usage
 
@@ -118,12 +134,12 @@ This produces: `cargo --config profile.release.opt-level="z" --config profile.re
 **Other cargo config keys** work too:
 
 ```toml
-[cargo.config.build]
-rustflags = ["-C", "target-cpu=native"]
-
 [cargo.config.target.x86_64-unknown-linux-gnu]
 linker = "clang"
+runner = "qemu-x86_64"
 ```
+
+**Note:** Do not use `build.rustflags` in `[cargo.config]`. tspec sets the `RUSTFLAGS` env var (from top-level `rustflags`, `panic`, and `strip`), which takes precedence over `--config build.rustflags` per cargo's precedence rules. Use the top-level `rustflags` array instead.
 
 **Profile restrictions:** Only `profile.debug` and `profile.release` are supported. tspec will error if other profile names (e.g. `profile.custom`) are used in `[cargo.config]`.
 

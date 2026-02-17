@@ -97,6 +97,8 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 
 ## Feature Workflow
 
+**All non-trivial changes must be on a feature branch — never commit directly to main.** Even "quick" changes tend to grow; start on a branch and it's always safe to amend, rebase, or force-push without risk to main.
+
 **Before starting feature or fix work:**
 1. Create a branch: `git checkout -b <type>-<short-description>` (e.g., `fix-compare-optional-p`)
 2. Create a dated entry in `notes/chores-N.md` with context and plan
@@ -111,8 +113,11 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 2. Move items from In Progress to Done in `notes/todo.md`
 3. Remove `-dev` from version in `Cargo.toml`
 4. Commit as a release chore (include `Cargo.lock` if changed)
+5. User merges branch to main (Claude cannot do checkouts/merges)
 
 **Branch naming:** `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`
+
+**Force-push safety:** Force-pushing is acceptable on feature branches (use `--force-with-lease` when possible). Never force-push to main — main should have branch protection enabled on GitHub.
 
 ## Verification Workflow
 
