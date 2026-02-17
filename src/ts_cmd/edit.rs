@@ -21,9 +21,6 @@ const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("cargo.target_dir", FieldKind::Scalar),
     ("cargo.unstable", FieldKind::Array),
     ("cargo.config_key_value", FieldKind::Table),
-    ("rustc.opt_level", FieldKind::Scalar),
-    ("rustc.lto", FieldKind::Scalar),
-    ("rustc.codegen_units", FieldKind::Scalar),
     ("rustc.build_std", FieldKind::Array),
     ("rustc.flags", FieldKind::Array),
     ("linker.args", FieldKind::Array),
@@ -100,20 +97,6 @@ pub fn validate_value(key: &str, value: &str) -> Result<()> {
             "debug" | "release" => Ok(()),
             _ => bail!("invalid profile: {} (expected: debug, release)", value),
         },
-        "rustc.opt_level" => match value {
-            "0" | "1" | "2" | "3" | "s" | "z" => Ok(()),
-            _ => bail!("invalid opt-level: {} (expected: 0, 1, 2, 3, s, z)", value),
-        },
-        "rustc.lto" => match value {
-            "true" | "false" | "yes" | "no" | "1" | "0" => Ok(()),
-            _ => bail!("invalid boolean: {} (expected: true/false)", value),
-        },
-        "rustc.codegen_units" => {
-            value.parse::<u32>().map_err(|_| {
-                anyhow::anyhow!("invalid codegen_units: {} (expected integer)", value)
-            })?;
-            Ok(())
-        }
         _ => Ok(()),
     }
 }
@@ -129,24 +112,8 @@ fn parse_key(key: &str) -> (Option<&str>, &str) {
 }
 
 /// Parse a value string into a toml_edit Value.
-/// Booleans -> bool, integers -> i64, everything else -> string.
-fn parse_scalar_value(key: &str, raw: &str) -> Value {
-    // For rustc.lto, always parse as boolean
-    if key == "rustc.lto" {
-        return match raw {
-            "true" | "yes" | "1" => Value::from(true),
-            _ => Value::from(false),
-        };
-    }
-
-    // For rustc.codegen_units, always parse as integer
-    if key == "rustc.codegen_units"
-        && let Ok(n) = raw.parse::<i64>()
-    {
-        return Value::from(n);
-    }
-
-    // For rustc.opt_level, keep as string (since "0","1",etc. are enum variants)
+/// All scalar fields are stored as strings.
+fn parse_scalar_value(_key: &str, raw: &str) -> Value {
     Value::from(raw)
 }
 
@@ -420,7 +387,6 @@ mod tests {
     #[test]
     fn validate_key_valid_scalar() {
         assert_eq!(validate_key("panic").unwrap(), FieldKind::Scalar);
-        assert_eq!(validate_key("rustc.lto").unwrap(), FieldKind::Scalar);
         assert_eq!(validate_key("cargo.profile").unwrap(), FieldKind::Scalar);
     }
 
@@ -462,20 +428,6 @@ mod tests {
     }
 
     #[test]
-    fn validate_value_lto() {
-        assert!(validate_value("rustc.lto", "true").is_ok());
-        assert!(validate_value("rustc.lto", "false").is_ok());
-        assert!(validate_value("rustc.lto", "invalid").is_err());
-    }
-
-    #[test]
-    fn validate_value_codegen_units() {
-        assert!(validate_value("rustc.codegen_units", "1").is_ok());
-        assert!(validate_value("rustc.codegen_units", "16").is_ok());
-        assert!(validate_value("rustc.codegen_units", "abc").is_err());
-    }
-
-    #[test]
     fn validate_value_unconstrained() {
         assert!(validate_value("cargo.target_triple", "anything").is_ok());
         assert!(validate_value("cargo.target_dir", "anything").is_ok());
@@ -494,8 +446,14 @@ mod tests {
     #[test]
     fn set_nested_scalar() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
-        set_field(&mut doc, "rustc.lto", &vs(&["true"]), FieldKind::Scalar).unwrap();
-        assert_eq!(doc["rustc"]["lto"].as_bool(), Some(true));
+        set_field(
+            &mut doc,
+            "cargo.profile",
+            &vs(&["release"]),
+            FieldKind::Scalar,
+        )
+        .unwrap();
+        assert_eq!(doc["cargo"]["profile"].as_str(), Some("release"));
     }
 
     #[test]
@@ -537,19 +495,6 @@ mod tests {
     }
 
     #[test]
-    fn set_codegen_units_as_integer() {
-        let mut doc = "".parse::<DocumentMut>().unwrap();
-        set_field(
-            &mut doc,
-            "rustc.codegen_units",
-            &vs(&["1"]),
-            FieldKind::Scalar,
-        )
-        .unwrap();
-        assert_eq!(doc["rustc"]["codegen_units"].as_integer(), Some(1));
-    }
-
-    #[test]
     fn set_preserves_existing_content() {
         let input = "# My comment\npanic = \"unwind\"\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
@@ -585,27 +530,27 @@ mod tests {
 
     #[test]
     fn unset_nested() {
-        let input = "[rustc]\nlto = true\nopt_level = \"3\"\n";
+        let input = "[rustc]\nbuild_std = [\"core\"]\nflags = [\"-Cforce-frame-pointers=yes\"]\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        unset_field(&mut doc, "rustc.lto").unwrap();
-        assert!(doc["rustc"].get("lto").is_none());
-        assert!(doc["rustc"].get("opt_level").is_some());
+        unset_field(&mut doc, "rustc.build_std").unwrap();
+        assert!(doc["rustc"].get("build_std").is_none());
+        assert!(doc["rustc"].get("flags").is_some());
     }
 
     #[test]
     fn unset_keeps_empty_table() {
-        let input = "[rustc]\nlto = true\n";
+        let input = "[rustc]\nbuild_std = [\"core\"]\n";
         let mut doc = input.parse::<DocumentMut>().unwrap();
-        unset_field(&mut doc, "rustc.lto").unwrap();
+        unset_field(&mut doc, "rustc.build_std").unwrap();
         assert!(doc.get("rustc").is_some());
-        assert!(doc["rustc"].get("lto").is_none());
+        assert!(doc["rustc"].get("build_std").is_none());
     }
 
     #[test]
     fn unset_nonexistent_is_ok() {
         let mut doc = "".parse::<DocumentMut>().unwrap();
         unset_field(&mut doc, "panic").unwrap();
-        unset_field(&mut doc, "rustc.lto").unwrap();
+        unset_field(&mut doc, "rustc.build_std").unwrap();
     }
 
     // --- add_items tests ---
@@ -846,7 +791,7 @@ mod tests {
 
     #[test]
     fn parse_table_key_not_table() {
-        assert!(parse_table_key("rustc.lto").is_none());
+        assert!(parse_table_key("rustc.build_std").is_none());
         assert!(parse_table_key("panic").is_none());
     }
 

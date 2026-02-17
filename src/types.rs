@@ -13,23 +13,6 @@ pub enum Profile {
     Release,
 }
 
-/// Optimization level - mutually exclusive
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum OptLevel {
-    #[serde(rename = "0")]
-    O0,
-    #[serde(rename = "1")]
-    O1,
-    #[serde(rename = "2")]
-    O2,
-    #[serde(rename = "3")]
-    O3,
-    #[serde(rename = "s")]
-    Os,
-    #[serde(rename = "z")]
-    Oz,
-}
-
 /// A value in the `[cargo.config_key_value]` table.
 /// Uses `#[serde(untagged)]` so TOML bools/ints/strings are deserialized naturally.
 /// We avoid `toml::Value` because it contains `Float(f64)` which doesn't implement `Eq`.
@@ -75,12 +58,6 @@ pub struct CargoConfig {
 /// Rustc codegen and compilation configuration (flat struct)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RustcConfig {
-    /// Optimization level (-C opt-level=)
-    pub opt_level: Option<OptLevel>,
-    /// Enable LTO (-C lto=true)
-    pub lto: Option<bool>,
-    /// Codegen units (-C codegen-units=)
-    pub codegen_units: Option<u32>,
     /// Crates to rebuild with -Z build-std (nightly only)
     #[serde(default)]
     pub build_std: Vec<String>,

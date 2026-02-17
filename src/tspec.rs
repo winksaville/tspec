@@ -190,7 +190,7 @@ mod tests {
                 ..Default::default()
             },
             rustc: RustcConfig {
-                lto: Some(true),
+                flags: vec!["-Cforce-frame-pointers=yes".to_string()],
                 ..Default::default()
             },
             linker: LinkerConfig {

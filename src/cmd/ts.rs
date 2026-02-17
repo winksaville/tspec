@@ -65,7 +65,7 @@ pub enum TsCommands {
     /// For scalars: tspec ts set key value
     /// For arrays: tspec ts set key val1 val2 ...
     Set {
-        /// Field key (e.g., "rustc.lto", "linker.args")
+        /// Field key (e.g., "cargo.profile", "linker.args")
         key: String,
         /// Value(s). For scalars, one value. For arrays, each arg is an element.
         #[arg(required = true, allow_hyphen_values = true)]
@@ -79,7 +79,7 @@ pub enum TsCommands {
     },
     /// Remove a field from a tspec (preserves comments)
     Unset {
-        /// Key to remove (e.g., "rustc.lto", "panic", "linker.args")
+        /// Key to remove (e.g., "cargo.profile", "panic", "linker.args")
         key: String,
         /// Package name (defaults to current directory)
         #[arg(short = 'p', long = "package")]

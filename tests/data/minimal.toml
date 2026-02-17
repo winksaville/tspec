@@ -4,5 +4,5 @@ panic = "abort"
 [cargo]
 profile = "release"
 
-[rustc]
-opt_level = "z"
+[cargo.config_key_value]
+"profile.release.opt-level" = "z"

@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn scalar_key_rejected() {
-        let kind = edit::validate_key("rustc.lto").unwrap();
+        let kind = edit::validate_key("cargo.profile").unwrap();
         assert_eq!(kind, edit::FieldKind::Scalar);
     }
 }

@@ -171,20 +171,6 @@ mod tests {
     }
 
     #[test]
-    fn set_rustc_lto() {
-        let (_dir, path, _) = set_in_file("", "rustc.lto", &vs(&["true"]));
-        let spec = load_spec(&path).unwrap();
-        assert_eq!(spec.rustc.lto, Some(true));
-    }
-
-    #[test]
-    fn set_rustc_opt_level() {
-        let (_dir, path, _) = set_in_file("", "rustc.opt_level", &vs(&["z"]));
-        let spec = load_spec(&path).unwrap();
-        assert_eq!(spec.rustc.opt_level, Some(crate::types::OptLevel::Oz));
-    }
-
-    #[test]
     fn set_cargo_profile() {
         let (_dir, path, _) = set_in_file("", "cargo.profile", &vs(&["release"]));
         let spec = load_spec(&path).unwrap();
@@ -272,13 +258,6 @@ mod tests {
         let input = "# Important comment\npanic = \"unwind\"\n";
         let (_dir, _, output) = set_in_file(input, "strip", &vs(&["symbols"]));
         assert!(output.contains("# Important comment"));
-    }
-
-    #[test]
-    fn set_codegen_units() {
-        let (_dir, path, _) = set_in_file("", "rustc.codegen_units", &vs(&["1"]));
-        let spec = load_spec(&path).unwrap();
-        assert_eq!(spec.rustc.codegen_units, Some(1));
     }
 
     // --- Table field (config_key_value) tests ---

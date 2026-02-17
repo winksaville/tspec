@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
-use tspec::types::*;
+use tspec::types::{CargoConfig, ConfigValue, LinkerConfig, Profile, RustcConfig};
 
 fn test_data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -20,10 +20,11 @@ fn load_minimal_spec() {
     assert!(spec.cargo.target_triple.is_none());
     assert!(spec.cargo.target_json.is_none());
     assert!(spec.cargo.unstable.is_empty());
+    assert_eq!(
+        spec.cargo.config_key_value.get("profile.release.opt-level"),
+        Some(&ConfigValue::String("z".to_string()))
+    );
 
-    assert_eq!(spec.rustc.opt_level, Some(OptLevel::Oz));
-    assert!(spec.rustc.lto.is_none());
-    assert!(spec.rustc.codegen_units.is_none());
     assert!(spec.rustc.build_std.is_empty());
     assert!(spec.rustc.flags.is_empty());
 

@@ -267,7 +267,7 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
         .max(5);
 
     println!();
-    print_header!("TEST SUMMARY");
+    print_header!(format!("tspec {} TEST SUMMARY", env!("CARGO_PKG_VERSION")));
     println!("  {:width$}  Status", "Package", width = max_name_len);
 
     let mut passed = 0;
