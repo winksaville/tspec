@@ -1,7 +1,6 @@
 # Todo
 
 ## In Progress
-- Allow `-t` glob patterns in all-packages mode for workspaces [33]
 
 ## Todo
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
@@ -16,6 +15,7 @@
 
 See older [done.md](done.md)
 
+- Allow `-t` glob patterns in all-packages mode for workspaces [33]
 - Add custom profile support and CLI `--profile` flag [32]
 - Remove `[rustc]` section, promote `build_std` to `[cargo]`, add top-level `rustflags`; rename `config_key_value` to `config` with nested table support [31]
 - Add glob support for `-t` flag on build, run, test commands [29]

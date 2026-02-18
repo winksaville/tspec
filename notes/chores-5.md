@@ -299,4 +299,4 @@ with no matches.
 
 ### Status
 
-In progress.
+Done — released in v0.12.5.
