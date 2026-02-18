@@ -62,27 +62,15 @@ impl Execute for RunCmd {
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
                 Some(pkg) => resolve_package_arg(pkg)?,
-                None => {
-                    let name = current_package_name();
-                    if name.is_none() && !self.tspec.is_empty() {
-                        resolve_package_arg(".")?
-                    } else {
-                        name
-                    }
-                }
+                None => current_package_name(),
             }
         };
 
         match resolved {
             None => {
-                if !self.tspec.is_empty() {
-                    anyhow::bail!(
-                        "-t/--tspec cannot be used in all-packages mode. Each package uses its own tspecs."
-                    );
-                }
                 // Run all apps (args not supported for --workspace)
                 let workspace = WorkspaceInfo::discover()?;
-                let results = run_all(&workspace, None, cli_profile, self.strip);
+                let results = run_all(&workspace, &self.tspec, cli_profile, self.strip);
                 Ok(print_run_summary(&results))
             }
             Some(name) => {

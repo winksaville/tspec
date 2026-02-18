@@ -5,6 +5,8 @@
 use std::os::unix::fs::PermissionsExt;
 use std::process::ExitCode;
 
+use std::path::{Path, PathBuf};
+
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::build_package;
 use crate::compare::{SpecResult, compare_specs, print_comparison};
@@ -13,6 +15,17 @@ use crate::run::run_binary;
 use crate::testing::test_package;
 use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
+
+/// Resolve tspec patterns for a workspace member.
+///
+/// Returns the matching spec paths, or an empty vec if no patterns match.
+/// When `patterns` is empty, returns an empty vec (caller should use default behavior).
+fn resolve_specs_for_member(member_path: &Path, patterns: &[String]) -> Vec<PathBuf> {
+    if patterns.is_empty() {
+        return Vec::new();
+    }
+    find_tspecs(member_path, patterns).unwrap_or_default()
+}
 
 /// Result of a batch operation on a single package
 pub struct OpResult {
@@ -23,9 +36,12 @@ pub struct OpResult {
 }
 
 /// Build all workspace packages (excluding build tools)
+///
+/// When `tspec_patterns` is empty, each package uses its default spec.
+/// When non-empty, patterns are resolved per-package; packages with no matches are skipped.
 pub fn build_all(
     workspace: &WorkspaceInfo,
-    tspec: Option<&str>,
+    tspec_patterns: &[String],
     cli_profile: Option<&str>,
     strip: bool,
     fail_fast: bool,
@@ -33,37 +49,53 @@ pub fn build_all(
     let mut results = Vec::new();
 
     for member in workspace.buildable_members() {
+        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
+        if specs.is_empty() && !tspec_patterns.is_empty() {
+            continue;
+        }
+
         println!("=== {} ===", member.name);
 
-        let result = match build_package(&member.name, tspec, cli_profile) {
-            Ok(build_result) => {
-                if strip
-                    && member.has_binary
-                    && let Err(e) = strip_binary(&build_result.binary_path)
-                {
-                    eprintln!("  warning: strip failed: {}", e);
-                }
-                let size = binary_size(&build_result.binary_path).ok();
-                OpResult {
-                    name: member.name.clone(),
-                    success: true,
-                    message: format!("{}", build_result.binary_path.display()),
-                    size,
-                }
-            }
-            Err(e) => OpResult {
-                name: member.name.clone(),
-                success: false,
-                message: e.to_string(),
-                size: None,
-            },
+        let tspec_list: Vec<Option<String>> = if specs.is_empty() {
+            vec![None]
+        } else {
+            specs
+                .into_iter()
+                .map(|p| Some(p.to_string_lossy().into_owned()))
+                .collect()
         };
 
-        let failed = !result.success;
-        results.push(result);
+        for tspec in &tspec_list {
+            let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
+                Ok(build_result) => {
+                    if strip
+                        && member.has_binary
+                        && let Err(e) = strip_binary(&build_result.binary_path)
+                    {
+                        eprintln!("  warning: strip failed: {}", e);
+                    }
+                    let size = binary_size(&build_result.binary_path).ok();
+                    OpResult {
+                        name: member.name.clone(),
+                        success: true,
+                        message: format!("{}", build_result.binary_path.display()),
+                        size,
+                    }
+                }
+                Err(e) => OpResult {
+                    name: member.name.clone(),
+                    success: false,
+                    message: e.to_string(),
+                    size: None,
+                },
+            };
 
-        if failed && fail_fast {
-            break;
+            let failed = !result.success;
+            results.push(result);
+
+            if failed && fail_fast {
+                return results;
+            }
         }
     }
 
@@ -71,55 +103,77 @@ pub fn build_all(
 }
 
 /// Run all app packages sequentially
+///
+/// When `tspec_patterns` is empty, each package uses its default spec.
+/// When non-empty, patterns are resolved per-package; packages with no matches are skipped.
 pub fn run_all(
     workspace: &WorkspaceInfo,
-    tspec: Option<&str>,
+    tspec_patterns: &[String],
     cli_profile: Option<&str>,
     strip: bool,
 ) -> Vec<OpResult> {
     let mut results = Vec::new();
 
     for member in workspace.runnable_members() {
+        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
+        if specs.is_empty() && !tspec_patterns.is_empty() {
+            continue;
+        }
+
         println!("=== {} ===", member.name);
 
-        let result = match build_package(&member.name, tspec, cli_profile) {
-            Ok(build_result) => {
-                if strip && let Err(e) = strip_binary(&build_result.binary_path) {
-                    eprintln!("  warning: strip failed: {}", e);
-                }
-                match run_binary(&build_result.binary_path, &[]) {
-                    Ok(exit_code) => OpResult {
-                        name: member.name.clone(),
-                        success: true, // We don't treat non-zero exit as failure
-                        message: format!("exit code: {}", exit_code),
-                        size: None,
-                    },
-                    Err(e) => OpResult {
-                        name: member.name.clone(),
-                        success: false,
-                        message: format!("run failed: {}", e),
-                        size: None,
-                    },
-                }
-            }
-            Err(e) => OpResult {
-                name: member.name.clone(),
-                success: false,
-                message: format!("build failed: {}", e),
-                size: None,
-            },
+        let tspec_list: Vec<Option<String>> = if specs.is_empty() {
+            vec![None]
+        } else {
+            specs
+                .into_iter()
+                .map(|p| Some(p.to_string_lossy().into_owned()))
+                .collect()
         };
 
-        results.push(result);
+        for tspec in &tspec_list {
+            let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
+                Ok(build_result) => {
+                    if strip && let Err(e) = strip_binary(&build_result.binary_path) {
+                        eprintln!("  warning: strip failed: {}", e);
+                    }
+                    match run_binary(&build_result.binary_path, &[]) {
+                        Ok(exit_code) => OpResult {
+                            name: member.name.clone(),
+                            success: true,
+                            message: format!("exit code: {}", exit_code),
+                            size: None,
+                        },
+                        Err(e) => OpResult {
+                            name: member.name.clone(),
+                            success: false,
+                            message: format!("run failed: {}", e),
+                            size: None,
+                        },
+                    }
+                }
+                Err(e) => OpResult {
+                    name: member.name.clone(),
+                    success: false,
+                    message: format!("build failed: {}", e),
+                    size: None,
+                },
+            };
+
+            results.push(result);
+        }
     }
 
     results
 }
 
 /// Test all workspace packages
+///
+/// When `tspec_patterns` is empty, each package uses its default spec.
+/// When non-empty, patterns are resolved per-package; packages with no matches are skipped.
 pub fn test_all(
     workspace: &WorkspaceInfo,
-    tspec: Option<&str>,
+    tspec_patterns: &[String],
     cli_profile: Option<&str>,
     fail_fast: bool,
 ) -> Vec<OpResult> {
@@ -131,37 +185,59 @@ pub fn test_all(
             continue; // Handle test packages separately
         }
 
+        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
+        if specs.is_empty() && !tspec_patterns.is_empty() {
+            continue;
+        }
+
         println!("=== {} ===", member.name);
 
-        let result = match test_package(&member.name, tspec, cli_profile) {
-            Ok(()) => OpResult {
-                name: member.name.clone(),
-                success: true,
-                message: "ok".to_string(),
-                size: None,
-            },
-            Err(e) => OpResult {
-                name: member.name.clone(),
-                success: false,
-                message: e.to_string(),
-                size: None,
-            },
+        let tspec_list: Vec<Option<String>> = if specs.is_empty() {
+            vec![None]
+        } else {
+            specs
+                .into_iter()
+                .map(|p| Some(p.to_string_lossy().into_owned()))
+                .collect()
         };
 
-        let failed = !result.success;
-        results.push(result);
+        for tspec in &tspec_list {
+            let result = match test_package(&member.name, tspec.as_deref(), cli_profile) {
+                Ok(()) => OpResult {
+                    name: member.name.clone(),
+                    success: true,
+                    message: "ok".to_string(),
+                    size: None,
+                },
+                Err(e) => OpResult {
+                    name: member.name.clone(),
+                    success: false,
+                    message: e.to_string(),
+                    size: None,
+                },
+            };
 
-        if failed && fail_fast {
-            return results;
+            let failed = !result.success;
+            results.push(result);
+
+            if failed && fail_fast {
+                return results;
+            }
         }
     }
 
     // Handle test packages (like rlibc-x2-tests) - build and run all test binaries
     for member in workspace.test_members() {
+        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
+        if specs.is_empty() && !tspec_patterns.is_empty() {
+            continue;
+        }
+
         println!("=== {} ===", member.name);
 
         // Build the test package (builds all binaries)
-        let build_result = match build_package(&member.name, tspec, cli_profile) {
+        let build_tspec = specs.first().map(|p| p.to_string_lossy().into_owned());
+        let build_result = match build_package(&member.name, build_tspec.as_deref(), cli_profile) {
             Ok(r) => r,
             Err(e) => {
                 results.push(OpResult {
@@ -367,7 +443,14 @@ pub struct CompareResult {
 }
 
 /// Compare all workspace packages that have binaries
-pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<CompareResult> {
+///
+/// When `tspec_patterns` is empty, each package discovers its own specs via default glob.
+/// When non-empty, patterns are resolved per-package; packages with no matches are skipped.
+pub fn compare_all(
+    workspace: &WorkspaceInfo,
+    tspec_patterns: &[String],
+    fail_fast: bool,
+) -> Vec<CompareResult> {
     let mut results = Vec::new();
 
     for member in workspace.buildable_members() {
@@ -375,7 +458,15 @@ pub fn compare_all(workspace: &WorkspaceInfo, fail_fast: bool) -> Vec<CompareRes
             continue;
         }
 
-        let spec_paths = find_tspecs(&member.path, &[]).unwrap_or_default();
+        let spec_paths = if tspec_patterns.is_empty() {
+            find_tspecs(&member.path, &[]).unwrap_or_default()
+        } else {
+            let resolved = resolve_specs_for_member(&member.path, tspec_patterns);
+            if resolved.is_empty() {
+                continue;
+            }
+            resolved
+        };
 
         println!("=== {} ===", member.name);
 

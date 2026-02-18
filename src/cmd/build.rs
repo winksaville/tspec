@@ -62,28 +62,20 @@ impl Execute for BuildCmd {
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
                 Some(pkg) => resolve_package_arg(pkg)?,
-                None => {
-                    let name = current_package_name();
-                    // When -t is specified at a workspace root with a root package,
-                    // resolve to that package instead of all-packages mode
-                    if name.is_none() && !self.tspec.is_empty() {
-                        resolve_package_arg(".")?
-                    } else {
-                        name
-                    }
-                }
+                None => current_package_name(),
             }
         };
 
         match resolved {
             None => {
-                if !self.tspec.is_empty() {
-                    anyhow::bail!(
-                        "-t/--tspec cannot be used in all-packages mode. Each package uses its own tspecs."
-                    );
-                }
                 let workspace = WorkspaceInfo::discover()?;
-                let results = build_all(&workspace, None, cli_profile, self.strip, self.fail_fast);
+                let results = build_all(
+                    &workspace,
+                    &self.tspec,
+                    cli_profile,
+                    self.strip,
+                    self.fail_fast,
+                );
                 Ok(print_summary(&results))
             }
             Some(name) => {

@@ -37,26 +37,14 @@ impl Execute for CompareCmd {
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
                 Some(pkg) => resolve_package_arg(pkg)?,
-                None => {
-                    let name = current_package_name();
-                    if name.is_none() && !self.tspec.is_empty() {
-                        resolve_package_arg(".")?
-                    } else {
-                        name
-                    }
-                }
+                None => current_package_name(),
             }
         };
 
         match resolved {
             None => {
-                if !self.tspec.is_empty() {
-                    anyhow::bail!(
-                        "-t/--tspec cannot be used in all-packages mode. Each package uses its own tspecs."
-                    );
-                }
                 let workspace = WorkspaceInfo::discover()?;
-                let results = compare_all(&workspace, self.fail_fast);
+                let results = compare_all(&workspace, &self.tspec, self.fail_fast);
                 Ok(print_compare_summary(&results))
             }
             Some(pkg_name) => {
