@@ -16,6 +16,52 @@ use crate::testing::test_package;
 use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
 
+/// Normalize tspec patterns for per-package matching in all-packages mode.
+///
+/// Strips directory components so shell-expanded paths from the workspace root
+/// don't leak into sub-packages. Filters out non-tspec shell expansions
+/// (e.g. `target/`, `tools/`) — only `.ts.toml` files and glob patterns are kept.
+///
+/// Returns `None` if all patterns were filtered out (likely shell expansion of a
+/// glob that matched non-tspec entries). The caller should warn about quoting.
+fn normalize_tspec_patterns(patterns: &[String]) -> Option<Vec<String>> {
+    if patterns.is_empty() {
+        return Some(Vec::new());
+    }
+    let filenames: Vec<String> = patterns
+        .iter()
+        .filter_map(|p| {
+            let name = Path::new(p)
+                .file_name()
+                .map(|f| f.to_string_lossy().into_owned())
+                .unwrap_or_else(|| p.clone());
+            // Keep glob patterns (unexpanded) and actual tspec files
+            let is_glob = name.contains('*') || name.contains('?') || name.contains('[');
+            let is_tspec = name.ends_with(crate::TSPEC_SUFFIX);
+            if is_glob || is_tspec {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if filenames.is_empty() && !patterns.is_empty() {
+        None // all patterns were filtered — likely shell expansion
+    } else {
+        Some(filenames)
+    }
+}
+
+/// Warn that shell glob expansion likely ate the tspec pattern.
+pub fn warn_shell_glob_expansion(patterns: &[String]) {
+    eprintln!(
+        "Warning: -t arguments ({}) don't look like tspec files.",
+        patterns.join(", ")
+    );
+    eprintln!("  The shell likely expanded your glob before tspec could see it.");
+    eprintln!("  Quote the pattern to prevent shell expansion: -t 'pattern*'");
+}
+
 /// Resolve tspec patterns for a workspace member.
 ///
 /// Returns the matching spec paths, or an empty vec if no patterns match.
@@ -46,11 +92,18 @@ pub fn build_all(
     strip: bool,
     fail_fast: bool,
 ) -> Vec<OpResult> {
+    let normalized = match normalize_tspec_patterns(tspec_patterns) {
+        Some(n) => n,
+        None => {
+            warn_shell_glob_expansion(tspec_patterns);
+            return Vec::new();
+        }
+    };
     let mut results = Vec::new();
 
     for member in workspace.buildable_members() {
-        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
-        if specs.is_empty() && !tspec_patterns.is_empty() {
+        let specs = resolve_specs_for_member(&member.path, &normalized);
+        if specs.is_empty() && !normalized.is_empty() {
             continue;
         }
 
@@ -112,11 +165,18 @@ pub fn run_all(
     cli_profile: Option<&str>,
     strip: bool,
 ) -> Vec<OpResult> {
+    let normalized = match normalize_tspec_patterns(tspec_patterns) {
+        Some(n) => n,
+        None => {
+            warn_shell_glob_expansion(tspec_patterns);
+            return Vec::new();
+        }
+    };
     let mut results = Vec::new();
 
     for member in workspace.runnable_members() {
-        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
-        if specs.is_empty() && !tspec_patterns.is_empty() {
+        let specs = resolve_specs_for_member(&member.path, &normalized);
+        if specs.is_empty() && !normalized.is_empty() {
             continue;
         }
 
@@ -177,6 +237,13 @@ pub fn test_all(
     cli_profile: Option<&str>,
     fail_fast: bool,
 ) -> Vec<OpResult> {
+    let normalized = match normalize_tspec_patterns(tspec_patterns) {
+        Some(n) => n,
+        None => {
+            warn_shell_glob_expansion(tspec_patterns);
+            return Vec::new();
+        }
+    };
     let mut results = Vec::new();
 
     // Test regular packages (excluding Test kind which needs special handling)
@@ -185,8 +252,8 @@ pub fn test_all(
             continue; // Handle test packages separately
         }
 
-        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
-        if specs.is_empty() && !tspec_patterns.is_empty() {
+        let specs = resolve_specs_for_member(&member.path, &normalized);
+        if specs.is_empty() && !normalized.is_empty() {
             continue;
         }
 
@@ -228,8 +295,8 @@ pub fn test_all(
 
     // Handle test packages (like rlibc-x2-tests) - build and run all test binaries
     for member in workspace.test_members() {
-        let specs = resolve_specs_for_member(&member.path, tspec_patterns);
-        if specs.is_empty() && !tspec_patterns.is_empty() {
+        let specs = resolve_specs_for_member(&member.path, &normalized);
+        if specs.is_empty() && !normalized.is_empty() {
             continue;
         }
 
@@ -451,6 +518,13 @@ pub fn compare_all(
     tspec_patterns: &[String],
     fail_fast: bool,
 ) -> Vec<CompareResult> {
+    let normalized = match normalize_tspec_patterns(tspec_patterns) {
+        Some(n) => n,
+        None => {
+            warn_shell_glob_expansion(tspec_patterns);
+            return Vec::new();
+        }
+    };
     let mut results = Vec::new();
 
     for member in workspace.buildable_members() {
@@ -458,10 +532,10 @@ pub fn compare_all(
             continue;
         }
 
-        let spec_paths = if tspec_patterns.is_empty() {
+        let spec_paths = if normalized.is_empty() {
             find_tspecs(&member.path, &[]).unwrap_or_default()
         } else {
-            let resolved = resolve_specs_for_member(&member.path, tspec_patterns);
+            let resolved = resolve_specs_for_member(&member.path, &normalized);
             if resolved.is_empty() {
                 continue;
             }
