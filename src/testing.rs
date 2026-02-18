@@ -8,16 +8,27 @@ use crate::cargo_build::{
 };
 use crate::find_paths::{find_package_dir, find_project_root, find_tspec, get_package_name};
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
-/// Check if spec requires nightly toolchain
-fn requires_nightly(spec: &crate::types::Spec) -> bool {
-    // High-level panic mode may require nightly
-    let panic_needs_nightly = spec.panic.map(|p| p.requires_nightly()).unwrap_or(false);
+/// Check if spec requires nightly toolchain for testing.
+/// This is stricter than the build version: panic=abort also needs nightly
+/// because `-Zpanic_abort_tests` is a nightly-only flag.
+fn requires_nightly_for_test(spec: &crate::types::Spec) -> bool {
+    let panic_needs_nightly = spec
+        .panic
+        .map(|p| p.rustc_panic_value().is_some()) // any non-unwind panic needs nightly for tests
+        .unwrap_or(false);
 
     let has_build_std = !spec.cargo.build_std.is_empty();
 
     let has_unstable = !spec.cargo.unstable.is_empty();
 
     panic_needs_nightly || has_build_std || has_unstable
+}
+
+/// Check if spec uses an abort-like panic mode that needs `-Zpanic_abort_tests` for testing.
+fn needs_panic_abort_tests(spec: &crate::types::Spec) -> bool {
+    spec.panic
+        .map(|p| p.rustc_panic_value().is_some()) // abort or immediate-abort
+        .unwrap_or(false)
 }
 
 /// Test a package with a spec.
@@ -57,7 +68,7 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         }
 
         let mut cmd = Command::new("cargo");
-        if requires_nightly(&spec) {
+        if requires_nightly_for_test(&spec) {
             cmd.arg("+nightly");
         }
         cmd.arg("test");
@@ -74,6 +85,24 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
             cli_profile,
             expanded_td.as_deref(),
         )?;
+
+        // Append -Zpanic_abort_tests to RUSTFLAGS if needed (must come after
+        // apply_spec_to_command which may set RUSTFLAGS)
+        if needs_panic_abort_tests(&spec) {
+            let existing = cmd
+                .get_envs()
+                .find(|(k, _)| k == &"RUSTFLAGS")
+                .and_then(|(_, v)| v)
+                .map(|v| v.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let new_flags = if existing.is_empty() {
+                "-Zpanic_abort_tests".to_string()
+            } else {
+                format!("{} -Zpanic_abort_tests", existing)
+            };
+            cmd.env("RUSTFLAGS", new_flags);
+        }
+
         cmd.status().context("failed to run cargo test")?
     } else {
         // Validate CLI profile when no spec
