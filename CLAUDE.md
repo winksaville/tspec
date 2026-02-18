@@ -115,6 +115,14 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 4. Commit as a release chore (include `Cargo.lock` if changed)
 5. User merges branch to main (Claude cannot do checkouts/merges)
 
+**Branch merge workflow (user performs after Claude's final commit):**
+1. Claude makes the final commit on the branch
+2. User `/exit`s Claude (optional)
+3. User amends `.claude/` files on the branch and pushes
+4. User merges the branch to main
+5. User pushes main and deletes the branch
+6. User restarts Claude (if exited) or continues the conversation
+
 **Branch naming:** `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`
 
 **Force-push safety:** Force-pushing is acceptable on feature branches (use `--force-with-lease` when possible). Never force-push to main — main should have branch protection enabled on GitHub.

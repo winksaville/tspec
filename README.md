@@ -31,6 +31,8 @@ Branch naming: `<type>-<description>` where type is `feat`, `fix`, `refactor`, `
 
 **Protect main on GitHub:** Enable branch protection (Settings > Branches) to block force pushes and optionally require PRs.
 
+For the full feature workflow (version bumps, notes, merge steps, Claude Code conventions), see [CLAUDE.md](CLAUDE.md#feature-workflow).
+
 ## Usage
 
 ```bash
