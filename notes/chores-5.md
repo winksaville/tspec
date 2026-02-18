@@ -300,3 +300,29 @@ with no matches.
 ### Status
 
 Done — released in v0.12.5.
+
+## 20260218 - Refactor summary printers
+
+### Context
+
+The 4 summary printers (`print_summary`, `print_test_summary`, `print_run_summary`,
+`print_compare_summary`) share nearly identical structure: compute column widths,
+conditionally show a Spec column, print header/rows/footer. The duplication grew
+with the 3-column Spec support in v0.12.6 and workspace name headers in v0.12.7.
+
+### Plan
+
+Refactor into a shared `print_summary_table(name, cmd, ...)` that handles the
+common pattern (header, column widths, has_spec logic, row printing). Each caller
+provides:
+- `name` — workspace/package name for the header
+- `cmd` — operation name ("TEST", "BUILD", "RUN", "COMPARE")
+- Column 3 label and per-row formatting (Status, Exit, Status+Size)
+- Footer text (passed/failed, ok/failed, errors)
+
+**Step 1 (v0.12.8-dev1):** Extract shared table printer, update all 4 callers
+**Step 2 (v0.12.8):** Final release
+
+### Status
+
+In progress.

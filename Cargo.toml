@@ -3,7 +3,7 @@ members = ["tspec-build"]
 
 [package]
 name = "tspec"
-version = "0.12.7"
+version = "0.12.8-dev1"
 edition = "2024"
 description = "Translation spec based build system"
 authors = ["Wink Saville <wink@saville.com>, Claude Opus 4.6 <noreply@anthropic.com>"]

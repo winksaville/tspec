@@ -139,12 +139,13 @@ tspec clippy
 tspec fmt --check
 ```
 
-**After committing code, remind about .claude/ files:**
+**After committing code, remind about .claude/ files and wait:**
 ```
 Committed abc123.
 
 Remember to commit .claude/ session files.
 ```
+After the reminder, **wait for the user to respond** before starting the next task. The user needs time to amend `.claude/` files into the commit. Do not immediately create branches, bump versions, or begin new work.
 
 **On next prompt after a commit+reminder:** Check `git log -1 --name-only` to see if `.claude/` was included in a commit after the code commit. If not, ask: "Did you forget to commit .claude sessions?"
 

@@ -2,6 +2,8 @@
 
 ## In Progress
 
+- Refactor summary printers into shared `print_summary_table()` [34]
+
 ## Todo
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
@@ -33,3 +35,4 @@ See older [done.md](done.md)
 [31]: chores-5.md#20260217---remove-rustc-section-promote-build_std-add-rustflags
 [32]: chores-5.md#20260218---add-custom-profile-support
 [33]: chores-5.md#20260218---allow--t-glob-patterns-in-all-packages-mode
+[34]: chores-5.md#20260218---refactor-summary-printers
