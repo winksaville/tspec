@@ -271,3 +271,32 @@ Added `[profile.other]` to `Cargo.toml` and `tspec.other.ts.toml` for real custo
 ### Status
 
 Done — released in v0.12.0.
+
+## 20260218 - Allow -t glob patterns in all-packages mode
+
+### Context
+
+Currently `-t`/`--tspec` only works in single-package mode. In all-packages mode (pure workspace
+or `--workspace`), using `-t` bails with "requires a package target". The user wants `-t tspec*`
+to apply to all sub-packages in a workspace, resolving the glob per-package and skipping packages
+with no matches.
+
+### Plan
+
+**Step 1 (v0.12.5-dev1):** Update `all.rs` batch functions
+- Add `resolve_specs_for_member()` helper that calls `find_tspecs` per package, returns empty vec on no match
+- Change `build_all`, `test_all`, `run_all` signatures from `tspec: Option<&str>` to `tspec_patterns: &[String]`
+- Add `tspec_patterns: &[String]` parameter to `compare_all`
+- When patterns are empty: current behavior (each package uses its default spec)
+- When patterns are non-empty: resolve per-package, skip packages with no matches
+
+**Step 2 (v0.12.5-dev2):** Update command files
+- Remove the `bail!` for `-t` in all-packages mode from build, run, test, compare commands
+- Pass `&self.tspec` to the `_all` functions
+- Remove the `resolve_package_arg(".")` fallback hack (no longer needed — all-packages mode handles `-t` natively)
+
+**Step 3 (v0.12.5):** Final release
+
+### Status
+
+In progress.

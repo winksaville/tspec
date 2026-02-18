@@ -1,6 +1,7 @@
 # Todo
 
 ## In Progress
+- Allow `-t` glob patterns in all-packages mode for workspaces [33]
 
 ## Todo
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
@@ -31,3 +32,4 @@ See older [done.md](done.md)
 [30]: chores-5.md#20260217---refactor-cargo-runner-functions-into-unified-fn
 [31]: chores-5.md#20260217---remove-rustc-section-promote-build_std-add-rustflags
 [32]: chores-5.md#20260218---add-custom-profile-support
+[33]: chores-5.md#20260218---allow--t-glob-patterns-in-all-packages-mode
