@@ -62,7 +62,16 @@ impl Execute for BuildCmd {
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
                 Some(pkg) => resolve_package_arg(pkg)?,
-                None => current_package_name(),
+                None => {
+                    let name = current_package_name();
+                    // When -t is specified at a workspace root with a root package,
+                    // resolve to that package instead of all-packages mode
+                    if name.is_none() && !self.tspec.is_empty() {
+                        resolve_package_arg(".")?
+                    } else {
+                        name
+                    }
+                }
             }
         };
 
