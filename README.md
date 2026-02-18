@@ -46,6 +46,8 @@ tspec build -p myapp -r -s                 # Build release, strip symbols with t
 tspec run -p myapp                         # Build and run with tspec.ts.toml if present
 tspec test -p myapp                        # Build and test with tspec.ts.toml if present
 tspec build -w                             # Build all packages (even from inside a package dir)
+tspec build -t 'tspec*'                    # Build all packages using matching specs (quote the glob!)
+tspec build -t 'tspec-opt*'               # Build all packages with tspec-opt specs only
 tspec compare -p myapp                     # Compare binary sizes for a package
 tspec compare -p myapp -t *.ts.toml        # Compare using shell-expanded glob
 tspec compare                              # Compare all packages (workspace mode)
@@ -55,7 +57,9 @@ tspec compare -w -f                        # Workspace mode, stop on first failu
 
 The `-p` flag or positional argument specifies a package by name or path (defaults to current directory if in a package, otherwise all packages). Paths like `.` are resolved to the actual cargo package name. At a pure workspace root (no `[package]`), `.` means "all packages."
 Use `-w, --workspace` to force all-packages mode even when inside a package directory.
-The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically.
+The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically. In workspace mode (no `-p`, or with `-w`), `-t` patterns are resolved per-package — each sub-package is searched for matching specs, and packages with no matches are skipped.
+
+**Important: quote glob patterns with `-t`.** The shell expands unquoted globs *before* tspec sees them. At a workspace root, `tspec build -t tspec*` may expand to literal filenames from the root directory (or worse, match `target/`), rather than being matched per-package. Always quote: `-t 'tspec*'`. tspec will warn if it detects shell-expanded non-tspec arguments.
 
 **Note on `cmd` vs `cmd .`:** For passthrough commands (clean, clippy, fmt), `tspec cmd` passes no `-p` to cargo (operates on everything), while `tspec cmd .` resolves to `cargo cmd -p <name>` (package-specific). The difference is most visible with `clean`: `cargo clean` removes all of target/ while `cargo clean -p <name>` leaves shared metadata files. This matches cargo's own behavior. Use `tspec clean` or `tspec clean -w` for a full clean.
 
@@ -72,7 +76,7 @@ strip = "symbols"                          # "none" (default), "debuginfo", "sym
 rustflags = ["-C", "relocation-model=static"]  # raw flags passed through to RUSTFLAGS
 
 [cargo]
-profile = "release"                        # "debug" (default), "release"
+profile = "release"                        # "debug" (default), "release", or custom profile
 target_triple = "x86_64-unknown-linux-musl"
 target_json = "path/to/custom-target.json" # custom target spec (auto-adds -Z json-target-spec)
 unstable = ["panic-immediate-abort"]       # -Z flags (nightly only)
@@ -143,7 +147,7 @@ runner = "qemu-x86_64"
 
 **Note:** Do not use `build.rustflags` in `[cargo.config]`. tspec sets the `RUSTFLAGS` env var (from top-level `rustflags`, `panic`, and `strip`), which takes precedence over `--config build.rustflags` per cargo's precedence rules. Use the top-level `rustflags` array instead.
 
-**Profile restrictions:** Only `profile.debug` and `profile.release` are supported. tspec will error if other profile names (e.g. `profile.custom`) are used in `[cargo.config]`.
+**Custom profiles:** Any profile defined in your workspace `Cargo.toml` (with `inherits`) can be used. tspec validates that custom profiles exist before invoking cargo. Use `cargo.profile` in the spec or `--profile` on the CLI.
 
 **Flat dotted keys** also work — TOML treats them equivalently:
 
@@ -225,7 +229,7 @@ Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`, `rustflags`)
 | `panic` | scalar | `unwind`, `abort`, `immediate-abort` |
 | `strip` | scalar | `none`, `debuginfo`, `symbols` |
 | `rustflags` | array | e.g. `-C relocation-model=static` |
-| `cargo.profile` | scalar | `debug`, `release` |
+| `cargo.profile` | scalar | `debug`, `release`, or any custom profile defined in `Cargo.toml` |
 | `cargo.target_triple` | scalar | any string |
 | `cargo.target_json` | scalar | any path |
 | `cargo.target_dir` | scalar | any string (supports `{name}`, `{hash}`) |
