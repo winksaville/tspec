@@ -13,6 +13,7 @@ use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
 use crate::testing::test_package;
+use crate::tspec::spec_name_from_path;
 use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
 
@@ -73,9 +74,18 @@ fn resolve_specs_for_member(member_path: &Path, patterns: &[String]) -> Vec<Path
     find_tspecs(member_path, patterns).unwrap_or_default()
 }
 
+/// Extract a short spec label from an optional tspec path.
+fn spec_label(tspec: &Option<String>) -> String {
+    match tspec {
+        Some(path) => spec_name_from_path(Path::new(path)),
+        None => String::new(),
+    }
+}
+
 /// Result of a batch operation on a single package
 pub struct OpResult {
     pub name: String,
+    pub spec: String,
     pub success: bool,
     pub message: String,
     pub size: Option<u64>,
@@ -119,6 +129,7 @@ pub fn build_all(
         };
 
         for tspec in &tspec_list {
+            let spec = spec_label(tspec);
             let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
                 Ok(build_result) => {
                     if strip
@@ -130,6 +141,7 @@ pub fn build_all(
                     let size = binary_size(&build_result.binary_path).ok();
                     OpResult {
                         name: member.name.clone(),
+                        spec,
                         success: true,
                         message: format!("{}", build_result.binary_path.display()),
                         size,
@@ -137,6 +149,7 @@ pub fn build_all(
                 }
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    spec,
                     success: false,
                     message: e.to_string(),
                     size: None,
@@ -192,6 +205,7 @@ pub fn run_all(
         };
 
         for tspec in &tspec_list {
+            let spec = spec_label(tspec);
             let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
                 Ok(build_result) => {
                     if strip && let Err(e) = strip_binary(&build_result.binary_path) {
@@ -200,12 +214,14 @@ pub fn run_all(
                     match run_binary(&build_result.binary_path, &[]) {
                         Ok(exit_code) => OpResult {
                             name: member.name.clone(),
+                            spec: spec.clone(),
                             success: true,
                             message: format!("exit code: {}", exit_code),
                             size: None,
                         },
                         Err(e) => OpResult {
                             name: member.name.clone(),
+                            spec: spec.clone(),
                             success: false,
                             message: format!("run failed: {}", e),
                             size: None,
@@ -214,6 +230,7 @@ pub fn run_all(
                 }
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    spec,
                     success: false,
                     message: format!("build failed: {}", e),
                     size: None,
@@ -269,15 +286,18 @@ pub fn test_all(
         };
 
         for tspec in &tspec_list {
+            let spec = spec_label(tspec);
             let result = match test_package(&member.name, tspec.as_deref(), cli_profile) {
                 Ok(()) => OpResult {
                     name: member.name.clone(),
+                    spec,
                     success: true,
                     message: "ok".to_string(),
                     size: None,
                 },
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    spec,
                     success: false,
                     message: e.to_string(),
                     size: None,
@@ -304,11 +324,13 @@ pub fn test_all(
 
         // Build the test package (builds all binaries)
         let build_tspec = specs.first().map(|p| p.to_string_lossy().into_owned());
+        let spec = spec_label(&build_tspec);
         let build_result = match build_package(&member.name, build_tspec.as_deref(), cli_profile) {
             Ok(r) => r,
             Err(e) => {
                 results.push(OpResult {
                     name: member.name.clone(),
+                    spec,
                     success: false,
                     message: format!("build failed: {}", e),
                     size: None,
@@ -344,6 +366,7 @@ pub fn test_all(
         if test_binaries.is_empty() {
             results.push(OpResult {
                 name: member.name.clone(),
+                spec: spec.clone(),
                 success: false,
                 message: "no test binaries found".to_string(),
                 size: None,
@@ -363,6 +386,7 @@ pub fn test_all(
                         println!("ok");
                         OpResult {
                             name: format!("{}/{}", member.name, bin_name),
+                            spec: spec.clone(),
                             success: true,
                             message: "ok".to_string(),
                             size: None,
@@ -371,6 +395,7 @@ pub fn test_all(
                         println!("FAILED (exit {})", exit_code);
                         OpResult {
                             name: format!("{}/{}", member.name, bin_name),
+                            spec: spec.clone(),
                             success: false,
                             message: format!("exit code: {}", exit_code),
                             size: None,
@@ -381,6 +406,7 @@ pub fn test_all(
                     println!("FAILED");
                     OpResult {
                         name: format!("{}/{}", member.name, bin_name),
+                        spec: spec.clone(),
                         success: false,
                         message: format!("run failed: {}", e),
                         size: None,
@@ -406,12 +432,33 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
         .iter()
         .map(|r| r.name.len())
         .max()
-        .unwrap_or(5)
-        .max(5);
+        .unwrap_or(7)
+        .max(7);
+    let has_spec = results.iter().any(|r| !r.spec.is_empty());
+    let max_spec_len = if has_spec {
+        results
+            .iter()
+            .map(|r| r.spec.len())
+            .max()
+            .unwrap_or(4)
+            .max(4)
+    } else {
+        0
+    };
 
     println!();
     print_header!(format!("tspec {} TEST SUMMARY", env!("CARGO_PKG_VERSION")));
-    println!("  {:width$}  Status", "Package", width = max_name_len);
+    if has_spec {
+        println!(
+            "  {:nw$}  {:sw$}  Status",
+            "Package",
+            "Spec",
+            nw = max_name_len,
+            sw = max_spec_len
+        );
+    } else {
+        println!("  {:width$}  Status", "Package", width = max_name_len);
+    }
 
     let mut passed = 0;
     let mut failed = 0;
@@ -424,7 +471,17 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
             failed += 1;
             "[FAIL]"
         };
-        println!("  {:width$}  {status}", result.name, width = max_name_len);
+        if has_spec {
+            println!(
+                "  {:nw$}  {:sw$}  {status}",
+                result.name,
+                result.spec,
+                nw = max_name_len,
+                sw = max_spec_len
+            );
+        } else {
+            println!("  {:width$}  {status}", result.name, width = max_name_len);
+        }
     }
 
     println!();
@@ -447,16 +504,37 @@ pub fn print_summary(results: &[OpResult]) -> ExitCode {
         .iter()
         .map(|r| r.name.len())
         .max()
-        .unwrap_or(5)
-        .max(5);
+        .unwrap_or(7)
+        .max(7);
+    let has_spec = results.iter().any(|r| !r.spec.is_empty());
+    let max_spec_len = if has_spec {
+        results
+            .iter()
+            .map(|r| r.spec.len())
+            .max()
+            .unwrap_or(4)
+            .max(4)
+    } else {
+        0
+    };
 
     println!();
     print_header!("BUILD SUMMARY");
-    println!(
-        "  {:width$}  Status    Size",
-        "Package",
-        width = max_name_len
-    );
+    if has_spec {
+        println!(
+            "  {:nw$}  {:sw$}  Status    Size",
+            "Package",
+            "Spec",
+            nw = max_name_len,
+            sw = max_spec_len
+        );
+    } else {
+        println!(
+            "  {:width$}  Status    Size",
+            "Package",
+            width = max_name_len
+        );
+    }
 
     let mut ok_count = 0;
     let mut failed_count = 0;
@@ -473,12 +551,23 @@ pub fn print_summary(results: &[OpResult]) -> ExitCode {
             .size
             .map(format_size)
             .unwrap_or_else(|| "--".to_string());
-        println!(
-            "  {:width$}  {status}  {:>6}",
-            result.name,
-            size_str,
-            width = max_name_len
-        );
+        if has_spec {
+            println!(
+                "  {:nw$}  {:sw$}  {status}  {:>6}",
+                result.name,
+                result.spec,
+                size_str,
+                nw = max_name_len,
+                sw = max_spec_len
+            );
+        } else {
+            println!(
+                "  {:width$}  {status}  {:>6}",
+                result.name,
+                size_str,
+                width = max_name_len
+            );
+        }
     }
 
     println!();
@@ -548,6 +637,7 @@ pub fn compare_all(
             Ok(spec_results) => (
                 OpResult {
                     name: member.name.clone(),
+                    spec: String::new(),
                     success: true,
                     message: "ok".to_string(),
                     size: None,
@@ -557,6 +647,7 @@ pub fn compare_all(
             Err(e) => (
                 OpResult {
                     name: member.name.clone(),
+                    spec: String::new(),
                     success: false,
                     message: e.to_string(),
                     size: None,
@@ -596,11 +687,32 @@ pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
             .iter()
             .map(|r| r.op.name.len())
             .max()
-            .unwrap_or(5)
-            .max(5);
+            .unwrap_or(7)
+            .max(7);
+        let has_spec = results.iter().any(|r| !r.op.spec.is_empty());
+        let max_spec_len = if has_spec {
+            results
+                .iter()
+                .map(|r| r.op.spec.len())
+                .max()
+                .unwrap_or(4)
+                .max(4)
+        } else {
+            0
+        };
 
         print_header!("COMPARE SUMMARY");
-        println!("  {:width$}  Status", "Package", width = max_name_len);
+        if has_spec {
+            println!(
+                "  {:nw$}  {:sw$}  Status",
+                "Package",
+                "Spec",
+                nw = max_name_len,
+                sw = max_spec_len
+            );
+        } else {
+            println!("  {:width$}  Status", "Package", width = max_name_len);
+        }
 
         let mut ok_count = 0;
         let mut failed_count = 0;
@@ -613,11 +725,21 @@ pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
                 failed_count += 1;
                 "[FAIL]"
             };
-            println!(
-                "  {:width$}  {status}",
-                result.op.name,
-                width = max_name_len
-            );
+            if has_spec {
+                println!(
+                    "  {:nw$}  {:sw$}  {status}",
+                    result.op.name,
+                    result.op.spec,
+                    nw = max_name_len,
+                    sw = max_spec_len
+                );
+            } else {
+                println!(
+                    "  {:width$}  {status}",
+                    result.op.name,
+                    width = max_name_len
+                );
+            }
         }
 
         println!();
@@ -639,36 +761,78 @@ pub fn print_run_summary(results: &[OpResult]) -> ExitCode {
         .iter()
         .map(|r| r.name.len())
         .max()
-        .unwrap_or(5)
-        .max(5);
+        .unwrap_or(7)
+        .max(7);
+    let has_spec = results.iter().any(|r| !r.spec.is_empty());
+    let max_spec_len = if has_spec {
+        results
+            .iter()
+            .map(|r| r.spec.len())
+            .max()
+            .unwrap_or(4)
+            .max(4)
+    } else {
+        0
+    };
 
     println!();
     print_header!("RUN SUMMARY");
-    println!("  {:width$}  Exit", "Package", width = max_name_len);
+    if has_spec {
+        println!(
+            "  {:nw$}  {:sw$}  Exit",
+            "Package",
+            "Spec",
+            nw = max_name_len,
+            sw = max_spec_len
+        );
+    } else {
+        println!("  {:width$}  Exit", "Package", width = max_name_len);
+    }
 
     let mut error_count = 0;
 
     for result in results {
         if result.success {
-            // Extract exit code number from message "exit code: X"
             let code = result
                 .message
                 .strip_prefix("exit code: ")
                 .unwrap_or(&result.message);
-            println!(
-                "  {:width$}  {:>4}",
-                result.name,
-                code,
-                width = max_name_len
-            );
+            if has_spec {
+                println!(
+                    "  {:nw$}  {:sw$}  {:>4}",
+                    result.name,
+                    result.spec,
+                    code,
+                    nw = max_name_len,
+                    sw = max_spec_len
+                );
+            } else {
+                println!(
+                    "  {:width$}  {:>4}",
+                    result.name,
+                    code,
+                    width = max_name_len
+                );
+            }
         } else {
             error_count += 1;
-            println!(
-                "  {:width$}  ERROR: {}",
-                result.name,
-                result.message,
-                width = max_name_len
-            );
+            if has_spec {
+                println!(
+                    "  {:nw$}  {:sw$}  ERROR: {}",
+                    result.name,
+                    result.spec,
+                    result.message,
+                    nw = max_name_len,
+                    sw = max_spec_len
+                );
+            } else {
+                println!(
+                    "  {:width$}  ERROR: {}",
+                    result.name,
+                    result.message,
+                    width = max_name_len
+                );
+            }
         }
     }
 
