@@ -72,7 +72,7 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
             cmd.arg("+nightly");
         }
         cmd.arg("test");
-        cmd.arg("-p").arg(pkg_name);
+        cmd.arg("-p").arg(&pkg_name);
         cmd.current_dir(&workspace);
 
         // Set spec path for tspec-build library to read in build.rs
@@ -112,7 +112,7 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         println!("Testing {} (no tspec)", pkg_name);
         let mut cmd = Command::new("cargo");
         cmd.arg("test");
-        cmd.arg("-p").arg(pkg_name);
+        cmd.arg("-p").arg(&pkg_name);
         cmd.current_dir(&workspace);
         if let Some(p) = cli_profile {
             match p {
@@ -131,7 +131,17 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
     }
 
     if !status.success() {
-        bail!("cargo test failed");
+        match &tspec_path {
+            Some(path) => {
+                let display_path = path.strip_prefix(&workspace).unwrap_or(path).display();
+                bail!(
+                    "cargo test failed for `{}` with spec {}",
+                    pkg_name,
+                    display_path
+                )
+            }
+            None => bail!("cargo test failed for `{}`", pkg_name),
+        }
     }
 
     warn_stale_build_rs(had_stale_build_rs);

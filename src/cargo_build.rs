@@ -203,7 +203,17 @@ pub fn build_package(
     }
 
     if !status.success() {
-        bail!("cargo build failed");
+        match &tspec_path {
+            Some(path) => {
+                let display_path = path.strip_prefix(&workspace).unwrap_or(path).display();
+                bail!(
+                    "cargo build failed for `{}` with spec {}",
+                    pkg_name,
+                    display_path
+                )
+            }
+            None => bail!("cargo build failed for `{}`", pkg_name),
+        }
     }
 
     println!("  {}", binary_path.display());

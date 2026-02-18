@@ -9,6 +9,7 @@
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
 - Improve `classify_crate` - using name alone is brittle [4]
+- Warn on obvious spec misconfigurations: `linker.args` on lib-only packages (no bin target), `-static` on glibc systems (segfaults), panic=abort specs used with test, etc. Specs are copy/pastable so users will apply bin-oriented specs to lib crates
 
 ## Done
 
