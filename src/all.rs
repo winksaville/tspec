@@ -427,7 +427,7 @@ pub fn test_all(
 }
 
 /// Print a summary of operation results (for tests)
-pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
+pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
     let max_name_len = results
         .iter()
         .map(|r| r.name.len())
@@ -447,7 +447,7 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
     };
 
     println!();
-    print_header!(format!("tspec {} TEST SUMMARY", env!("CARGO_PKG_VERSION")));
+    print_header!(format!("{name} TEST SUMMARY"));
     if has_spec {
         println!(
             "  {:nw$}  {:sw$}  Status",
@@ -486,8 +486,6 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
 
     println!();
     println!("  Test: {} passed, {} failed", passed, failed);
-    println!();
-    println!("  Note: Run `tspec test -p tspec` or `cargo test -p tspec` to test tspec itself");
     print_hline!();
     println!();
 
@@ -499,7 +497,7 @@ pub fn print_test_summary(results: &[OpResult]) -> ExitCode {
 }
 
 /// Print a summary for build operations (OK/FAILED)
-pub fn print_summary(results: &[OpResult]) -> ExitCode {
+pub fn print_summary(name: &str, results: &[OpResult]) -> ExitCode {
     let max_name_len = results
         .iter()
         .map(|r| r.name.len())
@@ -519,7 +517,7 @@ pub fn print_summary(results: &[OpResult]) -> ExitCode {
     };
 
     println!();
-    print_header!("BUILD SUMMARY");
+    print_header!(format!("{name} BUILD SUMMARY"));
     if has_spec {
         println!(
             "  {:nw$}  {:sw$}  Status    Size",
@@ -671,7 +669,7 @@ pub fn compare_all(
 ///
 /// With a single package, just prints its comparison table.
 /// With multiple packages, reprints all per-package tables then an overall OK/FAIL summary.
-pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
+pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode {
     let has_failure = results.iter().any(|r| !r.op.success);
 
     // Reprint per-package comparison tables together
@@ -701,7 +699,7 @@ pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
             0
         };
 
-        print_header!("COMPARE SUMMARY");
+        print_header!(format!("{name} COMPARE SUMMARY"));
         if has_spec {
             println!(
                 "  {:nw$}  {:sw$}  Status",
@@ -756,7 +754,7 @@ pub fn print_compare_summary(results: &[CompareResult]) -> ExitCode {
 }
 
 /// Print a summary for run operations (shows exit codes, not pass/fail)
-pub fn print_run_summary(results: &[OpResult]) -> ExitCode {
+pub fn print_run_summary(name: &str, results: &[OpResult]) -> ExitCode {
     let max_name_len = results
         .iter()
         .map(|r| r.name.len())
@@ -776,7 +774,7 @@ pub fn print_run_summary(results: &[OpResult]) -> ExitCode {
     };
 
     println!();
-    print_header!("RUN SUMMARY");
+    print_header!(format!("{name} RUN SUMMARY"));
     if has_spec {
         println!(
             "  {:nw$}  {:sw$}  Exit",

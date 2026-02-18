@@ -65,7 +65,7 @@ impl Execute for TestCmd {
             None => {
                 let workspace = WorkspaceInfo::discover()?;
                 let results = test_all(&workspace, &self.tspec, cli_profile, self.fail_fast);
-                Ok(print_test_summary(&results))
+                Ok(print_test_summary(workspace.name(), &results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {

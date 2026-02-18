@@ -38,6 +38,14 @@ pub struct WorkspaceInfo {
 }
 
 impl WorkspaceInfo {
+    /// Workspace name derived from the root directory basename
+    pub fn name(&self) -> &str {
+        self.root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("workspace")
+    }
+
     /// Discover workspace using cargo metadata
     pub fn discover() -> Result<Self> {
         let metadata = MetadataCommand::new()

@@ -45,7 +45,7 @@ impl Execute for CompareCmd {
             None => {
                 let workspace = WorkspaceInfo::discover()?;
                 let results = compare_all(&workspace, &self.tspec, self.fail_fast);
-                Ok(print_compare_summary(&results))
+                Ok(print_compare_summary(workspace.name(), &results))
             }
             Some(pkg_name) => {
                 let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;

@@ -76,7 +76,7 @@ impl Execute for BuildCmd {
                     self.strip,
                     self.fail_fast,
                 );
-                Ok(print_summary(&results))
+                Ok(print_summary(workspace.name(), &results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {
