@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Add custom profile support and CLI `--profile` flag [32]
-
 ## Todo
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
@@ -16,6 +14,7 @@
 
 See older [done.md](done.md)
 
+- Add custom profile support and CLI `--profile` flag [32]
 - Remove `[rustc]` section, promote `build_std` to `[cargo]`, add top-level `rustflags`; rename `config_key_value` to `config` with nested table support [31]
 - Add glob support for `-t` flag on build, run, test commands [29]
 - Remove `rustc.opt_level`, `rustc.lto`, `rustc.codegen_units` — migrate to `config_key_value`; fix tspec-build test race condition [28]

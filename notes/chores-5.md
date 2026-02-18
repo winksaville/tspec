@@ -264,6 +264,9 @@ Replaced `release: bool` with `cli_profile: Option<&str>` throughout the call ch
 `build_package()`, `test_package()`, `apply_spec_to_command()`, `get_binary_path()`,
 `get_binary_path_simple()`, `build_all()`, `test_all()`, `run_all()`.
 Simplified `plain_cargo_build_release()` to a thin wrapper: `build_package(name, None, Some("release"))`.
+Added `validate_profile()` to catch undefined custom profiles early with a clear error
+message instead of cargo's confusing "missing inherits" error.
+Added `[profile.other]` to `Cargo.toml` and `tspec.other.ts.toml` for real custom profile testing.
 
 ### Status
 
