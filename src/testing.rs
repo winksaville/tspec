@@ -3,8 +3,8 @@ use std::fs;
 use std::process::Command;
 
 use crate::cargo_build::{
-    apply_spec_to_command, generate_build_rs, remove_stale_tspec_build_rs, validate_profile,
-    warn_stale_build_rs,
+    apply_spec_to_command, check_spec_misconfigurations, generate_build_rs,
+    remove_stale_tspec_build_rs, reprint_warnings, validate_profile, warn_stale_build_rs,
 };
 use crate::find_paths::{find_package_dir, find_project_root, find_tspec, get_package_name};
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
@@ -49,7 +49,7 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
     let had_build_rs = build_rs_path.exists();
 
     // Apply spec if present, otherwise plain cargo test
-    let status = if let Some(path) = &tspec_path {
+    let (status, spec_warnings) = if let Some(path) = &tspec_path {
         let spec = load_spec(path)?;
         let spec_name = spec_name_from_path(path);
         let expanded_td = expand_target_dir(&spec, &spec_name)?;
@@ -61,9 +61,12 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         }
         println!("Testing {} with spec {}", pkg_name, path.display());
 
+        let spec_warnings = check_spec_misconfigurations(&pkg_name, &spec, &pkg_dir);
+
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
-        if has_linker_args && !had_build_rs {
+        let has_bin_target = pkg_dir.join("src/main.rs").exists();
+        if has_linker_args && has_bin_target && !had_build_rs {
             generate_build_rs(&build_rs_path, &pkg_name, &spec)?;
         }
 
@@ -103,7 +106,10 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
             cmd.env("RUSTFLAGS", new_flags);
         }
 
-        cmd.status().context("failed to run cargo test")?
+        (
+            cmd.status().context("failed to run cargo test")?,
+            spec_warnings,
+        )
     } else {
         // Validate CLI profile when no spec
         if let Some(profile) = cli_profile {
@@ -122,7 +128,10 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
                 }
             }
         }
-        cmd.status().context("failed to run cargo test")?
+        (
+            cmd.status().context("failed to run cargo test")?,
+            Vec::new(),
+        )
     };
 
     // Clean up generated build.rs (only if we created it)
@@ -145,5 +154,6 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
     }
 
     warn_stale_build_rs(had_stale_build_rs);
+    reprint_warnings(&spec_warnings);
     Ok(())
 }

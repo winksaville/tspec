@@ -41,6 +41,48 @@ pub fn validate_profile(profile: &str, workspace: &Path) -> Result<()> {
         profile,
     )
 }
+/// Check for spec settings that are likely misconfigurations.
+/// Returns a list of warning messages (printed at top and bottom of output).
+pub fn check_spec_misconfigurations(pkg_name: &str, spec: &Spec, pkg_dir: &Path) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let has_linker_args = !spec.linker.args.is_empty();
+    let has_bin_target = pkg_dir.join("src/main.rs").exists();
+
+    // -static with non-musl target (glibc + -static segfaults)
+    if has_linker_args {
+        let has_static = spec.linker.args.iter().any(|a| a == "-static");
+        let is_musl = spec
+            .cargo
+            .target_triple
+            .as_ref()
+            .is_some_and(|t| t.contains("musl"));
+        if has_static && !is_musl {
+            warnings.push(format!(
+                "Warning: -static linker arg without musl target for {}. \
+                 glibc + -static often segfaults; consider using a musl target triple.",
+                pkg_name
+            ));
+        }
+    }
+
+    // linker.args on lib-only package
+    if has_linker_args && !has_bin_target {
+        warnings.push(format!(
+            "Warning: linker.args ignored for {} (no binary target)",
+            pkg_name
+        ));
+    }
+
+    warnings
+}
+
+/// Print collected warnings again so they're visible after cargo output.
+pub fn reprint_warnings(warnings: &[String]) {
+    for w in warnings {
+        println!("{}", w);
+    }
+}
+
 pub fn warn_stale_build_rs(had_stale: bool) {
     if had_stale {
         println!("Warning: a stale build.rs was deleted, likely from a previous interrupted build");
@@ -146,6 +188,13 @@ pub fn build_package(
         validate_profile(profile, &workspace)?;
     }
 
+    // Check for misconfigurations before running cargo
+    let spec_warnings = if let Some(spec) = &spec {
+        check_spec_misconfigurations(&pkg_name, spec, &pkg_dir)
+    } else {
+        Vec::new()
+    };
+
     // Apply spec if present, otherwise plain cargo build
     let status = if let Some(spec) = &spec {
         let path = tspec_path.as_ref().unwrap();
@@ -154,12 +203,6 @@ pub fn build_package(
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
         let has_bin_target = pkg_dir.join("src/main.rs").exists();
-        if has_linker_args && !has_bin_target {
-            println!(
-                "Warning: linker.args ignored for {} (no binary target)",
-                pkg_name
-            );
-        }
         if has_linker_args && has_bin_target && !had_build_rs {
             generate_build_rs(&build_rs_path, &pkg_name, spec)?;
         }
@@ -218,6 +261,7 @@ pub fn build_package(
 
     println!("  {}", binary_path.display());
     warn_stale_build_rs(had_stale_build_rs);
+    reprint_warnings(&spec_warnings);
     Ok(BuildResult {
         binary_path,
         target_base,
