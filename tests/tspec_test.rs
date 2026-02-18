@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use tspec::options::PanicMode;
 use tspec::tspec::{hash_spec, load_spec};
-use tspec::types::{CargoConfig, LinkerConfig, Profile, flatten_config};
+use tspec::types::{CargoConfig, LinkerConfig, flatten_config};
 
 fn test_data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -15,7 +15,7 @@ fn load_minimal_spec() {
 
     assert_eq!(spec.panic, Some(PanicMode::Abort));
 
-    assert_eq!(spec.cargo.profile, Some(Profile::Release));
+    assert_eq!(spec.cargo.profile, Some("release".to_string()));
     assert!(spec.cargo.target_triple.is_none());
     assert!(spec.cargo.target_json.is_none());
     assert!(spec.cargo.unstable.is_empty());
@@ -79,7 +79,7 @@ fn load_ex_x2_spec() {
 fn load_ex_config_kv_spec() {
     let spec = load_spec(&test_data("ex-config-kv.ts.toml")).unwrap();
 
-    assert_eq!(spec.cargo.profile, Some(Profile::Release));
+    assert_eq!(spec.cargo.profile, Some("release".to_string()));
 
     let flat = flatten_config(&spec.cargo.config);
     assert!(flat.contains(&("profile.release.opt-level".to_string(), "\"s\"".to_string())));

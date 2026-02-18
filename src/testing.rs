@@ -19,8 +19,9 @@ fn requires_nightly(spec: &crate::types::Spec) -> bool {
     panic_needs_nightly || has_build_std || has_unstable
 }
 
-/// Test a package with a spec
-pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Result<()> {
+/// Test a package with a spec.
+/// `cli_profile` is the CLI-specified profile (None = debug default).
+pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&str>) -> Result<()> {
     let workspace = find_project_root()?;
     let pkg_dir = find_package_dir(&workspace, pkg_name)?;
     let tspec_path = find_tspec(&pkg_dir, tspec)?;
@@ -59,7 +60,13 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
         // Set spec path for tspec-build library to read in build.rs
         cmd.env("TSPEC_SPEC_FILE", path.as_os_str());
 
-        apply_spec_to_command(&mut cmd, &spec, &workspace, release, expanded_td.as_deref())?;
+        apply_spec_to_command(
+            &mut cmd,
+            &spec,
+            &workspace,
+            cli_profile,
+            expanded_td.as_deref(),
+        )?;
         cmd.status().context("failed to run cargo test")?
     } else {
         println!("Testing {} (no tspec)", pkg_name);
@@ -67,8 +74,13 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, release: bool) -> Resul
         cmd.arg("test");
         cmd.arg("-p").arg(pkg_name);
         cmd.current_dir(&workspace);
-        if release {
-            cmd.arg("--release");
+        if let Some(p) = cli_profile {
+            match p {
+                "debug" | "dev" => {}
+                _ => {
+                    cmd.arg("--profile").arg(p);
+                }
+            }
         }
         cmd.status().context("failed to run cargo test")?
     };

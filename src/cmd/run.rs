@@ -27,8 +27,11 @@ pub struct RunCmd {
     #[arg(short = 't', long = "tspec", num_args = 1..)]
     pub tspec: Vec<String>,
     /// Release build
-    #[arg(short, long)]
+    #[arg(short, long, conflicts_with = "profile")]
     pub release: bool,
+    /// Build profile (e.g., release, release-small, or any custom profile)
+    #[arg(long)]
+    pub profile: Option<String>,
     /// Strip symbols from binary before running
     #[arg(short, long)]
     pub strip: bool,
@@ -37,8 +40,22 @@ pub struct RunCmd {
     pub args: Vec<String>,
 }
 
+impl RunCmd {
+    fn effective_profile(&self) -> Option<&str> {
+        if let Some(ref p) = self.profile {
+            Some(p)
+        } else if self.release {
+            Some("release")
+        } else {
+            None
+        }
+    }
+}
+
 impl Execute for RunCmd {
     fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+        let cli_profile = self.effective_profile();
+
         // Resolve package: --workspace > -p/positional PKG > cwd > all
         let resolved = if self.workspace {
             None
@@ -58,13 +75,13 @@ impl Execute for RunCmd {
                 }
                 // Run all apps (args not supported for --workspace)
                 let workspace = WorkspaceInfo::discover()?;
-                let results = run_all(&workspace, None, self.release, self.strip);
+                let results = run_all(&workspace, None, cli_profile, self.strip);
                 Ok(print_run_summary(&results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {
                     // Build, optionally strip, then run
-                    let result = build_package(&name, None, self.release)?;
+                    let result = build_package(&name, None, cli_profile)?;
                     if self.strip {
                         strip_binary(&result.binary_path)?;
                     }
@@ -76,7 +93,7 @@ impl Execute for RunCmd {
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        let result = build_package(&pkg_name, Some(&spec_str), self.release)?;
+                        let result = build_package(&pkg_name, Some(&spec_str), cli_profile)?;
                         if self.strip {
                             strip_binary(&result.binary_path)?;
                         }
@@ -185,5 +202,18 @@ mod tests {
     fn args_after_double_dash() {
         let cmd = parse(&["-p", "myapp", "--", "arg1", "arg2"]);
         assert_eq!(cmd.args, vec!["arg1", "arg2"]);
+    }
+
+    #[test]
+    fn profile_flag() {
+        let cmd = parse(&["--profile", "release-small"]);
+        assert_eq!(cmd.profile.as_deref(), Some("release-small"));
+        assert_eq!(cmd.effective_profile(), Some("release-small"));
+    }
+
+    #[test]
+    fn profile_and_release_conflict() {
+        let result = Cli::try_parse_from(["tspec", "run", "-r", "--profile", "custom"]);
+        assert!(result.is_err());
     }
 }

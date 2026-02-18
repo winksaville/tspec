@@ -80,7 +80,7 @@ fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
     );
 
     // Build using spec settings (profile, strip, etc. are all in the spec)
-    let build_result = build_package(pkg_name, Some(&spec_str), false)?;
+    let build_result = build_package(pkg_name, Some(&spec_str), None)?;
 
     let size = binary_size(&build_result.binary_path)?;
     println!("    size: {} bytes", format_size(size));

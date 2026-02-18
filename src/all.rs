@@ -26,7 +26,7 @@ pub struct OpResult {
 pub fn build_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
-    release: bool,
+    cli_profile: Option<&str>,
     strip: bool,
     fail_fast: bool,
 ) -> Vec<OpResult> {
@@ -35,7 +35,7 @@ pub fn build_all(
     for member in workspace.buildable_members() {
         println!("=== {} ===", member.name);
 
-        let result = match build_package(&member.name, tspec, release) {
+        let result = match build_package(&member.name, tspec, cli_profile) {
             Ok(build_result) => {
                 if strip
                     && member.has_binary
@@ -74,7 +74,7 @@ pub fn build_all(
 pub fn run_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
-    release: bool,
+    cli_profile: Option<&str>,
     strip: bool,
 ) -> Vec<OpResult> {
     let mut results = Vec::new();
@@ -82,7 +82,7 @@ pub fn run_all(
     for member in workspace.runnable_members() {
         println!("=== {} ===", member.name);
 
-        let result = match build_package(&member.name, tspec, release) {
+        let result = match build_package(&member.name, tspec, cli_profile) {
             Ok(build_result) => {
                 if strip && let Err(e) = strip_binary(&build_result.binary_path) {
                     eprintln!("  warning: strip failed: {}", e);
@@ -120,7 +120,7 @@ pub fn run_all(
 pub fn test_all(
     workspace: &WorkspaceInfo,
     tspec: Option<&str>,
-    release: bool,
+    cli_profile: Option<&str>,
     fail_fast: bool,
 ) -> Vec<OpResult> {
     let mut results = Vec::new();
@@ -133,7 +133,7 @@ pub fn test_all(
 
         println!("=== {} ===", member.name);
 
-        let result = match test_package(&member.name, tspec, release) {
+        let result = match test_package(&member.name, tspec, cli_profile) {
             Ok(()) => OpResult {
                 name: member.name.clone(),
                 success: true,
@@ -161,7 +161,7 @@ pub fn test_all(
         println!("=== {} ===", member.name);
 
         // Build the test package (builds all binaries)
-        let build_result = match build_package(&member.name, tspec, release) {
+        let build_result = match build_package(&member.name, tspec, cli_profile) {
             Ok(r) => r,
             Err(e) => {
                 results.push(OpResult {
@@ -178,8 +178,8 @@ pub fn test_all(
         };
 
         // Find and run all test binaries in the target directory
-        let profile = if release { "release" } else { "debug" };
-        let target_dir = build_result.target_base.join(profile);
+        let profile_dir = crate::types::profile_dir_name(cli_profile.unwrap_or("debug"));
+        let target_dir = build_result.target_base.join(profile_dir);
 
         // Look for binaries that end with "-tests" in the target directory
         let test_binaries: Vec<_> = std::fs::read_dir(&target_dir)

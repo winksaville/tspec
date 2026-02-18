@@ -221,3 +221,50 @@ rustflags = ["-C", "some-thing"]
 ### Status
 
 Done — released in v0.11.6. Also renamed `config_key_value` to `config` with nested table support (dev2).
+
+## 20260218 - Add custom profile support
+
+### Context
+
+Currently `cargo.profile` only accepts `"debug"` or `"release"` (a Rust enum). Cargo supports
+custom profiles defined in `Cargo.toml` (e.g., `[profile.release-small]` with `inherits = "release"`),
+selected via `cargo build --profile <name>`. tspec should support selecting and overriding these
+custom profiles.
+
+Key insight: Custom profile **definitions** must live in `Cargo.toml` (cargo requirement — they
+need `inherits`). tspec's role is **selecting** a profile and **overriding** its settings via
+`cargo.config`.
+
+Cargo's profile-to-directory mapping: `dev` → `target/debug/`, `release` → `target/release/`,
+custom → `target/<name>/`.
+
+### Plan
+
+Multi-step (`-devN` series), version `0.12.0`.
+
+**Step 1 (dev1):** Core type change — replace `Profile` enum with `String`, update command
+generation (`"debug"`/`"dev"` → no flag, anything else → `--profile <name>`), update path
+resolution (`profile_dir_name()` helper), relax validation.
+
+**Step 2 (dev2):** CLI `--profile <name>` flag on build/run/test commands, thread through
+call chain, replace `release: bool` with `Option<String>`.
+
+**Step 3:** Final release — remove `-dev` suffix.
+
+### Changes
+
+**Step 1 (dev1):** Replaced `enum Profile { Debug, Release }` with `Option<String>`.
+Updated `apply_spec_to_command()` to emit `--profile <name>` for any non-debug/dev profile.
+Added `profile_dir_name()` helper for `dev` → `debug` directory mapping.
+Removed `validate_config_profiles()` — custom profiles in `[cargo.config]` are now accepted.
+Relaxed `validate_value("cargo.profile", ...)` to accept any string.
+
+**Step 2 (dev2):** Added `--profile <name>` flag to build/run/test commands (`conflicts_with = "release"`).
+Replaced `release: bool` with `cli_profile: Option<&str>` throughout the call chain:
+`build_package()`, `test_package()`, `apply_spec_to_command()`, `get_binary_path()`,
+`get_binary_path_simple()`, `build_all()`, `test_all()`, `run_all()`.
+Simplified `plain_cargo_build_release()` to a thin wrapper: `build_package(name, None, Some("release"))`.
+
+### Status
+
+Done — released in v0.12.0.

@@ -174,7 +174,7 @@ mod tests {
     fn set_cargo_profile() {
         let (_dir, path, _) = set_in_file("", "cargo.profile", &vs(&["release"]));
         let spec = load_spec(&path).unwrap();
-        assert_eq!(spec.cargo.profile, Some(crate::types::Profile::Release));
+        assert_eq!(spec.cargo.profile, Some("release".to_string()));
     }
 
     #[test]

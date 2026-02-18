@@ -91,7 +91,6 @@ mod tests {
     use super::*;
     use crate::test_constants::SUFFIX;
     use crate::tspec::load_spec;
-    use crate::types::Profile;
     use tempfile::TempDir;
 
     #[test]
@@ -127,7 +126,7 @@ mod tests {
 
         // Verify it still parses correctly
         let loaded = load_spec(&copy_path).unwrap();
-        assert_eq!(loaded.cargo.profile, Some(Profile::Release));
+        assert_eq!(loaded.cargo.profile, Some("release".to_string()));
         assert_eq!(loaded.linker.args, vec!["-static".to_string()]);
     }
 

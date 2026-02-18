@@ -3,16 +3,13 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 use crate::TSPEC_SUFFIX;
-use crate::types::{Spec, validate_config_profiles};
+use crate::types::Spec;
 
 /// Load a spec from a TOML file
 pub fn load_spec(path: &Path) -> Result<Spec> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read spec file: {}", path.display()))?;
     let spec = parse_spec(&content)?;
-    if let Err(msg) = validate_config_profiles(&spec.cargo.config) {
-        anyhow::bail!("{}: {}", path.display(), msg);
-    }
     Ok(spec)
 }
 
@@ -173,7 +170,7 @@ mod tests {
         let empty = Spec::default();
         let with_release = Spec {
             cargo: CargoConfig {
-                profile: Some(Profile::Release),
+                profile: Some("release".to_string()),
                 ..Default::default()
             },
             ..Default::default()
@@ -190,7 +187,7 @@ mod tests {
             panic: None,
             strip: None,
             cargo: CargoConfig {
-                profile: Some(Profile::Release),
+                profile: Some("release".to_string()),
                 ..Default::default()
             },
             rustflags: vec!["-Cforce-frame-pointers=yes".to_string()],
@@ -226,7 +223,7 @@ mod tests {
         let spec1 = Spec::default();
         let spec2 = Spec {
             cargo: CargoConfig {
-                profile: Some(Profile::Release),
+                profile: Some("release".to_string()),
                 ..Default::default()
             },
             ..Default::default()

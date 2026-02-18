@@ -2,8 +2,9 @@
 
 ## In Progress
 
+- Add custom profile support and CLI `--profile` flag [32]
+
 ## Todo
-- Add custom profile support and CLI profile selection (e.g. `tspec build --profile custom`) — extend `cargo.profile` beyond debug/release, add `cargo --profile` flag passthrough
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
@@ -29,3 +30,4 @@ See older [done.md](done.md)
 [27]: chores-4.md#20260216---implement-cargoconfig_key_value-support
 [30]: chores-5.md#20260217---refactor-cargo-runner-functions-into-unified-fn
 [31]: chores-5.md#20260217---remove-rustc-section-promote-build_std-add-rustflags
+[32]: chores-5.md#20260218---add-custom-profile-support

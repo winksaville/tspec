@@ -93,10 +93,7 @@ pub fn validate_value(key: &str, value: &str) -> Result<()> {
                 value
             ),
         },
-        "cargo.profile" => match value {
-            "debug" | "release" => Ok(()),
-            _ => bail!("invalid profile: {} (expected: debug, release)", value),
-        },
+        "cargo.profile" => Ok(()), // Any profile name is valid (debug, release, custom, etc.)
         _ => Ok(()),
     }
 }
@@ -424,7 +421,8 @@ mod tests {
     fn validate_value_profile() {
         assert!(validate_value("cargo.profile", "debug").is_ok());
         assert!(validate_value("cargo.profile", "release").is_ok());
-        assert!(validate_value("cargo.profile", "invalid").is_err());
+        assert!(validate_value("cargo.profile", "release-small").is_ok());
+        assert!(validate_value("cargo.profile", "custom").is_ok());
     }
 
     #[test]

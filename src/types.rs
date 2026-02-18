@@ -5,14 +5,6 @@ use std::path::PathBuf;
 
 use crate::options::{PanicMode, StripMode};
 
-/// Build profile - mutually exclusive
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Profile {
-    Debug,
-    Release,
-}
-
 /// A value in the `[cargo.config]` table.
 /// Uses `#[serde(untagged)]` so TOML bools/ints/strings/tables are deserialized naturally.
 /// We avoid `toml::Value` because it contains `Float(f64)` which doesn't implement `Eq`.
@@ -34,34 +26,6 @@ impl fmt::Display for ConfigValue {
             ConfigValue::Table(map) => write!(f, "{:?}", map),
         }
     }
-}
-
-/// Validate that config profile keys are only "debug" or "release".
-/// Returns an error if e.g. `profile.custom` is found.
-pub fn validate_config_profiles(config: &BTreeMap<String, ConfigValue>) -> Result<(), String> {
-    if let Some(ConfigValue::Table(profiles)) = config.get("profile") {
-        for name in profiles.keys() {
-            if name != "debug" && name != "release" {
-                return Err(format!(
-                    "unsupported profile in [cargo.config]: \"{}\" (only \"debug\" and \"release\" are supported)",
-                    name
-                ));
-            }
-        }
-    }
-    // Also check flat dotted keys like "profile.foo.opt-level"
-    for key in config.keys() {
-        if let Some(rest) = key.strip_prefix("profile.") {
-            let profile_name = rest.split('.').next().unwrap_or(rest);
-            if profile_name != "debug" && profile_name != "release" {
-                return Err(format!(
-                    "unsupported profile in [cargo.config]: \"{}\" (only \"debug\" and \"release\" are supported)",
-                    profile_name
-                ));
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Flatten nested config into dotted key-value pairs for --config args.
@@ -89,11 +53,20 @@ fn flatten_inner(
     }
 }
 
+/// Map a profile name to the directory cargo uses in target/.
+/// `"dev"` → `"debug"`, `"release"` → `"release"`, custom → as-is.
+pub fn profile_dir_name(profile: &str) -> &str {
+    match profile {
+        "dev" => "debug",
+        other => other,
+    }
+}
+
 /// Cargo-specific configuration (flat struct)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CargoConfig {
-    /// Build profile (debug or release)
-    pub profile: Option<Profile>,
+    /// Build profile name (e.g., "debug", "release", "release-small", or any custom profile)
+    pub profile: Option<String>,
     /// Target triple (e.g., "x86_64-unknown-linux-musl")
     pub target_triple: Option<String>,
     /// Custom target JSON file path
@@ -169,71 +142,18 @@ mod tests {
     }
 
     #[test]
-    fn validate_config_profiles_accepts_release() {
-        let config = BTreeMap::from([(
-            "profile".to_string(),
-            ConfigValue::Table(BTreeMap::from([(
-                "release".to_string(),
-                ConfigValue::Table(BTreeMap::from([(
-                    "opt-level".to_string(),
-                    ConfigValue::String("z".to_string()),
-                )])),
-            )])),
-        )]);
-        assert!(validate_config_profiles(&config).is_ok());
+    fn profile_dir_name_dev_maps_to_debug() {
+        assert_eq!(profile_dir_name("dev"), "debug");
     }
 
     #[test]
-    fn validate_config_profiles_accepts_debug() {
-        let config = BTreeMap::from([(
-            "profile".to_string(),
-            ConfigValue::Table(BTreeMap::from([(
-                "debug".to_string(),
-                ConfigValue::Table(BTreeMap::from([(
-                    "opt-level".to_string(),
-                    ConfigValue::Integer(2),
-                )])),
-            )])),
-        )]);
-        assert!(validate_config_profiles(&config).is_ok());
+    fn profile_dir_name_release_unchanged() {
+        assert_eq!(profile_dir_name("release"), "release");
     }
 
     #[test]
-    fn validate_config_profiles_rejects_custom_nested() {
-        let config = BTreeMap::from([(
-            "profile".to_string(),
-            ConfigValue::Table(BTreeMap::from([(
-                "custom".to_string(),
-                ConfigValue::Table(BTreeMap::from([(
-                    "opt-level".to_string(),
-                    ConfigValue::Integer(3),
-                )])),
-            )])),
-        )]);
-        let err = validate_config_profiles(&config).unwrap_err();
-        assert!(err.contains("custom"));
-    }
-
-    #[test]
-    fn validate_config_profiles_rejects_custom_flat() {
-        let config = BTreeMap::from([(
-            "profile.custom.opt-level".to_string(),
-            ConfigValue::String("z".to_string()),
-        )]);
-        let err = validate_config_profiles(&config).unwrap_err();
-        assert!(err.contains("custom"));
-    }
-
-    #[test]
-    fn validate_config_profiles_accepts_non_profile_keys() {
-        let config = BTreeMap::from([(
-            "build".to_string(),
-            ConfigValue::Table(BTreeMap::from([(
-                "rustflags".to_string(),
-                ConfigValue::String("-C target-cpu=native".to_string()),
-            )])),
-        )]);
-        assert!(validate_config_profiles(&config).is_ok());
+    fn profile_dir_name_custom_unchanged() {
+        assert_eq!(profile_dir_name("release-small"), "release-small");
     }
 
     #[test]
