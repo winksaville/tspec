@@ -3,7 +3,8 @@ use std::fs;
 use std::process::Command;
 
 use crate::cargo_build::{
-    apply_spec_to_command, generate_build_rs, remove_stale_tspec_build_rs, warn_stale_build_rs,
+    apply_spec_to_command, generate_build_rs, remove_stale_tspec_build_rs, validate_profile,
+    warn_stale_build_rs,
 };
 use crate::find_paths::{find_package_dir, find_project_root, find_tspec, get_package_name};
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
@@ -41,6 +42,12 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         let spec = load_spec(path)?;
         let spec_name = spec_name_from_path(path);
         let expanded_td = expand_target_dir(&spec, &spec_name)?;
+
+        // Validate the effective profile before invoking cargo
+        let effective = spec.cargo.profile.as_deref().or(cli_profile);
+        if let Some(profile) = effective {
+            validate_profile(profile, &workspace)?;
+        }
         println!("Testing {} with spec {}", pkg_name, path.display());
 
         // Generate temporary build.rs for linker flags if needed
@@ -69,6 +76,10 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         )?;
         cmd.status().context("failed to run cargo test")?
     } else {
+        // Validate CLI profile when no spec
+        if let Some(profile) = cli_profile {
+            validate_profile(profile, &workspace)?;
+        }
         println!("Testing {} (no tspec)", pkg_name);
         let mut cmd = Command::new("cargo");
         cmd.arg("test");

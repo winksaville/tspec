@@ -3,13 +3,16 @@ members = ["tspec-build"]
 
 [package]
 name = "tspec"
-version = "0.12.0-dev1"
+version = "0.12.0-dev2"
 edition = "2024"
 description = "Translation spec based build system"
 authors = ["Wink Saville <wink@saville.com>, Claude Opus 4.6 <noreply@anthropic.com>"]
 license = "MIT, Apache-2.0"
 repository = "https://github.com/wink/tspec"
 exclude = [".claude/", "notes/"]
+
+[profile.other]
+inherits = "release"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

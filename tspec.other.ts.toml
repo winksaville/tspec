@@ -1,0 +1,17 @@
+panic = "abort"
+strip = "symbols"
+
+[cargo]
+profile = "other"
+target_dir = "{name}-{hash}"
+
+[cargo.config.profile.other]
+opt-level = "z"
+codegen-units = 1
+
+# error: options `-C embed-bitcode=no` and `-C lto` are incompatible
+# error: could not compile `proc-macro2` (build script) due to 1 previous error
+#lto = true
+
+[linker]
+args = ["-static"]
