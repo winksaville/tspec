@@ -172,6 +172,70 @@ Approach 1 fights Cargo's design for marginal benefit. For the common case
 the lib and bin differently. When you truly need different settings, the Rust
 answer is "make them separate packages."
 
+#### Cargo's host vs target compilation (implications for per-crate tspecs)
+
+When cargo builds a package, not all crates are compiled the same way. Cargo
+distinguishes between **target** crates (your code, running on the target) and
+**host** crates (code that runs at compile time on the build machine):
+
+- **Target crates:** Your library, binary, and their dependencies. These get
+  your profile settings (`opt-level`, `codegen-units`, etc.) and RUSTFLAGS.
+- **Host crates:** Proc-macros (like `syn`, `quote`, `proc-macro2`) and build
+  scripts (`build.rs`). These run during compilation to generate code or
+  configure the build. They are compiled for the **host** machine, not the
+  target — which matters for cross-compilation but cargo maintains the
+  separation always.
+
+In short: host crates are **code compiled and run at compile time on the host
+while compiling for a target**.
+
+**Build-override profiles** control host crate compilation. When you see
+`codegen-units=16` on proc-macro2 despite setting `codegen-units=3` in your
+tspec, that's because proc-macros use `[profile.<name>.build-override]` settings,
+not your main profile. This is intentional — optimizing proc-macros for size
+would slow compilation for no runtime benefit.
+
+**Implication for per-crate tspecs:** A future per-dependency tspec system would
+need to understand this host/target split. Applying size-optimization flags to
+proc-macro dependencies would be counterproductive (slower builds, no effect on
+final binary size). The dependency graph metadata includes this distinction.
+
+#### Dependency graph: cargo vs rustc
+
+Cargo, not rustc, owns the dependency graph:
+- **Cargo** resolves dependencies (from `Cargo.toml` + `Cargo.lock`), performs
+  topological sort, and invokes `rustc` once per crate in dependency order
+- **rustc** is stateless — it compiles exactly one crate per invocation and
+  exits. With `-j 1`, you see strictly linear `rustc` invocations from cargo,
+  not recursive calls
+
+This means per-crate tspec processing would hook into **cargo's** dependency
+resolution, not rustc's compilation.
+
+#### Tools for dependency graph access
+
+Two approaches for getting the dependency graph:
+
+1. **`cargo tree`** — Human-readable dependency tree visualization. Useful for
+   inspection but not machine-parseable.
+
+2. **`cargo metadata --format-version 1`** — Machine-readable JSON output with
+   the full resolved dependency graph. Includes package names, versions,
+   dependency edges, features, and target information. This is the standard
+   programmatic interface.
+
+The **`cargo_metadata`** crate provides a typed Rust API over `cargo metadata`
+output. tspec already uses this crate for workspace discovery (`WorkspaceInfo`),
+so extending it to walk the dependency graph for per-package tspec discovery
+would require no new dependencies.
+
+A future per-dependency tspec system would use `cargo metadata` to:
+1. Walk the resolved dependency graph
+2. Identify which dependencies have tspec files (discovery)
+3. Determine host vs target classification for each dependency
+4. Generate scoped `--config 'profile.*.package.<dep>.<field>=...'` args
+5. Detect conflicts (e.g., incompatible panic strategies)
+
 ## 20260216 - Build mechanisms and per-package scoping
 
 ### Current mechanisms (as of 0.10.9)
