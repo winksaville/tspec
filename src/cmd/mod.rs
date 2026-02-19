@@ -26,10 +26,11 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use crate::find_paths::{find_package_dir, find_project_root, get_package_name, is_pop};
+use crate::types::Verbosity;
 
 /// Trait for command execution.
 pub trait Execute {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode>;
+    fn execute(&self, project_root: &Path, verbosity: Verbosity) -> Result<ExitCode>;
 }
 
 /// Resolve a `-p` argument (path or name) to the actual cargo package name.

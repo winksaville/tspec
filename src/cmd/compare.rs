@@ -7,6 +7,7 @@ use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{compare_all, print_compare_summary};
 use crate::compare::{compare_specs, print_comparison};
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
+use crate::types::Verbosity;
 use crate::workspace::WorkspaceInfo;
 
 /// Compare specs for a package (size only)
@@ -30,7 +31,7 @@ pub struct CompareCmd {
 }
 
 impl Execute for CompareCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, verbosity: Verbosity) -> Result<ExitCode> {
         // Resolve package: --workspace > -p/positional PKG > cwd > all
         let resolved = if self.workspace {
             None
@@ -44,7 +45,7 @@ impl Execute for CompareCmd {
         match resolved {
             None => {
                 let workspace = WorkspaceInfo::discover()?;
-                let results = compare_all(&workspace, &self.tspec, self.fail_fast);
+                let results = compare_all(&workspace, &self.tspec, self.fail_fast, verbosity);
                 Ok(print_compare_summary(workspace.name(), &results))
             }
             Some(pkg_name) => {
@@ -55,7 +56,7 @@ impl Execute for CompareCmd {
                 } else {
                     find_tspecs(&package_dir, &self.tspec)?
                 };
-                let results = compare_specs(&pkg_name, &spec_paths)?;
+                let results = compare_specs(&pkg_name, &spec_paths, verbosity)?;
                 print_comparison(&pkg_name, &results);
                 Ok(ExitCode::SUCCESS)
             }

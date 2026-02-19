@@ -9,6 +9,7 @@ use crate::binary::strip_binary;
 use crate::cargo_build::build_package;
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
 use crate::run::run_binary;
+use crate::types::Verbosity;
 use crate::workspace::WorkspaceInfo;
 
 /// Build and run package(s) with a translation spec
@@ -53,7 +54,7 @@ impl RunCmd {
 }
 
 impl Execute for RunCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, verbosity: Verbosity) -> Result<ExitCode> {
         let cli_profile = self.effective_profile();
 
         // Resolve package: --workspace > -p/positional PKG > cwd > all
@@ -70,13 +71,13 @@ impl Execute for RunCmd {
             None => {
                 // Run all apps (args not supported for --workspace)
                 let workspace = WorkspaceInfo::discover()?;
-                let results = run_all(&workspace, &self.tspec, cli_profile, self.strip);
+                let results = run_all(&workspace, &self.tspec, cli_profile, self.strip, verbosity);
                 Ok(print_run_summary(workspace.name(), &results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {
                     // Build, optionally strip, then run
-                    let result = build_package(&name, None, cli_profile)?;
+                    let result = build_package(&name, None, cli_profile, verbosity)?;
                     if self.strip {
                         strip_binary(&result.binary_path)?;
                     }
@@ -88,7 +89,8 @@ impl Execute for RunCmd {
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        let result = build_package(&pkg_name, Some(&spec_str), cli_profile)?;
+                        let result =
+                            build_package(&pkg_name, Some(&spec_str), cli_profile, verbosity)?;
                         if self.strip {
                             strip_binary(&result.binary_path)?;
                         }

@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 use super::Execute;
 use crate::ts_cmd;
+use crate::types::Verbosity;
 
 /// Manage translation specs
 #[derive(Args)]
@@ -143,7 +144,7 @@ pub enum TsCommands {
 }
 
 impl Execute for TsCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
         match &self.command {
             TsCommands::List { package, all } => {
                 ts_cmd::list_tspecs(project_root, package.as_deref(), *all)?;

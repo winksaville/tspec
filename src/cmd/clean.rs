@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
+use crate::types::Verbosity;
 
 /// Clean build artifacts
 #[derive(Args)]
@@ -21,7 +22,7 @@ pub struct CleanCmd {
 }
 
 impl Execute for CleanCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
         let mut args: Vec<OsString> = Vec::new();
         let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
         if let Some(pkg) = pkg_arg

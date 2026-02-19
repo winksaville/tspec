@@ -2,12 +2,15 @@ use crate::cmd::{
     BuildCmd, CleanCmd, ClippyCmd, CompareCmd, FmtCmd, InstallCmd, RunCmd, TestCmd, TsCmd,
     VersionCmd,
 };
-use clap::{Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "tspec", version, about = "Translation spec based build system")]
 #[command(before_help = concat!("tspec ", env!("CARGO_PKG_VERSION")))]
 pub struct Cli {
+    /// Increase verbosity (-v for commands/env, -vv for spec details)
+    #[arg(short = 'v', long = "verbose", action = ArgAction::Count, global = true)]
+    pub verbose: u8,
     #[command(subcommand)]
     pub command: Commands,
 }

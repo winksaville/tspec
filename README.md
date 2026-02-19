@@ -53,6 +53,8 @@ tspec compare -p myapp -t *.ts.toml        # Compare using shell-expanded glob
 tspec compare                              # Compare all packages (workspace mode)
 tspec compare -w                           # Force workspace mode from inside a package
 tspec compare -w -f                        # Workspace mode, stop on first failure
+tspec -v build .                           # Verbose: show cargo command and env vars
+tspec -vv build .                          # Debug: also show spec resolution details
 ```
 
 The `-p` flag or positional argument specifies a package by name or path (defaults to current directory if in a package, otherwise all packages). Paths like `.` are resolved to the actual cargo package name. At a pure workspace root (no `[package]`), `.` means "all packages."
@@ -285,9 +287,8 @@ tspec/                  # Workspace root (also the main tspec package)
     tspec.rs            # Spec loading/saving/hashing
     find_paths.rs       # Project/package/tspec/binary path discovery
     workspace.rs        # Workspace package discovery
-    cargo_build.rs      # Build command + generated build.rs
+    cargo_build.rs      # Unified cargo runner (build + test) + generated build.rs
     run.rs              # Run command implementation
-    testing.rs          # Test command implementation
     compare.rs          # Compare command (size comparison)
     all.rs              # Batch operations (build_all, run_all, test_all, compare_all)
     cmd/                # Command implementations (one file per command)

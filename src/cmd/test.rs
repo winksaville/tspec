@@ -7,6 +7,7 @@ use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{print_test_summary, test_all};
 use crate::cargo_build::test_package;
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
+use crate::types::Verbosity;
 use crate::workspace::WorkspaceInfo;
 
 /// Test package(s) with a translation spec
@@ -48,7 +49,7 @@ impl TestCmd {
 }
 
 impl Execute for TestCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, verbosity: Verbosity) -> Result<ExitCode> {
         let cli_profile = self.effective_profile();
 
         // Resolve package: --workspace > -p/positional PKG > cwd > all
@@ -64,19 +65,25 @@ impl Execute for TestCmd {
         match resolved {
             None => {
                 let workspace = WorkspaceInfo::discover()?;
-                let results = test_all(&workspace, &self.tspec, cli_profile, self.fail_fast);
+                let results = test_all(
+                    &workspace,
+                    &self.tspec,
+                    cli_profile,
+                    self.fail_fast,
+                    verbosity,
+                );
                 Ok(print_test_summary(workspace.name(), &results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {
-                    test_package(&name, None, cli_profile)?;
+                    test_package(&name, None, cli_profile, verbosity)?;
                 } else {
                     let package_dir = resolve_package_dir(project_root, Some(&name))?;
                     let pkg_name = get_package_name(&package_dir)?;
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        test_package(&pkg_name, Some(&spec_str), cli_profile)?;
+                        test_package(&pkg_name, Some(&spec_str), cli_profile, verbosity)?;
                     }
                 }
                 Ok(ExitCode::SUCCESS)

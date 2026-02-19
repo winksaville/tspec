@@ -4,6 +4,7 @@ use anyhow::Result;
 
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::{build_package, plain_cargo_build_release};
+use crate::types::Verbosity;
 use crate::{print_header, print_hline};
 
 /// Result of building a spec
@@ -16,13 +17,14 @@ pub struct SpecResult {
 pub fn compare_specs(
     pkg_name: &str,
     spec_paths: &[impl AsRef<Path> + std::fmt::Debug],
+    verbosity: Verbosity,
 ) -> Result<Vec<SpecResult>> {
     println!("Comparing {} builds:\n", pkg_name);
 
     let mut results = Vec::new();
 
     // Always build cargo --release baseline first (unstripped + stripped)
-    match build_baseline(pkg_name) {
+    match build_baseline(pkg_name, verbosity) {
         Ok((size, stripped_size)) => {
             results.push(SpecResult {
                 name: "cargo --release".to_string(),
@@ -46,7 +48,7 @@ pub fn compare_specs(
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| spec_path.display().to_string());
 
-        let size = build_spec(pkg_name, spec_path)?;
+        let size = build_spec(pkg_name, spec_path, verbosity)?;
         results.push(SpecResult { name, size });
         println!();
     }
@@ -58,10 +60,10 @@ pub fn compare_specs(
 }
 
 /// Build baseline and return (unstripped_size, stripped_size)
-fn build_baseline(pkg_name: &str) -> Result<(u64, u64)> {
+fn build_baseline(pkg_name: &str, verbosity: Verbosity) -> Result<(u64, u64)> {
     println!("  cargo --release:");
 
-    let build_result = plain_cargo_build_release(pkg_name)?;
+    let build_result = plain_cargo_build_release(pkg_name, verbosity)?;
 
     let size = binary_size(&build_result.binary_path)?;
     println!("    size: {} bytes", format_size(size));
@@ -72,7 +74,7 @@ fn build_baseline(pkg_name: &str) -> Result<(u64, u64)> {
     Ok((size, stripped_size))
 }
 
-fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
+fn build_spec(pkg_name: &str, spec_path: &Path, verbosity: Verbosity) -> Result<u64> {
     let spec_str = spec_path.to_string_lossy();
     println!(
         "  {}:",
@@ -80,7 +82,7 @@ fn build_spec(pkg_name: &str, spec_path: &Path) -> Result<u64> {
     );
 
     // Build using spec settings (profile, strip, etc. are all in the spec)
-    let build_result = build_package(pkg_name, Some(&spec_str), None)?;
+    let build_result = build_package(pkg_name, Some(&spec_str), None, verbosity)?;
 
     let size = binary_size(&build_result.binary_path)?;
     println!("    size: {} bytes", format_size(size));

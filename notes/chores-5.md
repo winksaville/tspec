@@ -369,4 +369,4 @@ details.
 
 ### Status
 
-In progress.
+Done — released in v0.14.0.

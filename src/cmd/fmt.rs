@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
+use crate::types::Verbosity;
 
 /// Format source code
 #[derive(Args)]
@@ -24,7 +25,7 @@ pub struct FmtCmd {
 }
 
 impl Execute for FmtCmd {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
         let mut args: Vec<OsString> = Vec::new();
         let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
         if let Some(pkg) = pkg_arg

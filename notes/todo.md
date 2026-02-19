@@ -1,8 +1,6 @@
 # Todo
 
 ## In Progress
-- Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
-- Add `--verbose`/`-v`/`-vv` support [36]
 
 ## Todo
 - Add a permanent test workspace for integration testing (external repo or embedded?)
@@ -16,6 +14,7 @@
 
 See older [done.md](done.md)
 
+- Unified cargo runner + `--verbose`/`-v`/`-vv` support [36]
 - Add `toolchain` field to translation specs [35]
 - Refactor summary printers into shared `print_summary_table()` [34]
 - Allow `-t` glob patterns in all-packages mode for workspaces [33]

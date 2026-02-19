@@ -5,6 +5,27 @@ use std::path::PathBuf;
 
 use crate::options::{PanicMode, StripMode};
 
+/// Verbosity level for command output.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Verbosity {
+    #[default]
+    Normal,
+    /// -v: print command line + env vars
+    Verbose,
+    /// -vv: also print spec resolution details
+    Debug,
+}
+
+impl Verbosity {
+    pub fn from_count(count: u8) -> Self {
+        match count {
+            0 => Verbosity::Normal,
+            1 => Verbosity::Verbose,
+            _ => Verbosity::Debug,
+        }
+    }
+}
+
 /// A value in the `[cargo.config]` table.
 /// Uses `#[serde(untagged)]` so TOML bools/ints/strings/tables are deserialized naturally.
 /// We avoid `toml::Value` because it contains `Float(f64)` which doesn't implement `Eq`.

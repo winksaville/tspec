@@ -13,6 +13,7 @@ use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
 use crate::tspec::spec_name_from_path;
+use crate::types::Verbosity;
 use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};
 
@@ -100,6 +101,7 @@ pub fn build_all(
     cli_profile: Option<&str>,
     strip: bool,
     fail_fast: bool,
+    verbosity: Verbosity,
 ) -> Vec<OpResult> {
     let normalized = match normalize_tspec_patterns(tspec_patterns) {
         Some(n) => n,
@@ -129,7 +131,8 @@ pub fn build_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
+            let result = match build_package(&member.name, tspec.as_deref(), cli_profile, verbosity)
+            {
                 Ok(build_result) => {
                     if strip
                         && member.has_binary
@@ -176,6 +179,7 @@ pub fn run_all(
     tspec_patterns: &[String],
     cli_profile: Option<&str>,
     strip: bool,
+    verbosity: Verbosity,
 ) -> Vec<OpResult> {
     let normalized = match normalize_tspec_patterns(tspec_patterns) {
         Some(n) => n,
@@ -205,7 +209,8 @@ pub fn run_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match build_package(&member.name, tspec.as_deref(), cli_profile) {
+            let result = match build_package(&member.name, tspec.as_deref(), cli_profile, verbosity)
+            {
                 Ok(build_result) => {
                     if strip && let Err(e) = strip_binary(&build_result.binary_path) {
                         eprintln!("  warning: strip failed: {}", e);
@@ -252,6 +257,7 @@ pub fn test_all(
     tspec_patterns: &[String],
     cli_profile: Option<&str>,
     fail_fast: bool,
+    verbosity: Verbosity,
 ) -> Vec<OpResult> {
     let normalized = match normalize_tspec_patterns(tspec_patterns) {
         Some(n) => n,
@@ -286,7 +292,8 @@ pub fn test_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match test_package(&member.name, tspec.as_deref(), cli_profile) {
+            let result = match test_package(&member.name, tspec.as_deref(), cli_profile, verbosity)
+            {
                 Ok(()) => OpResult {
                     name: member.name.clone(),
                     spec,
@@ -324,22 +331,23 @@ pub fn test_all(
         // Build the test package (builds all binaries)
         let build_tspec = specs.first().map(|p| p.to_string_lossy().into_owned());
         let spec = spec_label(&build_tspec);
-        let build_result = match build_package(&member.name, build_tspec.as_deref(), cli_profile) {
-            Ok(r) => r,
-            Err(e) => {
-                results.push(OpResult {
-                    name: member.name.clone(),
-                    spec,
-                    success: false,
-                    message: format!("build failed: {}", e),
-                    size: None,
-                });
-                if fail_fast {
-                    return results;
+        let build_result =
+            match build_package(&member.name, build_tspec.as_deref(), cli_profile, verbosity) {
+                Ok(r) => r,
+                Err(e) => {
+                    results.push(OpResult {
+                        name: member.name.clone(),
+                        spec,
+                        success: false,
+                        message: format!("build failed: {}", e),
+                        size: None,
+                    });
+                    if fail_fast {
+                        return results;
+                    }
+                    continue;
                 }
-                continue;
-            }
-        };
+            };
 
         // Find and run all test binaries in the target directory
         let profile_dir = crate::types::profile_dir_name(cli_profile.unwrap_or("debug"));
@@ -601,6 +609,7 @@ pub fn compare_all(
     workspace: &WorkspaceInfo,
     tspec_patterns: &[String],
     fail_fast: bool,
+    verbosity: Verbosity,
 ) -> Vec<CompareResult> {
     let normalized = match normalize_tspec_patterns(tspec_patterns) {
         Some(n) => n,
@@ -628,7 +637,7 @@ pub fn compare_all(
 
         println!("=== {} ===", member.name);
 
-        let (op, specs) = match compare_specs(&member.name, &spec_paths) {
+        let (op, specs) = match compare_specs(&member.name, &spec_paths, verbosity) {
             Ok(spec_results) => (
                 OpResult {
                     name: member.name.clone(),
