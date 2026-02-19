@@ -8,11 +8,10 @@ use std::process::ExitCode;
 use std::path::{Path, PathBuf};
 
 use crate::binary::{binary_size, strip_binary};
-use crate::cargo_build::build_package;
+use crate::cargo_build::{build_package, test_package};
 use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
-use crate::testing::test_package;
 use crate::tspec::spec_name_from_path;
 use crate::workspace::{PackageKind, WorkspaceInfo};
 use crate::{print_header, print_hline};

@@ -5,8 +5,8 @@ use std::process::ExitCode;
 
 use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{print_test_summary, test_all};
+use crate::cargo_build::test_package;
 use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
-use crate::testing::test_package;
 use crate::workspace::WorkspaceInfo;
 
 /// Test package(s) with a translation spec

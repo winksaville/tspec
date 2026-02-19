@@ -9,7 +9,6 @@ pub mod options;
 pub mod print_header;
 pub mod print_hline;
 pub mod run;
-pub mod testing;
 pub mod ts_cmd;
 pub mod tspec;
 pub mod types;

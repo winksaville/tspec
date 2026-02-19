@@ -130,10 +130,13 @@ pub struct BuildResult {
     pub target_base: PathBuf,
 }
 
-/// Build a package with a spec, returns the binary path on success.
+/// Unified cargo runner for build and test operations.
+///
+/// Handles spec loading, build.rs generation, command construction, and cleanup.
 /// `cli_profile` is the profile from the CLI (e.g., "release", "release-small").
 /// `None` means debug (default). `Some("release")` is equivalent to `--release`.
-pub fn build_package(
+pub fn run_cargo(
+    mode: CargoMode,
     pkg_name: &str,
     tspec: Option<&str>,
     cli_profile: Option<&str>,
@@ -195,10 +198,15 @@ pub fn build_package(
         Vec::new()
     };
 
-    // Apply spec if present, otherwise plain cargo build
+    let verb = match mode {
+        CargoMode::Build => "Building",
+        CargoMode::Test => "Testing",
+    };
+
+    // Apply spec if present, otherwise plain cargo subcommand
     let status = if let Some(spec) = &spec {
         let path = tspec_path.as_ref().unwrap();
-        println!("Building {} with spec {}", pkg_name, path.display());
+        println!("{} {} with spec {}", verb, pkg_name, path.display());
 
         // Generate temporary build.rs for linker flags if needed
         let has_linker_args = !spec.linker.args.is_empty();
@@ -207,8 +215,8 @@ pub fn build_package(
             generate_build_rs(&build_rs_path, &pkg_name, spec)?;
         }
 
-        let mut cmd = build_cargo_command(spec)?;
-        cmd.arg("build");
+        let mut cmd = build_cargo_command(spec, mode)?;
+        cmd.arg(mode.subcommand());
         cmd.arg("-p").arg(&pkg_name);
         cmd.current_dir(&workspace);
 
@@ -222,11 +230,29 @@ pub fn build_package(
             cli_profile,
             expanded_td.as_deref(),
         )?;
-        cmd.status().context("failed to run cargo")?
+
+        // For test mode, append -Zpanic_abort_tests to RUSTFLAGS if needed
+        if mode == CargoMode::Test && needs_panic_abort_tests(spec) {
+            let existing = cmd
+                .get_envs()
+                .find(|(k, _)| k == &"RUSTFLAGS")
+                .and_then(|(_, v)| v)
+                .map(|v| v.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let new_flags = if existing.is_empty() {
+                "-Zpanic_abort_tests".to_string()
+            } else {
+                format!("{} -Zpanic_abort_tests", existing)
+            };
+            cmd.env("RUSTFLAGS", new_flags);
+        }
+
+        cmd.status()
+            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
     } else {
-        println!("Building {} (no tspec)", pkg_name);
+        println!("{} {} (no tspec)", verb, pkg_name);
         let mut cmd = Command::new("cargo");
-        cmd.arg("build");
+        cmd.arg(mode.subcommand());
         cmd.arg("-p").arg(&pkg_name);
         cmd.current_dir(&workspace);
         if let Some(p) = cli_profile {
@@ -237,7 +263,8 @@ pub fn build_package(
                 }
             }
         }
-        cmd.status().context("failed to run cargo")?
+        cmd.status()
+            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
     };
 
     // Clean up generated build.rs (only if we created it)
@@ -250,22 +277,40 @@ pub fn build_package(
             Some(path) => {
                 let display_path = path.strip_prefix(&workspace).unwrap_or(path).display();
                 bail!(
-                    "cargo build failed for `{}` with spec {}",
+                    "cargo {} failed for `{}` with spec {}",
+                    mode.subcommand(),
                     pkg_name,
                     display_path
                 )
             }
-            None => bail!("cargo build failed for `{}`", pkg_name),
+            None => bail!("cargo {} failed for `{}`", mode.subcommand(), pkg_name),
         }
     }
 
-    println!("  {}", binary_path.display());
+    if mode == CargoMode::Build {
+        println!("  {}", binary_path.display());
+    }
     warn_stale_build_rs(had_stale_build_rs);
     reprint_warnings(&spec_warnings);
     Ok(BuildResult {
         binary_path,
         target_base,
     })
+}
+
+/// Build a package with a spec, returns the binary path on success.
+pub fn build_package(
+    pkg_name: &str,
+    tspec: Option<&str>,
+    cli_profile: Option<&str>,
+) -> Result<BuildResult> {
+    run_cargo(CargoMode::Build, pkg_name, tspec, cli_profile)
+}
+
+/// Test a package with a spec.
+pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&str>) -> Result<()> {
+    run_cargo(CargoMode::Test, pkg_name, tspec, cli_profile)?;
+    Ok(())
 }
 
 /// Plain `cargo build --release` with no spec lookup.
@@ -290,27 +335,53 @@ pub fn generate_build_rs(path: &Path, crate_name: &str, spec: &Spec) -> Result<(
     Ok(())
 }
 
-/// Check if spec requires nightly toolchain
-fn requires_nightly(spec: &Spec) -> bool {
-    // High-level panic mode may require nightly
-    let panic_needs_nightly = spec.panic.map(|p| p.requires_nightly()).unwrap_or(false);
+/// Cargo operation mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CargoMode {
+    Build,
+    Test,
+}
 
-    // BuildStd requires nightly
+impl CargoMode {
+    fn subcommand(&self) -> &'static str {
+        match self {
+            CargoMode::Build => "build",
+            CargoMode::Test => "test",
+        }
+    }
+}
+
+/// Check if spec requires nightly toolchain.
+/// For Test mode, panic=abort also needs nightly because `-Zpanic_abort_tests` is nightly-only.
+fn requires_nightly(spec: &Spec, mode: CargoMode) -> bool {
+    let panic_needs_nightly = match mode {
+        CargoMode::Test => spec
+            .panic
+            .map(|p| p.rustc_panic_value().is_some())
+            .unwrap_or(false),
+        CargoMode::Build => spec.panic.map(|p| p.requires_nightly()).unwrap_or(false),
+    };
+
     let has_build_std = !spec.cargo.build_std.is_empty();
-
-    // Unstable cargo flags require nightly
     let has_unstable = !spec.cargo.unstable.is_empty();
 
     panic_needs_nightly || has_build_std || has_unstable
 }
 
+/// Check if spec uses an abort-like panic mode that needs `-Zpanic_abort_tests` for testing.
+fn needs_panic_abort_tests(spec: &Spec) -> bool {
+    spec.panic
+        .map(|p| p.rustc_panic_value().is_some())
+        .unwrap_or(false)
+}
+
 /// Build the base cargo command (with toolchain if needed)
-fn build_cargo_command(spec: &Spec) -> Result<Command> {
+fn build_cargo_command(spec: &Spec, mode: CargoMode) -> Result<Command> {
     let mut cmd = Command::new("cargo");
 
     if let Some(tc) = &spec.toolchain {
         cmd.arg(format!("+{}", tc));
-    } else if requires_nightly(spec) {
+    } else if requires_nightly(spec, mode) {
         cmd.arg("+nightly");
     }
 
