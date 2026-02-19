@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use super::Execute;
 use crate::find_paths::get_package_name;
-use crate::types::Verbosity;
+use crate::types::CargoFlags;
 
 /// Install a package from a local path
 #[derive(Args)]
@@ -19,7 +19,7 @@ pub struct InstallCmd {
 }
 
 impl Execute for InstallCmd {
-    fn execute(&self, _project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
+    fn execute(&self, _project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
         let resolved = self
             .path
             .canonicalize()
@@ -36,6 +36,8 @@ impl Execute for InstallCmd {
         if self.force {
             cmd.arg("--force");
         }
+
+        flags.apply_to_command(&mut cmd);
 
         let status = cmd.status().context("failed to run cargo install")?;
         if !status.success() {

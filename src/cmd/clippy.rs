@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
-use crate::types::Verbosity;
+use crate::types::CargoFlags;
 
 /// Run clippy lints
 #[derive(Args)]
@@ -22,7 +22,7 @@ pub struct ClippyCmd {
 }
 
 impl Execute for ClippyCmd {
-    fn execute(&self, project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
         let mut args: Vec<OsString> = Vec::new();
         let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
         if let Some(pkg) = pkg_arg
@@ -34,6 +34,6 @@ impl Execute for ClippyCmd {
         if self.workspace {
             args.push("--workspace".into());
         }
-        execute_cargo_subcommand("clippy", &args, project_root)
+        execute_cargo_subcommand("clippy", &args, project_root, flags)
     }
 }

@@ -8,9 +8,12 @@ use clap::{ArgAction, Parser, Subcommand};
 #[command(name = "tspec", version, about = "Translation spec based build system")]
 #[command(before_help = concat!("tspec ", env!("CARGO_PKG_VERSION")))]
 pub struct Cli {
-    /// Increase verbosity (-v for commands/env, -vv for spec details)
+    /// Increase verbosity (-v for commands/env + cargo -v, -vv for spec details + cargo -vv)
     #[arg(short = 'v', long = "verbose", action = ArgAction::Count, global = true)]
     pub verbose: u8,
+    /// Number of parallel jobs to pass to cargo
+    #[arg(short = 'j', long = "jobs", global = true)]
+    pub jobs: Option<u16>,
     #[command(subcommand)]
     pub command: Commands,
 }

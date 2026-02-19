@@ -26,11 +26,11 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use crate::find_paths::{find_package_dir, find_project_root, get_package_name, is_pop};
-use crate::types::Verbosity;
+use crate::types::CargoFlags;
 
 /// Trait for command execution.
 pub trait Execute {
-    fn execute(&self, project_root: &Path, verbosity: Verbosity) -> Result<ExitCode>;
+    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode>;
 }
 
 /// Resolve a `-p` argument (path or name) to the actual cargo package name.
@@ -50,10 +50,12 @@ pub fn execute_cargo_subcommand(
     subcommand: &str,
     args: &[OsString],
     project_root: &Path,
+    flags: &CargoFlags,
 ) -> Result<ExitCode> {
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg(subcommand);
     cmd.args(args);
+    flags.apply_to_command(&mut cmd);
     cmd.current_dir(project_root);
     let status = cmd
         .status()

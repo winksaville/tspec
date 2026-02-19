@@ -3,7 +3,6 @@
 ## In Progress
 
 ## Todo
-- The --verbose flags should passed them through to cargo so we what rustc and the linker are doing, maybe super verboase through to should be -vvv or -vV?
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
@@ -15,6 +14,7 @@
 
 See older [done.md](done.md)
 
+- Pass `-v`/`-vv`/`-j N` through to cargo via `CargoFlags` struct [37]
 - Unified cargo runner + `--verbose`/`-v`/`-vv` support [36]
 - Add `toolchain` field to translation specs [35]
 - Refactor summary printers into shared `print_summary_table()` [34]
@@ -38,4 +38,5 @@ See older [done.md](done.md)
 [33]: chores-5.md#20260218---allow--t-glob-patterns-in-all-packages-mode
 [34]: chores-5.md#20260218---refactor-summary-printers
 [35]: chores-5.md#20260219---add-toolchain-field
+[37]: chores-5.md#20260219---cargoflags-pass--v-vv-j-through-to-cargo
 [36]: chores-5.md#20260219---unified-cargo-runner--verbose

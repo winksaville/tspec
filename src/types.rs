@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::PathBuf;
+use std::process::Command;
 
 use crate::options::{PanicMode, StripMode};
 
@@ -10,9 +11,9 @@ use crate::options::{PanicMode, StripMode};
 pub enum Verbosity {
     #[default]
     Normal,
-    /// -v: print command line + env vars
+    /// -v: print command line + env vars, pass -v to cargo
     Verbose,
-    /// -vv: also print spec resolution details
+    /// -vv: also print spec resolution details, pass -vv to cargo
     Debug,
 }
 
@@ -22,6 +23,36 @@ impl Verbosity {
             0 => Verbosity::Normal,
             1 => Verbosity::Verbose,
             _ => Verbosity::Debug,
+        }
+    }
+}
+
+/// Global flags passed through to cargo commands.
+///
+/// Collected once from the CLI and threaded through all command execution.
+/// Adding a new passthrough flag only requires adding a field here and
+/// handling it in `apply_to_command()`.
+#[derive(Debug, Clone, Default)]
+pub struct CargoFlags {
+    pub verbosity: Verbosity,
+    /// Number of parallel jobs (-j N)
+    pub jobs: Option<u16>,
+}
+
+impl CargoFlags {
+    /// Apply these flags to a cargo command.
+    pub fn apply_to_command(&self, cmd: &mut Command) {
+        match self.verbosity {
+            Verbosity::Verbose => {
+                cmd.arg("-v");
+            }
+            Verbosity::Debug => {
+                cmd.arg("-vv");
+            }
+            Verbosity::Normal => {}
+        }
+        if let Some(j) = self.jobs {
+            cmd.arg("-j").arg(j.to_string());
         }
     }
 }

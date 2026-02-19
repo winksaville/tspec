@@ -53,13 +53,16 @@ tspec compare -p myapp -t *.ts.toml        # Compare using shell-expanded glob
 tspec compare                              # Compare all packages (workspace mode)
 tspec compare -w                           # Force workspace mode from inside a package
 tspec compare -w -f                        # Workspace mode, stop on first failure
-tspec -v build .                           # Verbose: show cargo command and env vars
-tspec -vv build .                          # Debug: also show spec resolution details
+tspec -v build .                           # Verbose: show cargo command/env + cargo -v
+tspec -vv build .                          # Debug: also show spec details + cargo -vv
+tspec -j4 build .                          # Limit cargo to 4 parallel jobs
 ```
 
 The `-p` flag or positional argument specifies a package by name or path (defaults to current directory if in a package, otherwise all packages). Paths like `.` are resolved to the actual cargo package name. At a pure workspace root (no `[package]`), `.` means "all packages."
 Use `-w, --workspace` to force all-packages mode even when inside a package directory.
 The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically. In workspace mode (no `-p`, or with `-w`), `-t` patterns are resolved per-package — each sub-package is searched for matching specs, and packages with no matches are skipped.
+
+**Global flags** apply to all commands and are passed through to cargo: `-v` (cargo `-v`, shows rustc invocations), `-vv` (cargo `-vv`, full command details), and `-j N` (parallel jobs). tspec's own verbose output (command line, env vars, spec resolution) is also controlled by `-v`/`-vv`.
 
 **Important: quote glob patterns with `-t`.** The shell expands unquoted globs *before* tspec sees them. At a workspace root, `tspec build -t tspec*` may expand to literal filenames from the root directory (or worse, match `target/`), rather than being matched per-package. Always quote: `-t 'tspec*'`. tspec will warn if it detects shell-expanded non-tspec arguments.
 

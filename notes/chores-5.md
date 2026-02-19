@@ -370,3 +370,34 @@ details.
 ### Status
 
 Done — released in v0.14.0.
+
+## 20260219 - CargoFlags: pass -v/-vv/-j through to cargo
+
+### Context
+
+The `-v`/`-vv` flags added in v0.14.0 show tspec's own debug info (command line, env vars,
+spec resolution) but don't pass `-v` to cargo itself. Without cargo `-v`, users can't see
+the actual `rustc` and linker invocations — the whole reason they want verbose mode.
+
+Also needed: `-j N` for parallel jobs. Rather than threading each flag individually, introduced
+a `CargoFlags` struct so future passthrough flags only need: add a field, add a CLI arg, handle
+it in `apply_to_command()`. No signature changes anywhere else.
+
+### Changes
+
+Introduced `CargoFlags` struct in `types.rs` with `verbosity` and `jobs` fields, plus
+`apply_to_command()` method. Replaced `verbosity: Verbosity` parameter with `flags: &CargoFlags`
+throughout the entire call chain:
+
+- `types.rs` — `CargoFlags` struct with `apply_to_command()`
+- `cli.rs` — added `-j`/`--jobs` global arg
+- `main.rs` — constructs `CargoFlags` from CLI
+- `cmd/mod.rs` — `Execute` trait takes `&CargoFlags`, `execute_cargo_subcommand()` updated
+- All command files — updated `execute()` signatures
+- `cargo_build.rs` — `run_cargo()`, `build_package()`, `test_package()`, `plain_cargo_build_release()`
+- `all.rs` — `build_all()`, `run_all()`, `test_all()`, `compare_all()`
+- `compare.rs` — `compare_specs()`, `build_baseline()`, `build_spec()`
+
+### Status
+
+Done — released in v0.14.1.

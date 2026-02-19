@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
-use crate::types::Verbosity;
+use crate::types::CargoFlags;
 
 /// Format source code
 #[derive(Args)]
@@ -25,7 +25,7 @@ pub struct FmtCmd {
 }
 
 impl Execute for FmtCmd {
-    fn execute(&self, project_root: &Path, _verbosity: Verbosity) -> Result<ExitCode> {
+    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
         let mut args: Vec<OsString> = Vec::new();
         let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
         if let Some(pkg) = pkg_arg
@@ -40,6 +40,6 @@ impl Execute for FmtCmd {
         if self.check {
             args.push("--check".into());
         }
-        execute_cargo_subcommand("fmt", &args, project_root)
+        execute_cargo_subcommand("fmt", &args, project_root, flags)
     }
 }

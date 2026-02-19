@@ -3,7 +3,7 @@ members = ["tspec-build"]
 
 [package]
 name = "tspec"
-version = "0.14.0"
+version = "0.14.1"
 edition = "2024"
 description = "Translation spec based build system"
 authors = ["Wink Saville <wink@saville.com>, Claude Opus 4.6 <noreply@anthropic.com>"]
@@ -13,6 +13,11 @@ exclude = [".claude/", "notes/"]
 
 [profile.other]
 inherits = "release"
+codegen-units = 1
+
+[profile.other.package.proc-macro2]
+inherits = "release"
+codegen-units = 5
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
