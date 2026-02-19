@@ -1,9 +1,10 @@
 # Todo
 
 ## In Progress
+- Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
+- Add `--verbose`/`-v`/`-vv` support [36]
 
 ## Todo
-- Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
@@ -37,3 +38,4 @@ See older [done.md](done.md)
 [33]: chores-5.md#20260218---allow--t-glob-patterns-in-all-packages-mode
 [34]: chores-5.md#20260218---refactor-summary-printers
 [35]: chores-5.md#20260219---add-toolchain-field
+[36]: chores-5.md#20260219---unified-cargo-runner--verbose

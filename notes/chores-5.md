@@ -348,3 +348,25 @@ when absent, current behavior is preserved.
 ### Status
 
 Done — released in v0.13.0.
+
+## 20260219 - Unified cargo runner + verbose
+
+### Context
+
+`build_package()` (cargo_build.rs) and `test_package()` (testing.rs) share ~80% of their code.
+The long-standing todo item "Refactor `build_package`, `test_package`, `plain_cargo_build_release`
+into a unified cargo runner" addresses this. Adding `--verbose` on top of the unified runner
+means verbose printing lives in one place instead of three.
+
+### Plan
+
+**Commit 2:** Unify `build_package`/`test_package` into `run_cargo()` with a `CargoMode` enum.
+Delete `testing.rs`, merge duplicate `requires_nightly` functions, keep thin wrappers.
+
+**Commit 3:** Add `--verbose`/`-v`/`-vv` support. `Verbosity` enum in types.rs, threaded through
+`Execute` trait and all commands. `-v` prints command line + env vars, `-vv` adds spec resolution
+details.
+
+### Status
+
+In progress.
