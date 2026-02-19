@@ -3,6 +3,7 @@
 ## In Progress
 
 ## Todo
+- The --verbose flags should passed them through to cargo so we what rustc and the linker are doing, maybe super verboase through to should be -vvv or -vV?
 - Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
