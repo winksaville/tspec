@@ -2,8 +2,6 @@
 
 ## In Progress
 
-- Refactor summary printers into shared `print_summary_table()` [34]
-
 ## Todo
 - Refactor `build_package`, `test_package`, `plain_cargo_build_release` into a unified cargo runner [30]
 - Add a permanent test workspace for integration testing (external repo or embedded?)
@@ -17,6 +15,7 @@
 
 See older [done.md](done.md)
 
+- Refactor summary printers into shared `print_summary_table()` [34]
 - Allow `-t` glob patterns in all-packages mode for workspaces [33]
 - Add custom profile support and CLI `--profile` flag [32]
 - Remove `[rustc]` section, promote `build_std` to `[cargo]`, add top-level `rustflags`; rename `config_key_value` to `config` with nested table support [31]
