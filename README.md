@@ -73,6 +73,7 @@ Translation specs are TOML files (conventionally `*.ts.toml`) that configure bui
 # Top-level high-level options (expand to lower-level cargo/rustc flags)
 panic = "abort"                            # "unwind" (default), "abort", "immediate-abort" (nightly)
 strip = "symbols"                          # "none" (default), "debuginfo", "symbols"
+toolchain = "nightly"                      # override toolchain (e.g., "nightly", "stable", "1.75")
 rustflags = ["-C", "relocation-model=static"]  # raw flags passed through to RUSTFLAGS
 
 [cargo]
@@ -228,6 +229,7 @@ Keys use two forms: `FIELD` for top-level fields (`panic`, `strip`, `rustflags`)
 |-----|------|--------|
 | `panic` | scalar | `unwind`, `abort`, `immediate-abort` |
 | `strip` | scalar | `none`, `debuginfo`, `symbols` |
+| `toolchain` | scalar | e.g. `nightly`, `stable`, `nightly-2025-01-15`, `1.75` |
 | `rustflags` | array | e.g. `-C relocation-model=static` |
 | `cargo.profile` | scalar | `debug`, `release`, or any custom profile defined in `Cargo.toml` |
 | `cargo.target_triple` | scalar | any string |

@@ -120,6 +120,9 @@ pub struct Spec {
     /// High-level strip mode (sets rustc -C strip=)
     pub strip: Option<StripMode>,
 
+    /// Rust toolchain override (e.g., "nightly", "stable", "nightly-2025-01-15", "1.75")
+    pub toolchain: Option<String>,
+
     #[serde(default)]
     pub cargo: CargoConfig,
     /// Raw flags passed through to RUSTFLAGS

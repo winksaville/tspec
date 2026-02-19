@@ -186,6 +186,7 @@ mod tests {
         let spec = Spec {
             panic: None,
             strip: None,
+            toolchain: None,
             cargo: CargoConfig {
                 profile: Some("release".to_string()),
                 ..Default::default()

@@ -308,7 +308,9 @@ fn requires_nightly(spec: &Spec) -> bool {
 fn build_cargo_command(spec: &Spec) -> Result<Command> {
     let mut cmd = Command::new("cargo");
 
-    if requires_nightly(spec) {
+    if let Some(tc) = &spec.toolchain {
+        cmd.arg(format!("+{}", tc));
+    } else if requires_nightly(spec) {
         cmd.arg("+nightly");
     }
 

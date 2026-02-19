@@ -15,6 +15,7 @@
 
 See older [done.md](done.md)
 
+- Add `toolchain` field to translation specs [35]
 - Refactor summary printers into shared `print_summary_table()` [34]
 - Allow `-t` glob patterns in all-packages mode for workspaces [33]
 - Add custom profile support and CLI `--profile` flag [32]
@@ -35,3 +36,4 @@ See older [done.md](done.md)
 [32]: chores-5.md#20260218---add-custom-profile-support
 [33]: chores-5.md#20260218---allow--t-glob-patterns-in-all-packages-mode
 [34]: chores-5.md#20260218---refactor-summary-printers
+[35]: chores-5.md#20260219---add-toolchain-field

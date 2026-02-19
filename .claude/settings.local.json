@@ -23,7 +23,9 @@
       "Bash(tspec install:*)",
       "Bash(tspec fmt:*)",
       "WebSearch",
-      "Bash(git -C /home/wink/data/prgs/rust/tspec status)"
+      "Bash(git -C /home/wink/data/prgs/rust/tspec status)",
+      "Bash(git checkout:*)",
+      "Bash(git status:*)"
     ]
   }
 }

@@ -71,7 +71,9 @@ pub fn test_package(pkg_name: &str, tspec: Option<&str>, cli_profile: Option<&st
         }
 
         let mut cmd = Command::new("cargo");
-        if requires_nightly_for_test(&spec) {
+        if let Some(tc) = &spec.toolchain {
+            cmd.arg(format!("+{}", tc));
+        } else if requires_nightly_for_test(&spec) {
             cmd.arg("+nightly");
         }
         cmd.arg("test");

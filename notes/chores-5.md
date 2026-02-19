@@ -326,3 +326,25 @@ provides:
 ### Status
 
 Done — released in v0.12.8.
+
+## 20260219 - Add toolchain field
+
+### Context
+
+When testing packages in rlibc-x that use `-Z build-std` (nightly-only), tspec auto-detects
+the need for nightly and hardcodes `+nightly`. A `toolchain` field lets specs explicitly
+declare which toolchain to use (e.g., `nightly`, `stable`, `nightly-2025-01-15`, `1.75`),
+giving users control and making specs self-documenting. When set, it overrides auto-detection;
+when absent, current behavior is preserved.
+
+### Changes
+
+- `src/types.rs` — Added `pub toolchain: Option<String>` to `Spec`
+- `src/cargo_build.rs` — `build_cargo_command()` checks `spec.toolchain` first, falls back to `requires_nightly()`
+- `src/testing.rs` — `test_package()` checks `spec.toolchain` first, falls back to `requires_nightly_for_test()`
+- `src/ts_cmd/edit.rs` — Added `("toolchain", FieldKind::Scalar)` to `FIELD_REGISTRY`
+- `README.md` — Added `toolchain` to example spec and field reference table
+
+### Status
+
+Done — released in v0.13.0.

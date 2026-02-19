@@ -15,6 +15,7 @@ pub enum FieldKind {
 const FIELD_REGISTRY: &[(&str, FieldKind)] = &[
     ("panic", FieldKind::Scalar),
     ("strip", FieldKind::Scalar),
+    ("toolchain", FieldKind::Scalar),
     ("cargo.profile", FieldKind::Scalar),
     ("cargo.target_triple", FieldKind::Scalar),
     ("cargo.target_json", FieldKind::Scalar),
