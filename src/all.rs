@@ -426,68 +426,111 @@ pub fn test_all(
     results
 }
 
-/// Print a summary of operation results (for tests)
-pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
-    let max_name_len = results
-        .iter()
-        .map(|r| r.name.len())
-        .max()
-        .unwrap_or(7)
-        .max(7);
-    let has_spec = results.iter().any(|r| !r.spec.is_empty());
+/// A row for the summary table: package name, spec, and pre-formatted detail string.
+struct SummaryRow {
+    name: String,
+    spec: String,
+    detail: String,
+}
+
+/// Print a summary table with consistent formatting across all operations.
+///
+/// - `ws_name` — workspace/package name for the header
+/// - `cmd` — operation name ("TEST", "BUILD", "RUN", "COMPARE")
+/// - `detail_header` — column header for the detail column (e.g. "Status", "Status    Size", "Exit")
+/// - `rows` — pre-formatted rows
+/// - `footer` — footer line (e.g. "Test: 3 passed, 1 failed")
+fn print_summary_table(
+    ws_name: &str,
+    cmd: &str,
+    detail_header: &str,
+    rows: &[SummaryRow],
+    footer: &str,
+) {
+    let max_name_len = rows.iter().map(|r| r.name.len()).max().unwrap_or(7).max(7);
+    let has_spec = rows.iter().any(|r| !r.spec.is_empty());
     let max_spec_len = if has_spec {
-        results
-            .iter()
-            .map(|r| r.spec.len())
-            .max()
-            .unwrap_or(4)
-            .max(4)
+        rows.iter().map(|r| r.spec.len()).max().unwrap_or(4).max(4)
     } else {
         0
     };
 
     println!();
-    print_header!(format!("{name} TEST SUMMARY"));
+    print_header!(format!("{ws_name} {cmd} SUMMARY"));
     if has_spec {
         println!(
-            "  {:nw$}  {:sw$}  Status",
+            "  {:nw$}  {:sw$}  {detail_header}",
             "Package",
             "Spec",
             nw = max_name_len,
             sw = max_spec_len
         );
     } else {
-        println!("  {:width$}  Status", "Package", width = max_name_len);
+        println!(
+            "  {:width$}  {detail_header}",
+            "Package",
+            width = max_name_len
+        );
     }
 
-    let mut passed = 0;
-    let mut failed = 0;
-
-    for result in results {
-        let status = if result.success {
-            passed += 1;
-            "[PASS]"
-        } else {
-            failed += 1;
-            "[FAIL]"
-        };
+    for row in rows {
         if has_spec {
             println!(
-                "  {:nw$}  {:sw$}  {status}",
-                result.name,
-                result.spec,
+                "  {:nw$}  {:sw$}  {}",
+                row.name,
+                row.spec,
+                row.detail,
                 nw = max_name_len,
                 sw = max_spec_len
             );
         } else {
-            println!("  {:width$}  {status}", result.name, width = max_name_len);
+            println!(
+                "  {:width$}  {}",
+                row.name,
+                row.detail,
+                width = max_name_len
+            );
         }
     }
 
     println!();
-    println!("  Test: {} passed, {} failed", passed, failed);
+    if !footer.is_empty() {
+        println!("  {footer}");
+    }
     print_hline!();
     println!();
+}
+
+/// Print a summary of operation results (for tests)
+pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
+    let mut passed = 0;
+    let mut failed = 0;
+
+    let rows: Vec<SummaryRow> = results
+        .iter()
+        .map(|r| {
+            let detail = if r.success {
+                passed += 1;
+                "[PASS]".to_string()
+            } else {
+                failed += 1;
+                "[FAIL]".to_string()
+            };
+            SummaryRow {
+                name: r.name.clone(),
+                spec: r.spec.clone(),
+                detail,
+            }
+        })
+        .collect();
+
+    print_summary_table(
+        name,
+        "TEST",
+        "Status",
+        &rows,
+        &format!("Test: {passed} passed, {failed} failed"),
+    );
 
     if failed > 0 {
         ExitCode::from(1)
@@ -498,80 +541,35 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
 
 /// Print a summary for build operations (OK/FAILED)
 pub fn print_summary(name: &str, results: &[OpResult]) -> ExitCode {
-    let max_name_len = results
-        .iter()
-        .map(|r| r.name.len())
-        .max()
-        .unwrap_or(7)
-        .max(7);
-    let has_spec = results.iter().any(|r| !r.spec.is_empty());
-    let max_spec_len = if has_spec {
-        results
-            .iter()
-            .map(|r| r.spec.len())
-            .max()
-            .unwrap_or(4)
-            .max(4)
-    } else {
-        0
-    };
-
-    println!();
-    print_header!(format!("{name} BUILD SUMMARY"));
-    if has_spec {
-        println!(
-            "  {:nw$}  {:sw$}  Status    Size",
-            "Package",
-            "Spec",
-            nw = max_name_len,
-            sw = max_spec_len
-        );
-    } else {
-        println!(
-            "  {:width$}  Status    Size",
-            "Package",
-            width = max_name_len
-        );
-    }
-
     let mut ok_count = 0;
     let mut failed_count = 0;
 
-    for result in results {
-        let status = if result.success {
-            ok_count += 1;
-            "[ OK ]"
-        } else {
-            failed_count += 1;
-            "[FAIL]"
-        };
-        let size_str = result
-            .size
-            .map(format_size)
-            .unwrap_or_else(|| "--".to_string());
-        if has_spec {
-            println!(
-                "  {:nw$}  {:sw$}  {status}  {:>6}",
-                result.name,
-                result.spec,
-                size_str,
-                nw = max_name_len,
-                sw = max_spec_len
-            );
-        } else {
-            println!(
-                "  {:width$}  {status}  {:>6}",
-                result.name,
-                size_str,
-                width = max_name_len
-            );
-        }
-    }
+    let rows: Vec<SummaryRow> = results
+        .iter()
+        .map(|r| {
+            let status = if r.success {
+                ok_count += 1;
+                "[ OK ]"
+            } else {
+                failed_count += 1;
+                "[FAIL]"
+            };
+            let size_str = r.size.map(format_size).unwrap_or_else(|| "--".to_string());
+            SummaryRow {
+                name: r.name.clone(),
+                spec: r.spec.clone(),
+                detail: format!("{status}  {size_str:>6}"),
+            }
+        })
+        .collect();
 
-    println!();
-    println!("  Build: {} ok, {} failed", ok_count, failed_count);
-    print_hline!();
-    println!();
+    print_summary_table(
+        name,
+        "BUILD",
+        "Status    Size",
+        &rows,
+        &format!("Build: {ok_count} ok, {failed_count} failed"),
+    );
 
     if failed_count > 0 {
         ExitCode::from(1)
@@ -681,69 +679,34 @@ pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode 
 
     // Only show overall COMPARE SUMMARY when there are multiple packages
     if results.len() > 1 {
-        let max_name_len = results
-            .iter()
-            .map(|r| r.op.name.len())
-            .max()
-            .unwrap_or(7)
-            .max(7);
-        let has_spec = results.iter().any(|r| !r.op.spec.is_empty());
-        let max_spec_len = if has_spec {
-            results
-                .iter()
-                .map(|r| r.op.spec.len())
-                .max()
-                .unwrap_or(4)
-                .max(4)
-        } else {
-            0
-        };
-
-        print_header!(format!("{name} COMPARE SUMMARY"));
-        if has_spec {
-            println!(
-                "  {:nw$}  {:sw$}  Status",
-                "Package",
-                "Spec",
-                nw = max_name_len,
-                sw = max_spec_len
-            );
-        } else {
-            println!("  {:width$}  Status", "Package", width = max_name_len);
-        }
-
         let mut ok_count = 0;
         let mut failed_count = 0;
 
-        for result in results {
-            let status = if result.op.success {
-                ok_count += 1;
-                "[ OK ]"
-            } else {
-                failed_count += 1;
-                "[FAIL]"
-            };
-            if has_spec {
-                println!(
-                    "  {:nw$}  {:sw$}  {status}",
-                    result.op.name,
-                    result.op.spec,
-                    nw = max_name_len,
-                    sw = max_spec_len
-                );
-            } else {
-                println!(
-                    "  {:width$}  {status}",
-                    result.op.name,
-                    width = max_name_len
-                );
-            }
-        }
+        let rows: Vec<SummaryRow> = results
+            .iter()
+            .map(|r| {
+                let detail = if r.op.success {
+                    ok_count += 1;
+                    "[ OK ]".to_string()
+                } else {
+                    failed_count += 1;
+                    "[FAIL]".to_string()
+                };
+                SummaryRow {
+                    name: r.op.name.clone(),
+                    spec: r.op.spec.clone(),
+                    detail,
+                }
+            })
+            .collect();
 
-        println!();
-        println!("  Compare: {} ok, {} failed", ok_count, failed_count);
-        print_hline!();
-        println!();
+        print_summary_table(
+            name,
+            "COMPARE",
+            "Status",
+            &rows,
+            &format!("Compare: {ok_count} ok, {failed_count} failed"),
+        );
     }
 
     if has_failure {
@@ -755,91 +718,33 @@ pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode 
 
 /// Print a summary for run operations (shows exit codes, not pass/fail)
 pub fn print_run_summary(name: &str, results: &[OpResult]) -> ExitCode {
-    let max_name_len = results
-        .iter()
-        .map(|r| r.name.len())
-        .max()
-        .unwrap_or(7)
-        .max(7);
-    let has_spec = results.iter().any(|r| !r.spec.is_empty());
-    let max_spec_len = if has_spec {
-        results
-            .iter()
-            .map(|r| r.spec.len())
-            .max()
-            .unwrap_or(4)
-            .max(4)
-    } else {
-        0
-    };
-
-    println!();
-    print_header!(format!("{name} RUN SUMMARY"));
-    if has_spec {
-        println!(
-            "  {:nw$}  {:sw$}  Exit",
-            "Package",
-            "Spec",
-            nw = max_name_len,
-            sw = max_spec_len
-        );
-    } else {
-        println!("  {:width$}  Exit", "Package", width = max_name_len);
-    }
-
     let mut error_count = 0;
 
-    for result in results {
-        if result.success {
-            let code = result
-                .message
-                .strip_prefix("exit code: ")
-                .unwrap_or(&result.message);
-            if has_spec {
-                println!(
-                    "  {:nw$}  {:sw$}  {:>4}",
-                    result.name,
-                    result.spec,
-                    code,
-                    nw = max_name_len,
-                    sw = max_spec_len
-                );
+    let rows: Vec<SummaryRow> = results
+        .iter()
+        .map(|r| {
+            let detail = if r.success {
+                let code = r.message.strip_prefix("exit code: ").unwrap_or(&r.message);
+                format!("{code:>4}")
             } else {
-                println!(
-                    "  {:width$}  {:>4}",
-                    result.name,
-                    code,
-                    width = max_name_len
-                );
+                error_count += 1;
+                format!("ERROR: {}", r.message)
+            };
+            SummaryRow {
+                name: r.name.clone(),
+                spec: r.spec.clone(),
+                detail,
             }
-        } else {
-            error_count += 1;
-            if has_spec {
-                println!(
-                    "  {:nw$}  {:sw$}  ERROR: {}",
-                    result.name,
-                    result.spec,
-                    result.message,
-                    nw = max_name_len,
-                    sw = max_spec_len
-                );
-            } else {
-                println!(
-                    "  {:width$}  ERROR: {}",
-                    result.name,
-                    result.message,
-                    width = max_name_len
-                );
-            }
-        }
-    }
+        })
+        .collect();
 
-    println!();
-    if error_count > 0 {
-        println!("  Run: {} error(s)", error_count);
-    }
-    print_hline!();
-    println!();
+    let footer = if error_count > 0 {
+        format!("Run: {error_count} error(s)")
+    } else {
+        String::new()
+    };
+
+    print_summary_table(name, "RUN", "Exit", &rows, &footer);
 
     if error_count > 0 {
         ExitCode::from(1)
