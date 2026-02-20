@@ -1,0 +1,3 @@
+[workspace]
+members = ["pows-app", "mylib"]
+resolver = "2"

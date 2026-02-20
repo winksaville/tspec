@@ -72,7 +72,7 @@ impl WorkspaceInfo {
                 let kind = if is_pop {
                     PackageKind::App
                 } else {
-                    classify_package(&path, &pkg.name, &root)
+                    classify_package(&path, &pkg.name, &root, has_binary)
                 };
 
                 PackageMember {
@@ -113,7 +113,12 @@ impl WorkspaceInfo {
 }
 
 /// Classify a package based on its path relative to the workspace root.
-fn classify_package(path: &Path, name: &str, workspace_root: &Path) -> PackageKind {
+fn classify_package(
+    path: &Path,
+    name: &str,
+    workspace_root: &Path,
+    has_binary: bool,
+) -> PackageKind {
     // Root package of a workspace is the main app
     if path == workspace_root {
         return PackageKind::App;
@@ -143,8 +148,10 @@ fn classify_package(path: &Path, name: &str, workspace_root: &Path) -> PackageKi
         PackageKind::Lib
     } else if rel_str.starts_with("tools/") {
         PackageKind::Tool
+    } else if has_binary {
+        // Root-level members with binaries are apps
+        PackageKind::App
     } else {
-        // Root-level members default to Lib
         PackageKind::Lib
     }
 }
@@ -159,7 +166,7 @@ mod tests {
     fn classify_app() {
         let path = PathBuf::from("/workspace/apps/ex-x1");
         assert_eq!(
-            classify_package(&path, "ex-x1", Path::new(WS)),
+            classify_package(&path, "ex-x1", Path::new(WS), true),
             PackageKind::App
         );
     }
@@ -168,7 +175,7 @@ mod tests {
     fn classify_root_package_is_app() {
         let path = PathBuf::from("/workspace");
         assert_eq!(
-            classify_package(&path, "tspec", Path::new(WS)),
+            classify_package(&path, "tspec", Path::new(WS), true),
             PackageKind::App
         );
     }
@@ -177,17 +184,26 @@ mod tests {
     fn classify_lib() {
         let path = PathBuf::from("/workspace/libs/rlibc-x1");
         assert_eq!(
-            classify_package(&path, "rlibc-x1", Path::new(WS)),
+            classify_package(&path, "rlibc-x1", Path::new(WS), false),
             PackageKind::Lib
         );
     }
 
     #[test]
-    fn classify_root_level_member_is_lib() {
+    fn classify_root_level_member_lib_no_binary() {
         let path = PathBuf::from("/workspace/tspec-build");
         assert_eq!(
-            classify_package(&path, "tspec-build", Path::new(WS)),
+            classify_package(&path, "tspec-build", Path::new(WS), false),
             PackageKind::Lib
+        );
+    }
+
+    #[test]
+    fn classify_root_level_member_app_with_binary() {
+        let path = PathBuf::from("/workspace/pows-app");
+        assert_eq!(
+            classify_package(&path, "pows-app", Path::new(WS), true),
+            PackageKind::App
         );
     }
 
@@ -195,7 +211,7 @@ mod tests {
     fn classify_tool() {
         let path = PathBuf::from("/workspace/tools/is-libc-used");
         assert_eq!(
-            classify_package(&path, "is-libc-used", Path::new(WS)),
+            classify_package(&path, "is-libc-used", Path::new(WS), true),
             PackageKind::Tool
         );
     }
@@ -204,7 +220,7 @@ mod tests {
     fn classify_test_by_path() {
         let path = PathBuf::from("/workspace/libs/rlibc-x2/tests");
         assert_eq!(
-            classify_package(&path, "rlibc-x2-tests", Path::new(WS)),
+            classify_package(&path, "rlibc-x2-tests", Path::new(WS), false),
             PackageKind::Test
         );
     }
@@ -213,7 +229,7 @@ mod tests {
     fn classify_test_by_name() {
         let path = PathBuf::from("/workspace/somewhere");
         assert_eq!(
-            classify_package(&path, "foo-tests", Path::new(WS)),
+            classify_package(&path, "foo-tests", Path::new(WS), false),
             PackageKind::Test
         );
     }
@@ -222,7 +238,7 @@ mod tests {
     fn classify_build_tool_xt() {
         let path = PathBuf::from("/workspace/xt");
         assert_eq!(
-            classify_package(&path, "xt", Path::new(WS)),
+            classify_package(&path, "xt", Path::new(WS), false),
             PackageKind::BuildTool
         );
     }
@@ -231,7 +247,7 @@ mod tests {
     fn classify_build_tool_xtask() {
         let path = PathBuf::from("/workspace/xtask");
         assert_eq!(
-            classify_package(&path, "xtask", Path::new(WS)),
+            classify_package(&path, "xtask", Path::new(WS), false),
             PackageKind::BuildTool
         );
     }
@@ -242,7 +258,10 @@ mod tests {
         // as Test just because the absolute path contains "/tests"
         let ws = Path::new("/project/tests/fixtures/pop-ws");
         let path = PathBuf::from("/project/tests/fixtures/pop-ws/mylib");
-        assert_eq!(classify_package(&path, "mylib", ws), PackageKind::Lib);
+        assert_eq!(
+            classify_package(&path, "mylib", ws, false),
+            PackageKind::Lib
+        );
     }
 
     #[test]

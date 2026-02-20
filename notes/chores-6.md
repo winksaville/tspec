@@ -33,25 +33,29 @@ All flow through `CargoFlags.extra_args` — no new parameters to `test_package(
 
 **Completed:**
 - dev0: `534ce4b` — marker commit, documented -dev0 convention in CLAUDE.md + README.md
-- dev1: `9276af0` — test selection flags (--test, --names, --list, --target-names, trailing args)
+- dev1: `28baac3` — test selection flags (--test, --names, --list, --target-names, trailing args)
   - Also added: `extra_args: Vec<String>` to `CargoFlags` in types.rs
   - Also added: workspace-mode --test auto-filters to packages that have the target
   - 268 unit tests, all passing. Installed and verified.
+- dev2: `f85a1cb` — POP fixture + integration tests
+  - Created `tests/fixtures/pop/` with Cargo.toml, src/main.rs, tspec.ts.toml
+  - Added `exclude = ["tests/fixtures"]` to root Cargo.toml `[workspace]`
+  - Created `tests/fixture.rs` helper: `copy_fixture(name) -> (TempDir, PathBuf)`
+  - Created `tests/integration_test.rs` with 4 `#[ignore]` tests
+  - Bug fix: `find_project_root()` now respects workspace `exclude` list
+  - Added `is_excluded_from_workspace()` function + 4 unit tests
+- dev3: `5c24d4b` — POP+WS fixture
+  - Created `tests/fixtures/pop-ws/` with root binary + mylib member
+  - Added 6 integration tests (spec load, cargo build, tspec build root/member/all, build from member dir)
+  - Bug fix: `classify_package()` now uses paths relative to workspace root
+  - Added unit test for path-under-tests-dir classification
+- dev4: POWS fixture
+  - Created `tests/fixtures/pows/` with workspace-only root (no [package]), pows-app binary, mylib library
+  - Added 6 integration tests (cargo build, tspec build all/member/from-member-dir, tspec test all, dot-resolves-to-all)
+  - Fix: directory name must match package name for `find_package_dir()` resolution (pows-app/ not app/)
+  - All 16 integration tests passing, 268 unit tests passing
 
-**Next: dev2** — POP fixture + integration tests
-- Create `tests/fixtures/pop/` with minimal Cargo.toml, src/main.rs, tspec.ts.toml
-- Add `exclude = ["tests/fixtures"]` to root Cargo.toml `[workspace]`
-- Add `tests/fixtures/*/target/` to .gitignore
-- Create `tests/fixture.rs` helper: `copy_fixture(name) -> (TempDir, PathBuf)`
-- Create `tests/integration_test.rs` with `#[ignore]` tests:
-  - cargo build succeeds on fixture copy
-  - spec loading returns expected values
-  - `tspec build .` produces binary
-  - `tspec compare .` succeeds
-- Run via: `tspec test --test integration_test -- --ignored`
-- Bump version to v0.15.0-dev2
-
-**Remaining:** dev3 (POP+WS fixture), dev4 (POWS fixture), release (v0.15.0)
+**Remaining:** release (v0.15.0)
 
 ### Future: --manifest-path / --path flag
 

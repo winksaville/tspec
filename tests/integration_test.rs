@@ -196,3 +196,118 @@ fn pop_ws_tspec_build_from_member_dir() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+// ---------------------------------------------------------------------------
+// POWS fixture tests (Pure Old Workspace — no root [package])
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore]
+fn pows_cargo_build_succeeds() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    let output = Command::new("cargo")
+        .args(["build"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run cargo build");
+
+    assert!(
+        output.status.success(),
+        "cargo build failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_tspec_build_all_from_root() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    // At a POWS root with no args, tspec should build all members
+    let output = Command::new(tspec_bin())
+        .args(["build"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build");
+
+    assert!(
+        output.status.success(),
+        "tspec build (all) failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_tspec_build_member_by_name() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "-p", "pows-app"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build -p pows-app");
+
+    assert!(
+        output.status.success(),
+        "tspec build -p pows-app failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_tspec_test_all_from_root() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    let output = Command::new(tspec_bin())
+        .args(["test"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    assert!(
+        output.status.success(),
+        "tspec test (all) failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_tspec_build_from_member_dir() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "."])
+        .current_dir(project.join("pows-app"))
+        .output()
+        .expect("failed to run tspec build from app dir");
+
+    assert!(
+        output.status.success(),
+        "tspec build . from app dir failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_tspec_dot_resolves_to_all_at_root() {
+    let (_tmp, project) = fixture::copy_fixture("pows");
+
+    // "tspec build ." at a POWS root should resolve to all-packages
+    // (because . has no [package])
+    let output = Command::new(tspec_bin())
+        .args(["build", "."])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build .");
+
+    assert!(
+        output.status.success(),
+        "tspec build . at POWS root failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
