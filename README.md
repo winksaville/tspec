@@ -29,6 +29,8 @@ git push
 
 Branch naming: `<type>-<description>` where type is `feat`, `fix`, `refactor`, `docs`, `chore`.
 
+**Versioning:** Single-step changes bump directly (e.g., `0.14.0` → `0.15.0`). Multi-step features use a `-devN` series: `-dev0` for the marker/planning commit, then `-dev1`, `-dev2`, etc. for each code step, dropping the suffix on release.
+
 **Protect main on GitHub:** Enable branch protection (Settings > Branches) to block force pushes and optionally require PRs.
 
 For the full feature workflow (version bumps, notes, merge steps, Claude Code conventions), see [CLAUDE.md](CLAUDE.md#feature-workflow).

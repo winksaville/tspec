@@ -103,10 +103,11 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 1. Create a branch: `git checkout -b <type>-<short-description>` (e.g., `fix-compare-optional-p`)
 2. Create a dated entry in `notes/chores-N.md` with context and plan
 3. Update `notes/todo.md` to move items to In Progress
-4. Bump version in `Cargo.toml` (always required — use `X.Y.Z-dev` for multi-step, direct bump for single-step)
+4. Bump version in `Cargo.toml` (always required — use `X.Y.Z-dev0` for multi-step marker commit, direct bump for single-step)
 5. For plans: recommend single-step (one commit) vs multi-step (`-devN` series) and get user approval
-6. Commit the above as a chore marker commit before starting code changes
-7. Use todo list to track progress during implementation
+6. Commit the above as a `chore:` marker commit (`v0.X.Y-dev0`) before starting code changes
+7. Bump to `-dev1` with the first code commit, then `-dev2`, etc. for each subsequent step
+8. Use todo list to track progress during implementation
 
 **On completion:**
 1. Update `notes/chores-N.md` with result
