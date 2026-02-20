@@ -8,13 +8,13 @@
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
-- Improve `classify_crate` - using name alone is brittle [4]
 - Warn on obvious spec misconfigurations: `linker.args` on lib-only packages (no bin target), `-static` on glibc systems (segfaults), panic=abort specs used with test, etc. Specs are copy/pastable so users will apply bin-oriented specs to lib crates
 
 ## Done
 
 See older [done.md](done.md)
 
+- Remove `classify_package`/`PackageKind`; replace with `is_build_tool` bool [40]
 - Add test fixtures (POP, POP+WS, POWS) and integration tests; add --test/trailing args to tspec test [38]
 - Pass `-v`/`-vv`/`-j N` through to cargo via `CargoFlags` struct [37]
 - Unified cargo runner + `--verbose`/`-v`/`-vv` support [36]
@@ -29,7 +29,6 @@ See older [done.md](done.md)
 
 [28]: chores-5.md#20260216---remove-rustcopt_level-rustclto-rustccodegen_units--migrate-to-config_key_value
 [29]: chores-5.md#20260216---add-glob-support-for--t-flag-on-build-run-test
-[4]: chores-1.md#improve-classify_crate
 [11]: chores-1.md#investigate--static-vs-dynamic-linkingfalse-size-difference
 [25]: chores-4.md#20260215---design-profile-support-and-tspec-section-scoping
 [26]: chores-4.md#20260216---design-passing-tspec-fields-via-buildrs-vs-cargo---config
@@ -42,5 +41,6 @@ See older [done.md](done.md)
 [35]: chores-5.md#20260219---add-toolchain-field
 [37]: chores-5.md#20260219---cargoflags-pass--v-vv-j-through-to-cargo
 [36]: chores-5.md#20260219---unified-cargo-runner--verbose
+[40]: chores-6.md#20260220---remove-classify_package-and-packagekind
 [38]: chores-6.md#20260219---test-infrastructure-fixture-workspaces-and-test-args
 [39]: chores-6.md#future-manifest-path--path-flag

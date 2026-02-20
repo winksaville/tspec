@@ -2,7 +2,6 @@
 //!
 //! Provides build_all, run_all, test_all for operating on all workspace members.
 
-use std::os::unix::fs::PermissionsExt;
 use std::process::ExitCode;
 
 use std::path::{Path, PathBuf};
@@ -14,7 +13,7 @@ use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
 use crate::tspec::spec_name_from_path;
 use crate::types::CargoFlags;
-use crate::workspace::{PackageKind, WorkspaceInfo};
+use crate::workspace::WorkspaceInfo;
 use crate::{print_header, print_hline};
 
 /// Normalize tspec patterns for per-package matching in all-packages mode.
@@ -266,12 +265,7 @@ pub fn test_all(
     };
     let mut results = Vec::new();
 
-    // Test regular packages (excluding Test kind which needs special handling)
     for member in workspace.buildable_members() {
-        if member.kind == PackageKind::Test {
-            continue; // Handle test packages separately
-        }
-
         let specs = resolve_specs_for_member(&member.path, &normalized);
         if specs.is_empty() && !normalized.is_empty() {
             continue;
@@ -305,117 +299,6 @@ pub fn test_all(
                     message: e.to_string(),
                     size: None,
                 },
-            };
-
-            let failed = !result.success;
-            results.push(result);
-
-            if failed && fail_fast {
-                return results;
-            }
-        }
-    }
-
-    // Handle test packages (like rlibc-x2-tests) - build and run all test binaries
-    for member in workspace.test_members() {
-        let specs = resolve_specs_for_member(&member.path, &normalized);
-        if specs.is_empty() && !normalized.is_empty() {
-            continue;
-        }
-
-        println!("=== {} ===", member.name);
-
-        // Build the test package (builds all binaries)
-        let build_tspec = specs.first().map(|p| p.to_string_lossy().into_owned());
-        let spec = spec_label(&build_tspec);
-        let build_result =
-            match build_package(&member.name, build_tspec.as_deref(), cli_profile, flags) {
-                Ok(r) => r,
-                Err(e) => {
-                    results.push(OpResult {
-                        name: member.name.clone(),
-                        spec,
-                        success: false,
-                        message: format!("build failed: {}", e),
-                        size: None,
-                    });
-                    if fail_fast {
-                        return results;
-                    }
-                    continue;
-                }
-            };
-
-        // Find and run all test binaries in the target directory
-        let profile_dir = crate::types::profile_dir_name(cli_profile.unwrap_or("debug"));
-        let target_dir = build_result.target_base.join(profile_dir);
-
-        // Look for binaries that end with "-tests" in the target directory
-        let test_binaries: Vec<_> = std::fs::read_dir(&target_dir)
-            .into_iter()
-            .flatten()
-            .filter_map(|e| e.ok())
-            .filter(|e| {
-                let name = e.file_name().to_string_lossy().to_string();
-                let is_file = e.path().is_file();
-                let is_test = name.ends_with("-tests");
-                let is_executable = e
-                    .metadata()
-                    .map(|m| m.permissions().mode() & 0o111 != 0)
-                    .unwrap_or(false);
-                is_file && is_test && is_executable
-            })
-            .collect();
-
-        if test_binaries.is_empty() {
-            results.push(OpResult {
-                name: member.name.clone(),
-                spec: spec.clone(),
-                success: false,
-                message: "no test binaries found".to_string(),
-                size: None,
-            });
-            continue;
-        }
-
-        for entry in test_binaries {
-            let path = entry.path();
-            let bin_name = entry.file_name().to_string_lossy().to_string();
-
-            print!("  Running {}... ", bin_name);
-
-            let result = match run_binary(&path, &[]) {
-                Ok(exit_code) => {
-                    if exit_code == 0 {
-                        println!("ok");
-                        OpResult {
-                            name: format!("{}/{}", member.name, bin_name),
-                            spec: spec.clone(),
-                            success: true,
-                            message: "ok".to_string(),
-                            size: None,
-                        }
-                    } else {
-                        println!("FAILED (exit {})", exit_code);
-                        OpResult {
-                            name: format!("{}/{}", member.name, bin_name),
-                            spec: spec.clone(),
-                            success: false,
-                            message: format!("exit code: {}", exit_code),
-                            size: None,
-                        }
-                    }
-                }
-                Err(e) => {
-                    println!("FAILED");
-                    OpResult {
-                        name: format!("{}/{}", member.name, bin_name),
-                        spec: spec.clone(),
-                        success: false,
-                        message: format!("run failed: {}", e),
-                        size: None,
-                    }
-                }
             };
 
             let failed = !result.success;

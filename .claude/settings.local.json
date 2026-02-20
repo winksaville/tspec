@@ -26,7 +26,9 @@
       "Bash(git -C /home/wink/data/prgs/rust/tspec status)",
       "Bash(git checkout:*)",
       "Bash(git status:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec status -u)",
+      "Bash(git -C /home/wink/data/prgs/rust/tspec log --oneline -5)"
     ]
   }
 }

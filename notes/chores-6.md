@@ -1,5 +1,39 @@
 # Chores 6
 
+## 20260220 - Remove classify_package and PackageKind
+
+### Context
+
+`classify_package()` hardcoded directory conventions (`apps/`, `libs/`,
+`tools/`, `*/tests`) specific to one workspace layout. tspec shouldn't
+impose layout opinions — cargo metadata already provides `has_binary`,
+and the only real behavioral need is excluding build tools (tspec/xt/xtask)
+from batch operations.
+
+### Changes
+
+**`src/workspace.rs`:**
+- Removed `PackageKind` enum (5 variants) and `classify_package()` fn
+- Removed `test_members()` method
+- Replaced `kind: PackageKind` with `is_build_tool: bool` on `PackageMember`
+- Added `is_build_tool_name()` — checks tspec/xt/xtask
+- Updated `discover()`, `buildable_members()`, `runnable_members()`
+- Replaced 11 classify tests with 2 `is_build_tool_name` tests
+
+**`src/all.rs`:**
+- Removed `PackageKind`, `PermissionsExt` imports
+- Removed `PackageKind::Test` skip and entire 100-line
+  test-binary-discovery block from `test_all()`
+- `test_all()` now just iterates `buildable_members()` + `test_package()`
+
+### Behavioral changes
+
+- `runnable_members()` returns any non-build-tool with a binary
+  (was: only `App` kind)
+- Test packages formerly getting special binary-discovery handling
+  now get normal `cargo test`
+- Neither change affects this repo
+
 ## 20260219 - Test infrastructure: fixture workspaces and test args
 
 ### Context

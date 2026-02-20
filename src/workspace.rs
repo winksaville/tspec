@@ -1,26 +1,11 @@
-//! Workspace discovery and package classification
+//! Workspace discovery
 //!
-//! Uses `cargo metadata` to discover workspace members and classify them
-//! by type (app, lib, tool, test, build tool).
+//! Uses `cargo metadata` to discover workspace members and determine
+//! which are build tools (excluded from batch operations by default).
 
 use anyhow::{Context, Result};
 use cargo_metadata::MetadataCommand;
-use std::path::{Path, PathBuf};
-
-/// Package classification for behavior differences
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PackageKind {
-    /// apps/* - application binaries, runnable
-    App,
-    /// libs/* - library crates
-    Lib,
-    /// tools/* - utility binaries
-    Tool,
-    /// */tests - test binary crates (special handling)
-    Test,
-    /// Build tools such as xtask or tspec, excluded by default
-    BuildTool,
-}
+use std::path::PathBuf;
 
 /// Information about a workspace package
 #[derive(Debug, Clone)]
@@ -28,7 +13,7 @@ pub struct PackageMember {
     pub name: String,
     pub path: PathBuf,
     pub has_binary: bool,
-    pub kind: PackageKind,
+    pub is_build_tool: bool,
 }
 
 /// Workspace information from cargo metadata
@@ -55,10 +40,8 @@ impl WorkspaceInfo {
 
         let root = metadata.workspace_root.as_std_path().to_path_buf();
 
-        let packages = metadata.workspace_packages();
-        let is_pop = packages.len() == 1;
-
-        let members: Vec<PackageMember> = packages
+        let members: Vec<PackageMember> = metadata
+            .workspace_packages()
             .iter()
             .map(|pkg| {
                 let path = pkg
@@ -68,18 +51,12 @@ impl WorkspaceInfo {
                     .as_std_path()
                     .to_path_buf();
                 let has_binary = pkg.targets.iter().any(|t| t.is_bin());
-                // POPs are always App — classify_package is for multi-package workspaces
-                let kind = if is_pop {
-                    PackageKind::App
-                } else {
-                    classify_package(&path, &pkg.name, &root, has_binary)
-                };
 
                 PackageMember {
                     name: pkg.name.clone(),
                     path,
                     has_binary,
-                    kind,
+                    is_build_tool: is_build_tool_name(&pkg.name),
                 }
             })
             .collect();
@@ -89,179 +66,40 @@ impl WorkspaceInfo {
 
     /// Get members excluding build tools such as xtask or tspec
     pub fn buildable_members(&self) -> Vec<&PackageMember> {
-        self.members
-            .iter()
-            .filter(|m| m.kind != PackageKind::BuildTool)
-            .collect()
+        self.members.iter().filter(|m| !m.is_build_tool).collect()
     }
 
-    /// Get members that can be run (apps only - have binaries and are runnable)
+    /// Get members that can be run (have binaries and are not build tools)
     pub fn runnable_members(&self) -> Vec<&PackageMember> {
         self.members
             .iter()
-            .filter(|m| m.has_binary && m.kind == PackageKind::App)
-            .collect()
-    }
-
-    /// Get test packages (special handling for rlibc-x2-tests etc.)
-    pub fn test_members(&self) -> Vec<&PackageMember> {
-        self.members
-            .iter()
-            .filter(|m| m.kind == PackageKind::Test)
+            .filter(|m| m.has_binary && !m.is_build_tool)
             .collect()
     }
 }
 
-/// Classify a package based on its path relative to the workspace root.
-fn classify_package(
-    path: &Path,
-    name: &str,
-    workspace_root: &Path,
-    has_binary: bool,
-) -> PackageKind {
-    // Root package of a workspace is the main app
-    if path == workspace_root {
-        return PackageKind::App;
-    }
-
-    // Build tools at workspace root level
-    if name == "tspec" || name == "xt" || name == "xtask" {
-        return PackageKind::BuildTool;
-    }
-
-    // Use path relative to workspace root for classification
-    // (absolute paths can contain misleading segments like tests/fixtures/)
-    let rel_str = path
-        .strip_prefix(workspace_root)
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| path.to_string_lossy().into_owned());
-
-    // Test packages
-    if rel_str.contains("/tests") || rel_str.ends_with("tests") || name.ends_with("-tests") {
-        return PackageKind::Test;
-    }
-
-    // Categorize by directory
-    if rel_str.starts_with("apps/") {
-        PackageKind::App
-    } else if rel_str.starts_with("libs/") {
-        PackageKind::Lib
-    } else if rel_str.starts_with("tools/") {
-        PackageKind::Tool
-    } else if has_binary {
-        // Root-level members with binaries are apps
-        PackageKind::App
-    } else {
-        PackageKind::Lib
-    }
+/// Check if a package name is a build tool (excluded from batch operations).
+fn is_build_tool_name(name: &str) -> bool {
+    matches!(name, "tspec" | "xt" | "xtask")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const WS: &str = "/workspace";
-
     #[test]
-    fn classify_app() {
-        let path = PathBuf::from("/workspace/apps/ex-x1");
-        assert_eq!(
-            classify_package(&path, "ex-x1", Path::new(WS), true),
-            PackageKind::App
-        );
+    fn build_tool_names() {
+        assert!(is_build_tool_name("tspec"));
+        assert!(is_build_tool_name("xt"));
+        assert!(is_build_tool_name("xtask"));
     }
 
     #[test]
-    fn classify_root_package_is_app() {
-        let path = PathBuf::from("/workspace");
-        assert_eq!(
-            classify_package(&path, "tspec", Path::new(WS), true),
-            PackageKind::App
-        );
-    }
-
-    #[test]
-    fn classify_lib() {
-        let path = PathBuf::from("/workspace/libs/rlibc-x1");
-        assert_eq!(
-            classify_package(&path, "rlibc-x1", Path::new(WS), false),
-            PackageKind::Lib
-        );
-    }
-
-    #[test]
-    fn classify_root_level_member_lib_no_binary() {
-        let path = PathBuf::from("/workspace/tspec-build");
-        assert_eq!(
-            classify_package(&path, "tspec-build", Path::new(WS), false),
-            PackageKind::Lib
-        );
-    }
-
-    #[test]
-    fn classify_root_level_member_app_with_binary() {
-        let path = PathBuf::from("/workspace/pows-app");
-        assert_eq!(
-            classify_package(&path, "pows-app", Path::new(WS), true),
-            PackageKind::App
-        );
-    }
-
-    #[test]
-    fn classify_tool() {
-        let path = PathBuf::from("/workspace/tools/is-libc-used");
-        assert_eq!(
-            classify_package(&path, "is-libc-used", Path::new(WS), true),
-            PackageKind::Tool
-        );
-    }
-
-    #[test]
-    fn classify_test_by_path() {
-        let path = PathBuf::from("/workspace/libs/rlibc-x2/tests");
-        assert_eq!(
-            classify_package(&path, "rlibc-x2-tests", Path::new(WS), false),
-            PackageKind::Test
-        );
-    }
-
-    #[test]
-    fn classify_test_by_name() {
-        let path = PathBuf::from("/workspace/somewhere");
-        assert_eq!(
-            classify_package(&path, "foo-tests", Path::new(WS), false),
-            PackageKind::Test
-        );
-    }
-
-    #[test]
-    fn classify_build_tool_xt() {
-        let path = PathBuf::from("/workspace/xt");
-        assert_eq!(
-            classify_package(&path, "xt", Path::new(WS), false),
-            PackageKind::BuildTool
-        );
-    }
-
-    #[test]
-    fn classify_build_tool_xtask() {
-        let path = PathBuf::from("/workspace/xtask");
-        assert_eq!(
-            classify_package(&path, "xtask", Path::new(WS), false),
-            PackageKind::BuildTool
-        );
-    }
-
-    #[test]
-    fn classify_lib_under_tests_dir_not_misclassified() {
-        // A member under a "tests/fixtures/" path should NOT be classified
-        // as Test just because the absolute path contains "/tests"
-        let ws = Path::new("/project/tests/fixtures/pop-ws");
-        let path = PathBuf::from("/project/tests/fixtures/pop-ws/mylib");
-        assert_eq!(
-            classify_package(&path, "mylib", ws, false),
-            PackageKind::Lib
-        );
+    fn non_build_tool_names() {
+        assert!(!is_build_tool_name("tspec-build"));
+        assert!(!is_build_tool_name("my-app"));
+        assert!(!is_build_tool_name("xtask-macros"));
+        assert!(!is_build_tool_name("foo-tests"));
     }
 
     #[test]
@@ -269,7 +107,6 @@ mod tests {
         // This test works for both workspaces and POPs
         let info = WorkspaceInfo::discover();
         if let Ok(info) = info {
-            // Should have some members (at least 1 for POP, more for workspace)
             assert!(!info.members.is_empty());
 
             let buildable = info.buildable_members();
@@ -277,16 +114,10 @@ mod tests {
                 // POP: the single package should be buildable
                 assert_eq!(buildable.len(), 1);
             } else {
-                // Workspace: xt and xtask should be excluded from buildable
-                assert!(
-                    buildable
-                        .iter()
-                        .all(|m| m.name != "xt" && m.name != "xtask")
-                );
+                // Workspace: build tools should be excluded from buildable
+                assert!(buildable.iter().all(|m| !m.is_build_tool));
             }
 
-            // For workspaces with apps/, should have runnable members
-            // For POPs, the single package is runnable if it has a binary
             let _runnable = info.runnable_members();
             // Just verify it doesn't panic - count depends on project structure
         }
