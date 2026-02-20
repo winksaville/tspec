@@ -25,7 +25,8 @@
       "WebSearch",
       "Bash(git -C /home/wink/data/prgs/rust/tspec status)",
       "Bash(git checkout:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(find:*)"
     ]
   }
 }

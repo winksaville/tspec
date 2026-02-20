@@ -1,9 +1,9 @@
 # Todo
 
 ## In Progress
+- Add test fixtures (POP, POP+WS, POWS) and integration tests; first add --test/trailing args to tspec test [38]
 
 ## Todo
-- Add a permanent test workspace for integration testing (external repo or embedded?)
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -40,3 +40,4 @@ See older [done.md](done.md)
 [35]: chores-5.md#20260219---add-toolchain-field
 [37]: chores-5.md#20260219---cargoflags-pass--v-vv-j-through-to-cargo
 [36]: chores-5.md#20260219---unified-cargo-runner--verbose
+[38]: chores-6.md#20260219---test-infrastructure-fixture-workspaces-and-test-args
