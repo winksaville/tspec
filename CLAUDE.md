@@ -88,7 +88,7 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 ## Conventions
 
 - **Rust Edition:** 2024
-- **Commit style:** Conventional commits (feat:, docs:, refactor:). Append `, vX.Y.Z` to the subject when the commit sets a release version — e.g. `feat: Add glob support for -t, v0.11.3`. No "bump" — the version number speaks for itself.
+- **Commit style:** Conventional commits (feat:, docs:, refactor:). Follow the 50/72 rule: subject line under 50 chars, body wrapped at 72 (that's the limit, not a target — don't wrap prematurely). Append `, vX.Y.Z` to the subject only on release commits — e.g. `feat: Add glob support for -t, v0.11.3`. No version tags on intermediate `-devN` commits.
 - **Naming:** POP (Plain Old Package) refers to single-package projects (no workspace); tspec treats them as trivial workspaces
 - **Granularity:** tspec operates at the Cargo package level, not the crate level. "Package" = directory with Cargo.toml. A package may contain multiple crates (targets), but they all share one tspec.
 - **Package argument pattern:** All commands accept both `-p <name-or-path>` and a positional `<PACKAGE>` argument. Paths (like `.`) are resolved to the actual cargo package name via `resolve_package_arg()`. At a pure workspace root (no `[package]`), `.` resolves to None (all-packages mode). Resolution order: positional > `-p` > current directory > all packages.
