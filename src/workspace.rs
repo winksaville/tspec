@@ -112,10 +112,8 @@ impl WorkspaceInfo {
     }
 }
 
-/// Classify a package based on its path, name, and workspace root
+/// Classify a package based on its path relative to the workspace root.
 fn classify_package(path: &Path, name: &str, workspace_root: &Path) -> PackageKind {
-    let path_str = path.to_string_lossy();
-
     // Root package of a workspace is the main app
     if path == workspace_root {
         return PackageKind::App;
@@ -126,17 +124,24 @@ fn classify_package(path: &Path, name: &str, workspace_root: &Path) -> PackageKi
         return PackageKind::BuildTool;
     }
 
+    // Use path relative to workspace root for classification
+    // (absolute paths can contain misleading segments like tests/fixtures/)
+    let rel_str = path
+        .strip_prefix(workspace_root)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| path.to_string_lossy().into_owned());
+
     // Test packages
-    if path_str.contains("/tests") || name.ends_with("-tests") {
+    if rel_str.contains("/tests") || rel_str.ends_with("tests") || name.ends_with("-tests") {
         return PackageKind::Test;
     }
 
     // Categorize by directory
-    if path_str.contains("apps/") {
+    if rel_str.starts_with("apps/") {
         PackageKind::App
-    } else if path_str.contains("libs/") {
+    } else if rel_str.starts_with("libs/") {
         PackageKind::Lib
-    } else if path_str.contains("tools/") {
+    } else if rel_str.starts_with("tools/") {
         PackageKind::Tool
     } else {
         // Root-level members default to Lib
@@ -229,6 +234,15 @@ mod tests {
             classify_package(&path, "xtask", Path::new(WS)),
             PackageKind::BuildTool
         );
+    }
+
+    #[test]
+    fn classify_lib_under_tests_dir_not_misclassified() {
+        // A member under a "tests/fixtures/" path should NOT be classified
+        // as Test just because the absolute path contains "/tests"
+        let ws = Path::new("/project/tests/fixtures/pop-ws");
+        let path = PathBuf::from("/project/tests/fixtures/pop-ws/mylib");
+        assert_eq!(classify_package(&path, "mylib", ws), PackageKind::Lib);
     }
 
     #[test]

@@ -1,0 +1,8 @@
+# POP+WS root package spec
+panic = "abort"
+
+[cargo]
+profile = "release"
+
+[cargo.config.profile.release]
+opt-level = "z"
