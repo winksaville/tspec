@@ -4,6 +4,7 @@
 - Add test fixtures (POP, POP+WS, POWS) and integration tests; first add --test/trailing args to tspec test [38]
 
 ## Todo
+- Quiet single-test execution: capture cargo output and filter "running 0 tests" noise when running a specific test
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]

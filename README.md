@@ -275,9 +275,36 @@ Note: Use `ts` as the subcommand (short for "tspec management").
 ## Testing
 
 ```bash
-tspec test -p tspec           # Run tspec tests
-tspec test -p tspec-build     # Run tspec-build tests
+# Basic usage
+tspec test -p tspec                        # Run tspec tests
+tspec test -p tspec-build                  # Run tspec-build tests
+tspec test -w                              # Run all workspace tests
+
+# Filter by test function name (-n/--names, substring match, OR-matched)
+tspec test -p tspec -n flatten_config      # Run tests matching "flatten_config"
+tspec test -p tspec -n flatten config      # Run tests matching "flatten" OR "config"
+
+# Select test target (--test, basename of files in tests/ without .rs)
+tspec test --test tspec_test               # Run only tests/tspec_test.rs
+tspec test --test foo --test bar           # Run multiple test files
+tspec test --test tspec_test -n load_spec  # Combine: target + name filter
+
+# Discovery
+tspec test -p tspec --target-names         # List available names for --test
+tspec test -p tspec --list                 # List all test functions grouped by target
+tspec test -p tspec -n flatten --list      # List functions matching a name filter
+
+# Pass args to the test harness (after --)
+tspec test -- --ignored                    # Run only #[ignore] tests
+tspec test --test integration_test -- --ignored --nocapture  # Combined
 ```
+
+**Test flags:**
+- `-n, --names <FILTER>...` — match anywhere in the qualified test name (e.g., `-n remove` matches `ts_cmd::remove::tests::remove_by_index`; multiple filters are OR-matched)
+- `--test <TARGET-NAME>` — run only the named test target (the basename of a file in `tests/` without `.rs`; repeatable). In workspace mode, only packages containing the target are tested. Use `--target-names` to see available names
+- `--target-names` — list available target names for `--test`
+- `--list` / `-l` — list all test functions grouped by target
+- `-- <ARGS>` — pass trailing arguments to the test binary (e.g., `--ignored`, `--exact`, `--nocapture`)
 
 ## Project Structure
 

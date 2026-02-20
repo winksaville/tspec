@@ -37,6 +37,8 @@ pub struct CargoFlags {
     pub verbosity: Verbosity,
     /// Number of parallel jobs (-j N)
     pub jobs: Option<u16>,
+    /// Extra args appended to the cargo command (e.g., `["--test", "name", "--", "--ignored"]`)
+    pub extra_args: Vec<String>,
 }
 
 impl CargoFlags {
@@ -53,6 +55,9 @@ impl CargoFlags {
         }
         if let Some(j) = self.jobs {
             cmd.arg("-j").arg(j.to_string());
+        }
+        if !self.extra_args.is_empty() {
+            cmd.args(&self.extra_args);
         }
     }
 }

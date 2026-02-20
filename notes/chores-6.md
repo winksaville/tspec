@@ -14,8 +14,12 @@ Three project structures need test coverage:
 
 ### Plan
 
-**dev1:** Add `--test <NAME>` and trailing args (`-- <args>`) to `tspec test` so we can
-run integration tests via tspec itself: `tspec test -p tspec --test integration_test -- --ignored`
+**dev1:** Add test selection flags to `tspec test`:
+- `--test <TARGET>` (repeatable) — select specific test targets
+- `--names/-n <NAME>...` — filter tests by name (OR-matched substrings via test harness)
+- `--list/-l` — list test targets and functions (grouped with counts)
+- `-- <ARGS>` — pass trailing args to test binary (--ignored, --exact, etc.)
+All flow through `CargoFlags.extra_args` — no new parameters to `test_package()`/`run_cargo()`.
 
 **dev2:** POP fixture in `tests/fixtures/pop/` with copy-to-tmpdir helper and `#[ignore]` integration tests.
 

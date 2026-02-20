@@ -11,6 +11,7 @@ fn main() -> Result<ExitCode, anyhow::Error> {
     let flags = CargoFlags {
         verbosity: Verbosity::from_count(cli.verbose),
         jobs: cli.jobs,
+        extra_args: Vec::new(),
     };
 
     match cli.command {

@@ -275,7 +275,7 @@ pub fn run_cargo(
             cmd.env("RUSTFLAGS", new_flags);
         }
 
-        // Pass global flags through to cargo (-v/-vv, -j N, etc.)
+        // Pass global flags through to cargo (-v/-vv, -j N, extra args, etc.)
         flags.apply_to_command(&mut cmd);
 
         // -v: print command line and env vars
@@ -298,7 +298,7 @@ pub fn run_cargo(
             }
         }
 
-        // Pass global flags through to cargo (-v/-vv, -j N, etc.)
+        // Pass global flags through to cargo (-v/-vv, -j N, extra args, etc.)
         flags.apply_to_command(&mut cmd);
 
         // -v: print command line even without spec
