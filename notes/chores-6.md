@@ -53,4 +53,18 @@ All flow through `CargoFlags.extra_args` — no new parameters to `test_package(
 
 **Remaining:** dev3 (POP+WS fixture), dev4 (POWS fixture), release (v0.15.0)
 
+### Future: --manifest-path / --path flag
+
+Add a way to run tspec against a project without cd'ing into it. Cargo uses `--manifest-path <path/to/Cargo.toml>` (not `--path` — unclear why). We could follow cargo's convention (`--manifest-path`) or use `--path <dir>` for convenience. Would simplify integration tests and general usability. Not blocking dev2-dev4.
+
+### Documentation TODO
+
+Where and how to document the test fixtures (decide before release):
+- `README.md` — new `## Testing tspec` section documenting when/how to run integration tests
+- `tests/README.md` — purpose of the tests directory, overview of unit vs integration tests
+- `tests/fixtures/README.md` — purpose of fixtures, how copy_fixture() works
+- `tests/fixtures/pop/README.md` (and each fixture) — purpose of that specific fixture
+
+Open question: should the per-fixture READMEs be the "main" docs that README.md links to, or should README.md be self-contained with the READMEs as secondary?
+
 Full plan: `.claude/plans/enumerated-booping-curry.md`

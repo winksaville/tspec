@@ -1,0 +1,8 @@
+# POP fixture spec for integration testing
+panic = "abort"
+
+[cargo]
+profile = "release"
+
+[cargo.config.profile.release]
+opt-level = "z"

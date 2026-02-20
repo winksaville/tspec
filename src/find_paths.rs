@@ -45,6 +45,7 @@ pub fn get_package_name(crate_dir: &Path) -> Result<String> {
 /// Find the project root by looking for Cargo.toml with [workspace] or [package]
 /// For workspaces, returns the directory containing the workspace Cargo.toml
 /// For POPs (Plain Old Packages), returns the directory containing the package Cargo.toml
+/// Respects workspace `exclude` — a package inside an excluded path is treated as a POP.
 pub fn find_project_root() -> Result<PathBuf> {
     let mut dir = std::env::current_dir()?;
     let mut package_root: Option<PathBuf> = None;
@@ -53,8 +54,13 @@ pub fn find_project_root() -> Result<PathBuf> {
         let cargo_toml = dir.join("Cargo.toml");
         if cargo_toml.exists() {
             let content = std::fs::read_to_string(&cargo_toml)?;
-            // Workspace takes precedence
+            // Workspace takes precedence — unless the package we found is excluded
             if has_toml_section_exact(&content, "workspace") {
+                if let Some(ref pkg_root) = package_root
+                    && is_excluded_from_workspace(&content, &dir, pkg_root)
+                {
+                    return Ok(pkg_root.clone());
+                }
                 return Ok(dir);
             }
             // Remember the first (deepest) package we find as potential POP root
@@ -70,6 +76,47 @@ pub fn find_project_root() -> Result<PathBuf> {
             bail!("could not find project root (no Cargo.toml with [workspace] or [package])");
         }
     }
+}
+
+/// Check if a package directory is excluded from a workspace.
+/// `ws_content` is the workspace Cargo.toml content, `ws_dir` is the workspace root,
+/// and `pkg_dir` is the package directory to check.
+fn is_excluded_from_workspace(ws_content: &str, ws_dir: &Path, pkg_dir: &Path) -> bool {
+    let Ok(rel) = pkg_dir.strip_prefix(ws_dir) else {
+        return false;
+    };
+    let rel_str = rel.to_string_lossy();
+
+    // Parse workspace.exclude from the TOML
+    let Ok(doc) = ws_content.parse::<toml::Value>() else {
+        return false;
+    };
+    let Some(excludes) = doc
+        .get("workspace")
+        .and_then(|w| w.get("exclude"))
+        .and_then(|e| e.as_array())
+    else {
+        return false;
+    };
+
+    for exclude in excludes {
+        let Some(pattern) = exclude.as_str() else {
+            continue;
+        };
+        // Check if the package path starts with the exclude pattern
+        // e.g., exclude = ["tests/fixtures"] should match "tests/fixtures/pop"
+        if rel_str == pattern || rel_str.starts_with(&format!("{}/", pattern)) {
+            return true;
+        }
+        // Also try glob matching
+        if let Ok(glob) = Pattern::new(pattern)
+            && glob.matches(&rel_str)
+        {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Check if a project root is a POP (Plain Old Package) vs a workspace
@@ -894,5 +941,54 @@ version = "0.1.0"
         let spec = Spec::default();
         let path = get_binary_path(workspace, "myapp", &spec, None, Some("custom"));
         assert_eq!(path, PathBuf::from("/workspace/target/custom/debug/myapp"));
+    }
+
+    // ==================== is_excluded_from_workspace tests ====================
+
+    #[test]
+    fn excluded_exact_match() {
+        let ws_content = r#"
+[workspace]
+members = ["crates/foo"]
+exclude = ["tests/fixtures"]
+"#;
+        let ws_dir = Path::new("/project");
+        let pkg_dir = Path::new("/project/tests/fixtures");
+        assert!(is_excluded_from_workspace(ws_content, ws_dir, pkg_dir));
+    }
+
+    #[test]
+    fn excluded_nested_match() {
+        let ws_content = r#"
+[workspace]
+members = ["crates/foo"]
+exclude = ["tests/fixtures"]
+"#;
+        let ws_dir = Path::new("/project");
+        let pkg_dir = Path::new("/project/tests/fixtures/pop");
+        assert!(is_excluded_from_workspace(ws_content, ws_dir, pkg_dir));
+    }
+
+    #[test]
+    fn not_excluded_member() {
+        let ws_content = r#"
+[workspace]
+members = ["crates/foo"]
+exclude = ["tests/fixtures"]
+"#;
+        let ws_dir = Path::new("/project");
+        let pkg_dir = Path::new("/project/crates/foo");
+        assert!(!is_excluded_from_workspace(ws_content, ws_dir, pkg_dir));
+    }
+
+    #[test]
+    fn not_excluded_no_exclude_list() {
+        let ws_content = r#"
+[workspace]
+members = ["crates/foo"]
+"#;
+        let ws_dir = Path::new("/project");
+        let pkg_dir = Path::new("/project/crates/foo");
+        assert!(!is_excluded_from_workspace(ws_content, ws_dir, pkg_dir));
     }
 }
