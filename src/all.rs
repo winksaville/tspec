@@ -665,3 +665,88 @@ pub fn print_run_summary(name: &str, results: &[OpResult]) -> ExitCode {
         ExitCode::SUCCESS
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::ExitCode;
+
+    fn make_op(name: &str, success: bool, counts: Option<TestResult>) -> OpResult {
+        OpResult {
+            name: name.to_string(),
+            spec: String::new(),
+            success,
+            message: if success {
+                "ok".to_string()
+            } else {
+                "failed".to_string()
+            },
+            size: None,
+            test_counts: counts,
+        }
+    }
+
+    #[test]
+    fn test_summary_all_pass() {
+        let results = vec![
+            make_op(
+                "pkg-a",
+                true,
+                Some(TestResult {
+                    passed: 10,
+                    failed: 0,
+                    ignored: 0,
+                    filtered: 0,
+                }),
+            ),
+            make_op(
+                "pkg-b",
+                true,
+                Some(TestResult {
+                    passed: 5,
+                    failed: 0,
+                    ignored: 0,
+                    filtered: 0,
+                }),
+            ),
+        ];
+        let code = print_test_summary("test", &results);
+        assert_eq!(code, ExitCode::SUCCESS);
+    }
+
+    #[test]
+    fn test_summary_with_failure() {
+        let results = vec![
+            make_op(
+                "pkg-a",
+                true,
+                Some(TestResult {
+                    passed: 10,
+                    failed: 0,
+                    ignored: 0,
+                    filtered: 0,
+                }),
+            ),
+            make_op(
+                "pkg-b",
+                false,
+                Some(TestResult {
+                    passed: 1,
+                    failed: 2,
+                    ignored: 0,
+                    filtered: 0,
+                }),
+            ),
+        ];
+        let code = print_test_summary("test", &results);
+        assert_eq!(code, ExitCode::from(1));
+    }
+
+    #[test]
+    fn test_summary_no_counts() {
+        // Packages without test_counts (e.g., build failure before tests ran)
+        let results = vec![make_op("pkg-a", false, None)];
+        let code = print_test_summary("test", &results);
+        assert_eq!(code, ExitCode::from(1));
+    }
+}

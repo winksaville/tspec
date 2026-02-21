@@ -295,3 +295,92 @@ fn pows_tspec_dot_resolves_to_all_at_root() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+// ---------------------------------------------------------------------------
+// Fail fixture tests (run with `tspec test -- --ignored`)
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore]
+fn pop_fail_test_exits_nonzero() {
+    let (_tmp, project) = fixture::copy_fixture("pop-fail");
+
+    let output = Command::new(tspec_bin())
+        .args(["test", "."])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    assert!(
+        !output.status.success(),
+        "tspec test should fail but succeeded"
+    );
+}
+
+#[test]
+#[ignore]
+fn pop_fail_test_shows_failure_counts() {
+    let (_tmp, project) = fixture::copy_fixture("pop-fail");
+
+    let output = Command::new(tspec_bin())
+        .args(["test", "."])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // cargo test output should contain a FAILED result line with 1 failed
+    assert!(
+        stdout.contains("1 failed"),
+        "expected '1 failed' in stdout:\n{}",
+        stdout
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_fail_test_exits_nonzero() {
+    let (_tmp, project) = fixture::copy_fixture("pows-fail");
+
+    let output = Command::new(tspec_bin())
+        .args(["test"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    assert!(
+        !output.status.success(),
+        "tspec test should fail but succeeded"
+    );
+}
+
+#[test]
+#[ignore]
+fn pows_fail_test_summary_shows_mixed_results() {
+    let (_tmp, project) = fixture::copy_fixture("pows-fail");
+
+    let output = Command::new(tspec_bin())
+        .args(["test"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Summary should show per-package counts with mixed pass/fail
+    assert!(
+        stdout.contains("[PASS]"),
+        "expected [PASS] in summary:\n{}",
+        stdout
+    );
+    assert!(
+        stdout.contains("[FAIL]"),
+        "expected [FAIL] in summary:\n{}",
+        stdout
+    );
+    // Footer should show aggregate counts
+    assert!(
+        stdout.contains("passed") && stdout.contains("failed"),
+        "expected aggregate counts in footer:\n{}",
+        stdout
+    );
+}
