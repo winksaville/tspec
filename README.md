@@ -276,6 +276,14 @@ Note: Use `ts` as the subcommand (short for "tspec management").
 
 ## Testing
 
+**Important:** `tspec test` skips `#[ignore]`'d tests by default (same as `cargo test`). Use `--all-tests` to include them:
+
+```bash
+tspec test -p tspec                        # Run tspec tests (skips #[ignore]'d)
+tspec test -p tspec --all-tests            # Run ALL tests including #[ignore]'d
+tspec test --all-tests                     # Run all workspace tests including #[ignore]'d
+```
+
 ```bash
 # Basic usage
 tspec test -p tspec                        # Run tspec tests
@@ -295,17 +303,46 @@ tspec test --test tspec_test -n load_spec  # Combine: target + name filter
 tspec test -p tspec --target-names         # List available names for --test
 tspec test -p tspec --list                 # List all test functions grouped by target
 tspec test -p tspec -n flatten --list      # List functions matching a name filter
-
-# Target selection
-tspec test --test tspec_test               # Run only the tspec_test target
 ```
 
 **Test flags:**
+- `--all-tests` — include `#[ignore]`'d tests (equivalent to `-- --include-ignored`)
 - `-n, --names <FILTER>...` — match anywhere in the qualified test name (e.g., `-n remove` matches `ts_cmd::remove::tests::remove_by_index`; multiple filters are OR-matched)
 - `--test <TARGET-NAME>` — run only the named test target (the basename of a file in `tests/` without `.rs`; repeatable). In workspace mode, only packages containing the target are tested. Use `--target-names` to see available names
 - `--target-names` — list available target names for `--test`
 - `--list` / `-l` — list all test functions grouped by target
 - `-- <ARGS>` — pass trailing arguments to the test binary (e.g., `--ignored`, `--exact`, `--nocapture`)
+
+**Test summary** (workspace mode) shows per-package counts and an aggregate footer. Note the difference — without `--all-tests`, `#[ignore]`'d tests are skipped:
+
+```
+$ tspec test                               $ tspec test --all-tests
+============================================   ============================================
+             tspec TEST SUMMARY                             tspec TEST SUMMARY
+============================================   ============================================
+  Package      Status                           Package      Status
+  tspec-build  [PASS]  10 passed                tspec-build  [PASS]  10 passed
+  tspec        [PASS]  298 passed               tspec        [PASS]  302 passed
+
+  Test: 2 packages, 308 passed, 0 failed        Test: 2 packages, 312 passed, 0 failed
+============================================   ============================================
+```
+
+In single-package mode, tspec fails (exit 1) when 0 tests ran — this catches filter typos that silently pass. "Running 0 tests" noise blocks are suppressed from output.
+
+**Fail fixtures** for testing failure output are in `tests/fixtures/pop-fail/` and `tests/fixtures/pows-fail/`. These have intentionally failing tests and can be run manually:
+
+```bash
+cd tests/fixtures/pop-fail && tspec test .    # Single-package failure
+cd tests/fixtures/pows-fail && tspec test     # Workspace mixed pass/fail
+```
+
+Integration tests using fail fixtures are `#[ignore]`'d — run them with `--all-tests`:
+
+```bash
+tspec test --all-tests                     # Run everything including fail-fixture tests
+tspec test -- --ignored                    # Run ONLY the #[ignore]'d tests
+```
 
 ## Project Structure
 
@@ -321,6 +358,7 @@ tspec/                  # Workspace root (also the main tspec package)
     find_paths.rs       # Project/package/tspec/binary path discovery
     workspace.rs        # Workspace package discovery
     cargo_build.rs      # Unified cargo runner (build + test) + generated build.rs
+    tee.rs              # Tee utility: run command, print stdout live, collect matching lines
     run.rs              # Run command implementation
     compare.rs          # Compare command (size comparison)
     all.rs              # Batch operations (build_all, run_all, test_all, compare_all)
@@ -329,7 +367,14 @@ tspec/                  # Workspace root (also the main tspec package)
     binary.rs           # Binary operations (strip, size)
   tests/
     data/               # Test fixtures (TOML specs)
-    tspec_test.rs       # Integration tests
+    fixtures/           # Project fixtures for integration tests
+      pop/              # Plain Old Package
+      pop-ws/           # POP with embedded workspace
+      pows/             # Pure Old Workspace (no root package)
+      pop-fail/         # POP with failing tests
+      pows-fail/        # POWS with failing tests (mixed pass/fail)
+    integration_test.rs # Integration tests (fail-fixture tests are #[ignore]'d)
+    tspec_test.rs       # Spec loading tests
   tspec-build/          # Library crate for build.rs integration
     src/lib.rs          # Reads TSPEC_SPEC_FILE env var at build time
   notes/                # Design docs and todo tracking

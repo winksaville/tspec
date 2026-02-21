@@ -112,6 +112,9 @@ pub struct TestCmd {
     /// Run only the named test target (use --target-names to see available names; repeatable)
     #[arg(long = "test", value_name = "TARGET-NAME")]
     pub test_target: Vec<String>,
+    /// Include #[ignore]'d tests (equivalent to -- --include-ignored)
+    #[arg(long = "all-tests")]
+    pub all_tests: bool,
     /// Extra arguments passed after -- to the test binary (e.g., --ignored)
     #[arg(last = true)]
     pub test_args: Vec<String>,
@@ -151,21 +154,25 @@ impl Execute for TestCmd {
             return list_tests(resolved.as_deref(), &self.name_filter, flags);
         }
 
-        // Build extra_args from --names, --test, and trailing args
+        // Build extra_args from --names, --test, --all-tests, and trailing args
         let has_extra = !self.name_filter.is_empty()
             || !self.test_target.is_empty()
-            || !self.test_args.is_empty();
+            || !self.test_args.is_empty()
+            || self.all_tests;
         let flags = if has_extra {
             let mut f = flags.clone();
             for target in &self.test_target {
                 f.extra_args.push("--test".to_string());
                 f.extra_args.push(target.clone());
             }
-            // Name filters and test_args both go after --
+            // Name filters, --all-tests, and test_args all go after --
             // The test harness accepts [FILTERS...] as OR-matched substrings
-            if !self.name_filter.is_empty() || !self.test_args.is_empty() {
+            if !self.name_filter.is_empty() || !self.test_args.is_empty() || self.all_tests {
                 f.extra_args.push("--".to_string());
                 f.extra_args.extend(self.name_filter.clone());
+                if self.all_tests {
+                    f.extra_args.push("--include-ignored".to_string());
+                }
                 f.extra_args.extend(self.test_args.clone());
             }
             f
@@ -588,6 +595,18 @@ mod tests {
         assert_eq!(cmd.package.as_deref(), Some("tspec"));
         assert_eq!(cmd.test_target, vec!["integration_test"]);
         assert_eq!(cmd.test_args, vec!["--ignored"]);
+    }
+
+    #[test]
+    fn all_tests_flag() {
+        let cmd = parse(&["--all-tests"]);
+        assert!(cmd.all_tests);
+    }
+
+    #[test]
+    fn all_tests_default_false() {
+        let cmd = parse(&[]);
+        assert!(!cmd.all_tests);
     }
 
     #[test]
