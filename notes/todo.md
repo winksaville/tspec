@@ -1,12 +1,10 @@
 # Todo
 
 ## In Progress
+- Parse cargo test output: warn/fail on 0 tests ran, show per-package test counts in summary, filter "running 0 tests" noise [41]
 
 ## Todo
 - Add `--manifest-path` / `--path` flag so tspec can operate on a project without cd'ing into it [39]
-- Warn or fail when 0 tests ran — cargo considers it success but it's almost always a mistake (typo in filter, wrong --test target)
-- Show individual test counts in summary (parse cargo's `test result:` lines, aggregate across packages)
-- Quiet single-test execution: capture cargo output and filter "running 0 tests" noise when running a specific test
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -46,3 +44,4 @@ See older [done.md](done.md)
 [40]: chores-6.md#20260220---remove-classify_package-and-packagekind
 [38]: chores-6.md#20260219---test-infrastructure-fixture-workspaces-and-test-args
 [39]: chores-6.md#future-manifest-path--path-flag
+[41]: chores-6.md#20260220---parse-cargo-test-output-for-counts-and-filtering

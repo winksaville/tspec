@@ -1,5 +1,34 @@
 # Chores 6
 
+## 20260220 - Parse cargo test output for counts and filtering
+
+### Problem
+
+`tspec test` streams cargo output live but has no insight into what
+happened. The summary shows only `[PASS]`/`[FAIL]` per package with
+no test counts. Worse, 0 tests running reports as success — a filter
+typo silently passes. And `--test <target>` emits noisy "running 0
+tests" blocks for non-matching targets within a package.
+
+### Solution
+
+Tee stdout line-by-line (live output + selective capture), parse
+cargo's `test result:` lines for counts, and surface them:
+
+- Per-package counts in summary: `[PASS]  263 passed`
+- Aggregate footer: `Test: 2 packages, 279 passed, 0 failed`
+- Fail (exit 1) when 0 tests ran across all packages
+- Filter "running 0 tests" noise
+
+Infrastructure in a reusable `tee.rs` module so future commands
+(build warnings, benchmarks) can use the same pattern.
+
+### Plan
+
+- **dev1:** tee.rs + TestResult + parse_test_result_line + wire into
+  run_cargo for test mode. No visible behavior change.
+- **dev2:** Summary counts, 0-test failure, noise filtering.
+
 ## 20260220 - Remove classify_package and PackageKind
 
 ### Context

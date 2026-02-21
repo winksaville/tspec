@@ -4,7 +4,7 @@ exclude = ["tests/fixtures"]
 
 [package]
 name = "tspec"
-version = "0.15.2"
+version = "0.15.3-dev0"
 edition = "2024"
 description = "Translation spec based build system"
 authors = ["Wink Saville <wink@saville.com>, Claude Opus 4.6 <noreply@anthropic.com>"]
