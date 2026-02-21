@@ -12,11 +12,10 @@ fn tspec_bin() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// POP fixture tests (run with: tspec test --test integration_test -- --ignored)
+// POP fixture tests
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore]
 fn pop_spec_loads_correctly() {
     let (_tmp, project) = fixture::copy_fixture("pop");
     let spec_path = project.join("tspec.ts.toml");
@@ -27,7 +26,6 @@ fn pop_spec_loads_correctly() {
 }
 
 #[test]
-#[ignore]
 fn pop_cargo_build_succeeds() {
     let (_tmp, project) = fixture::copy_fixture("pop");
 
@@ -45,7 +43,6 @@ fn pop_cargo_build_succeeds() {
 }
 
 #[test]
-#[ignore]
 fn pop_tspec_build_succeeds() {
     let (_tmp, project) = fixture::copy_fixture("pop");
 
@@ -63,7 +60,6 @@ fn pop_tspec_build_succeeds() {
 }
 
 #[test]
-#[ignore]
 fn pop_tspec_compare_succeeds() {
     let (_tmp, project) = fixture::copy_fixture("pop");
 
@@ -97,7 +93,6 @@ fn pop_tspec_compare_succeeds() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore]
 fn pop_ws_spec_loads_correctly() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
     let spec_path = project.join("tspec.ts.toml");
@@ -108,7 +103,6 @@ fn pop_ws_spec_loads_correctly() {
 }
 
 #[test]
-#[ignore]
 fn pop_ws_cargo_build_succeeds() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
 
@@ -126,7 +120,6 @@ fn pop_ws_cargo_build_succeeds() {
 }
 
 #[test]
-#[ignore]
 fn pop_ws_tspec_build_root_package() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
 
@@ -144,7 +137,6 @@ fn pop_ws_tspec_build_root_package() {
 }
 
 #[test]
-#[ignore]
 fn pop_ws_tspec_build_member_by_name() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
 
@@ -162,7 +154,6 @@ fn pop_ws_tspec_build_member_by_name() {
 }
 
 #[test]
-#[ignore]
 fn pop_ws_tspec_build_all() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
 
@@ -180,7 +171,6 @@ fn pop_ws_tspec_build_all() {
 }
 
 #[test]
-#[ignore]
 fn pop_ws_tspec_build_from_member_dir() {
     let (_tmp, project) = fixture::copy_fixture("pop-ws");
 
@@ -202,7 +192,6 @@ fn pop_ws_tspec_build_from_member_dir() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore]
 fn pows_cargo_build_succeeds() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 
@@ -220,7 +209,6 @@ fn pows_cargo_build_succeeds() {
 }
 
 #[test]
-#[ignore]
 fn pows_tspec_build_all_from_root() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 
@@ -239,7 +227,6 @@ fn pows_tspec_build_all_from_root() {
 }
 
 #[test]
-#[ignore]
 fn pows_tspec_build_member_by_name() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 
@@ -257,7 +244,6 @@ fn pows_tspec_build_member_by_name() {
 }
 
 #[test]
-#[ignore]
 fn pows_tspec_test_all_from_root() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 
@@ -275,7 +261,6 @@ fn pows_tspec_test_all_from_root() {
 }
 
 #[test]
-#[ignore]
 fn pows_tspec_build_from_member_dir() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 
@@ -293,7 +278,6 @@ fn pows_tspec_build_from_member_dir() {
 }
 
 #[test]
-#[ignore]
 fn pows_tspec_dot_resolves_to_all_at_root() {
     let (_tmp, project) = fixture::copy_fixture("pows");
 

@@ -296,9 +296,8 @@ tspec test -p tspec --target-names         # List available names for --test
 tspec test -p tspec --list                 # List all test functions grouped by target
 tspec test -p tspec -n flatten --list      # List functions matching a name filter
 
-# Pass args to the test harness (after --)
-tspec test -- --ignored                    # Run only #[ignore] tests
-tspec test --test integration_test -- --ignored --nocapture  # Combined
+# Target selection
+tspec test --test tspec_test               # Run only the tspec_test target
 ```
 
 **Test flags:**

@@ -4,6 +4,8 @@
 
 ## Todo
 - Add `--manifest-path` / `--path` flag so tspec can operate on a project without cd'ing into it [39]
+- Warn or fail when 0 tests ran — cargo considers it success but it's almost always a mistake (typo in filter, wrong --test target)
+- Show individual test counts in summary (parse cargo's `test result:` lines, aggregate across packages)
 - Quiet single-test execution: capture cargo output and filter "running 0 tests" noise when running a specific test
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
@@ -14,7 +16,7 @@
 
 See older [done.md](done.md)
 
-- Remove `classify_package`/`PackageKind`; replace with `is_build_tool` bool [40]
+- Remove `classify_package`/`PackageKind` and `is_build_tool`; simplify workspace to just members [40]
 - Add test fixtures (POP, POP+WS, POWS) and integration tests; add --test/trailing args to tspec test [38]
 - Pass `-v`/`-vv`/`-j N` through to cargo via `CargoFlags` struct [37]
 - Unified cargo runner + `--verbose`/`-v`/`-vv` support [36]

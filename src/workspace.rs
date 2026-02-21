@@ -1,7 +1,6 @@
 //! Workspace discovery
 //!
-//! Uses `cargo metadata` to discover workspace members and determine
-//! which are build tools (excluded from batch operations by default).
+//! Uses `cargo metadata` to discover workspace members.
 
 use anyhow::{Context, Result};
 use cargo_metadata::MetadataCommand;
@@ -13,7 +12,6 @@ pub struct PackageMember {
     pub name: String,
     pub path: PathBuf,
     pub has_binary: bool,
-    pub is_build_tool: bool,
 }
 
 /// Workspace information from cargo metadata
@@ -56,7 +54,6 @@ impl WorkspaceInfo {
                     name: pkg.name.clone(),
                     path,
                     has_binary,
-                    is_build_tool: is_build_tool_name(&pkg.name),
                 }
             })
             .collect();
@@ -64,43 +61,20 @@ impl WorkspaceInfo {
         Ok(WorkspaceInfo { root, members })
     }
 
-    /// Get members excluding build tools such as xtask or tspec
+    /// Get all workspace members
     pub fn buildable_members(&self) -> Vec<&PackageMember> {
-        self.members.iter().filter(|m| !m.is_build_tool).collect()
+        self.members.iter().collect()
     }
 
-    /// Get members that can be run (have binaries and are not build tools)
+    /// Get members that have binaries
     pub fn runnable_members(&self) -> Vec<&PackageMember> {
-        self.members
-            .iter()
-            .filter(|m| m.has_binary && !m.is_build_tool)
-            .collect()
+        self.members.iter().filter(|m| m.has_binary).collect()
     }
-}
-
-/// Check if a package name is a build tool (excluded from batch operations).
-fn is_build_tool_name(name: &str) -> bool {
-    matches!(name, "tspec" | "xt" | "xtask")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn build_tool_names() {
-        assert!(is_build_tool_name("tspec"));
-        assert!(is_build_tool_name("xt"));
-        assert!(is_build_tool_name("xtask"));
-    }
-
-    #[test]
-    fn non_build_tool_names() {
-        assert!(!is_build_tool_name("tspec-build"));
-        assert!(!is_build_tool_name("my-app"));
-        assert!(!is_build_tool_name("xtask-macros"));
-        assert!(!is_build_tool_name("foo-tests"));
-    }
 
     #[test]
     fn discover_works() {
@@ -109,14 +83,8 @@ mod tests {
         if let Ok(info) = info {
             assert!(!info.members.is_empty());
 
-            let buildable = info.buildable_members();
-            if info.members.len() == 1 {
-                // POP: the single package should be buildable
-                assert_eq!(buildable.len(), 1);
-            } else {
-                // Workspace: build tools should be excluded from buildable
-                assert!(buildable.iter().all(|m| !m.is_build_tool));
-            }
+            // All members should be buildable
+            assert_eq!(info.buildable_members().len(), info.members.len());
 
             let _runnable = info.runnable_members();
             // Just verify it doesn't panic - count depends on project structure

@@ -14,11 +14,11 @@ from batch operations.
 
 **`src/workspace.rs`:**
 - Removed `PackageKind` enum (5 variants) and `classify_package()` fn
-- Removed `test_members()` method
-- Replaced `kind: PackageKind` with `is_build_tool: bool` on `PackageMember`
-- Added `is_build_tool_name()` — checks tspec/xt/xtask
-- Updated `discover()`, `buildable_members()`, `runnable_members()`
-- Replaced 11 classify tests with 2 `is_build_tool_name` tests
+- Removed `test_members()` method and `is_build_tool` field
+- `PackageMember` now has only `name`, `path`, `has_binary`
+- `buildable_members()` returns all members (no exclusions)
+- `runnable_members()` returns all members with binaries
+- Replaced 11 classify tests with 1 `discover_works` test
 
 **`src/all.rs`:**
 - Removed `PackageKind`, `PermissionsExt` imports
@@ -26,13 +26,23 @@ from batch operations.
   test-binary-discovery block from `test_all()`
 - `test_all()` now just iterates `buildable_members()` + `test_package()`
 
+**`tests/integration_test.rs`:**
+- Removed `#[ignore]` from all 16 integration tests — they run
+  by default now since they're fast and anyone running `tspec test`
+  has the full toolchain
+
+### Rationale for removing is_build_tool
+
+The `xt`/`xtask` exclusions were vestigial from the rlibc-x workspace.
+Excluding `tspec` from its own `tspec test` was counterproductive —
+`tspec test` only showed tspec-build in the summary. No workspace
+layout opinions should be baked into tspec.
+
 ### Behavioral changes
 
-- `runnable_members()` returns any non-build-tool with a binary
-  (was: only `App` kind)
-- Test packages formerly getting special binary-discovery handling
-  now get normal `cargo test`
-- Neither change affects this repo
+- `tspec test` (all-packages mode) now includes all workspace members
+- `runnable_members()` returns any member with a binary (no exclusions)
+- Integration tests run by default (no `-- --ignored` needed)
 
 ## 20260219 - Test infrastructure: fixture workspaces and test args
 
