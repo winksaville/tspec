@@ -1,7 +1,6 @@
 # Todo
 
 ## In Progress
-- Parse cargo test output: warn/fail on 0 tests ran, show per-package test counts in summary, filter "running 0 tests" noise [41]
 
 ## Todo
 - Add `--manifest-path` / `--path` flag so tspec can operate on a project without cd'ing into it [39]
@@ -14,6 +13,7 @@
 
 See older [done.md](done.md)
 
+- Parse cargo test output: per-package counts in summary, 0-test guard, noise filtering, fail fixtures [41]
 - Remove `classify_package`/`PackageKind` and `is_build_tool`; simplify workspace to just members [40]
 - Add test fixtures (POP, POP+WS, POWS) and integration tests; add --test/trailing args to tspec test [38]
 - Pass `-v`/`-vv`/`-j N` through to cargo via `CargoFlags` struct [37]
