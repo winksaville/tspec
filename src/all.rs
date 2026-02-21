@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::{build_package, test_package};
+use crate::cmd::{TestResult, parse_test_results};
 use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
@@ -88,6 +89,7 @@ pub struct OpResult {
     pub success: bool,
     pub message: String,
     pub size: Option<u64>,
+    pub test_counts: Option<TestResult>,
 }
 
 /// Build all workspace packages (excluding build tools)
@@ -145,6 +147,7 @@ pub fn build_all(
                         success: true,
                         message: format!("{}", build_result.binary_path.display()),
                         size,
+                        test_counts: None,
                     }
                 }
                 Err(e) => OpResult {
@@ -153,6 +156,7 @@ pub fn build_all(
                     success: false,
                     message: e.to_string(),
                     size: None,
+                    test_counts: None,
                 },
             };
 
@@ -219,6 +223,7 @@ pub fn run_all(
                             success: true,
                             message: format!("exit code: {}", exit_code),
                             size: None,
+                            test_counts: None,
                         },
                         Err(e) => OpResult {
                             name: member.name.clone(),
@@ -226,6 +231,7 @@ pub fn run_all(
                             success: false,
                             message: format!("run failed: {}", e),
                             size: None,
+                            test_counts: None,
                         },
                     }
                 }
@@ -235,6 +241,7 @@ pub fn run_all(
                     success: false,
                     message: format!("build failed: {}", e),
                     size: None,
+                    test_counts: None,
                 },
             };
 
@@ -285,19 +292,24 @@ pub fn test_all(
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
             let result = match test_package(&member.name, tspec.as_deref(), cli_profile, flags) {
-                Ok(_result_lines) => OpResult {
-                    name: member.name.clone(),
-                    spec,
-                    success: true,
-                    message: "ok".to_string(),
-                    size: None,
-                },
+                Ok(result_lines) => {
+                    let counts = parse_test_results(&result_lines);
+                    OpResult {
+                        name: member.name.clone(),
+                        spec,
+                        success: true,
+                        message: "ok".to_string(),
+                        size: None,
+                        test_counts: Some(counts),
+                    }
+                }
                 Err(e) => OpResult {
                     name: member.name.clone(),
                     spec,
                     success: false,
                     message: e.to_string(),
                     size: None,
+                    test_counts: None,
                 },
             };
 
@@ -390,18 +402,29 @@ fn print_summary_table(
 
 /// Print a summary of operation results (for tests)
 pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
-    let mut passed = 0;
-    let mut failed = 0;
+    let mut pkg_passed = 0;
+    let mut pkg_failed = 0;
+    let mut total = TestResult::default();
 
     let rows: Vec<SummaryRow> = results
         .iter()
         .map(|r| {
             let detail = if r.success {
-                passed += 1;
-                "[PASS]".to_string()
+                pkg_passed += 1;
+                if let Some(counts) = &r.test_counts {
+                    total.merge(counts);
+                    format!("[PASS]  {} passed", counts.passed)
+                } else {
+                    "[PASS]".to_string()
+                }
             } else {
-                failed += 1;
-                "[FAIL]".to_string()
+                pkg_failed += 1;
+                if let Some(counts) = &r.test_counts {
+                    total.merge(counts);
+                    format!("[FAIL]  {} failed", counts.failed)
+                } else {
+                    "[FAIL]".to_string()
+                }
             };
             SummaryRow {
                 name: r.name.clone(),
@@ -411,15 +434,15 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
         })
         .collect();
 
-    print_summary_table(
-        name,
-        "TEST",
-        "Status",
-        &rows,
-        &format!("Test: {passed} passed, {failed} failed"),
+    let pkg_count = pkg_passed + pkg_failed;
+    let footer = format!(
+        "Test: {} packages, {} passed, {} failed",
+        pkg_count, total.passed, total.failed
     );
 
-    if failed > 0 {
+    print_summary_table(name, "TEST", "Status", &rows, &footer);
+
+    if pkg_failed > 0 {
         ExitCode::from(1)
     } else {
         ExitCode::SUCCESS
@@ -525,6 +548,7 @@ pub fn compare_all(
                     success: true,
                     message: "ok".to_string(),
                     size: None,
+                    test_counts: None,
                 },
                 spec_results,
             ),
@@ -535,6 +559,7 @@ pub fn compare_all(
                     success: false,
                     message: e.to_string(),
                     size: None,
+                    test_counts: None,
                 },
                 Vec::new(),
             ),

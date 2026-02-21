@@ -1,0 +1,448 @@
+/home/wink/data/prgs/rust/tspec/src/binary.rs-11-
+src/binary.rs-12-    let status = Command::new("strip")
+/home/wink/data/prgs/rust/tspec/src/binary.rs-13-        .arg(path)
+src/binary.rs:14:        .status()
+/home/wink/data/prgs/rust/tspec/src/binary.rs-15-        .context("failed to run strip")?;
+/home/wink/data/prgs/rust/tspec/src/binary.rs-16-
+/home/wink/data/prgs/rust/tspec/src/binary.rs-17-    if !status.success() {
+--
+src/main.rs-1-use clap::Parser;
+src/main.rs:2:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/main.rs-3-
+src/main.rs-4-use tspec::cli::{Cli, Commands};
+src/main.rs-5-use tspec::cmd::Execute;
+src/main.rs-6-use tspec::find_paths::find_project_root;
+src/main.rs-7-use tspec::types::{CargoFlags, Verbosity};
+/home/wink/data/prgs/rust/tspec/src/main.rs-8-
+src/main.rs:9:fn main() -> Result<ExitCode, anyhow::Error> {
+src/main.rs-10-    let cli = Cli::parse();
+/home/wink/data/prgs/rust/tspec/src/main.rs-11-    let flags = CargoFlags {
+src/main.rs-12-        verbosity: Verbosity::from_count(cli.verbose),
+--
+/home/wink/data/prgs/rust/tspec/src/main.rs-47-        }
+/home/wink/data/prgs/rust/tspec/src/main.rs-48-    }
+/home/wink/data/prgs/rust/tspec/src/main.rs-49-
+src/main.rs:50:    Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/main.rs-51-}
+--
+/home/wink/data/prgs/rust/tspec/src/run.rs-7-    println!("Running {}", binary_path.display());
+src/run.rs-8-    let status = Command::new(binary_path)
+/home/wink/data/prgs/rust/tspec/src/run.rs-9-        .args(args)
+src/run.rs:10:        .status()
+/home/wink/data/prgs/rust/tspec/src/run.rs-11-        .with_context(|| format!("failed to run {}", binary_path.display()))?;
+/home/wink/data/prgs/rust/tspec/src/run.rs-12-
+/home/wink/data/prgs/rust/tspec/src/run.rs-13-    Ok(status.code().unwrap_or(1))
+--
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-135-/// Handles spec loading, build.rs generation, command construction, and cleanup.
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-136-/// `cli_profile` is the profile from the CLI (e.g., "release", "release-small").
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-137-/// `None` means debug (default). `Some("release")` is equivalent to `--release`.
+src/cargo_build.rs:138:pub fn run_cargo(
+src/cargo_build.rs-139-    mode: CargoMode,
+src/cargo_build.rs-140-    pkg_name: &str,
+src/cargo_build.rs-141-    tspec: Option<&str>,
+--
+src/cargo_build.rs-281-        / -v: print command line and env vars
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-282-        print_verbose_command(&cmd, verbosity);
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-283-
+src/cargo_build.rs:284:        cmd.status()
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-285-            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-286-    } else {
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-287-        println!("{} {} (no tspec)", verb, pkg_name);
+--
+src/cargo_build.rs-304-        / -v: print command line even without spec
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-305-        print_verbose_command(&cmd, verbosity);
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-306-
+src/cargo_build.rs:307:        cmd.status()
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-308-            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-309-    };
+/home/wink/data/prgs/rust/tspec/src/cargo_build.rs-310-
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-2-//!
+/home/wink/data/prgs/rust/tspec/src/all.rs-3-//! Provides build_all, run_all, test_all for operating on all workspace members.
+/home/wink/data/prgs/rust/tspec/src/all.rs-4-
+src/all.rs:5:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/all.rs-6-
+src/all.rs-7-use std::path::{Path, PathBuf};
+/home/wink/data/prgs/rust/tspec/src/all.rs-8-
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-389-}
+/home/wink/data/prgs/rust/tspec/src/all.rs-390-
+/home/wink/data/prgs/rust/tspec/src/all.rs-391-/// Print a summary of operation results (for tests)
+src/all.rs:392:pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
+/home/wink/data/prgs/rust/tspec/src/all.rs-393-    let mut passed = 0;
+/home/wink/data/prgs/rust/tspec/src/all.rs-394-    let mut failed = 0;
+/home/wink/data/prgs/rust/tspec/src/all.rs-395-
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-420-    );
+/home/wink/data/prgs/rust/tspec/src/all.rs-421-
+/home/wink/data/prgs/rust/tspec/src/all.rs-422-    if failed > 0 {
+src/all.rs:423:        ExitCode::from(1)
+/home/wink/data/prgs/rust/tspec/src/all.rs-424-    } else {
+src/all.rs:425:        ExitCode::SUCCESS
+/home/wink/data/prgs/rust/tspec/src/all.rs-426-    }
+/home/wink/data/prgs/rust/tspec/src/all.rs-427-}
+/home/wink/data/prgs/rust/tspec/src/all.rs-428-
+/home/wink/data/prgs/rust/tspec/src/all.rs-429-/// Print a summary for build operations (OK/FAILED)
+src/all.rs:430:pub fn print_summary(name: &str, results: &[OpResult]) -> ExitCode {
+/home/wink/data/prgs/rust/tspec/src/all.rs-431-    let mut ok_count = 0;
+/home/wink/data/prgs/rust/tspec/src/all.rs-432-    let mut failed_count = 0;
+/home/wink/data/prgs/rust/tspec/src/all.rs-433-
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-459-    );
+/home/wink/data/prgs/rust/tspec/src/all.rs-460-
+/home/wink/data/prgs/rust/tspec/src/all.rs-461-    if failed_count > 0 {
+src/all.rs:462:        ExitCode::from(1)
+/home/wink/data/prgs/rust/tspec/src/all.rs-463-    } else {
+src/all.rs:464:        ExitCode::SUCCESS
+/home/wink/data/prgs/rust/tspec/src/all.rs-465-    }
+/home/wink/data/prgs/rust/tspec/src/all.rs-466-}
+/home/wink/data/prgs/rust/tspec/src/all.rs-467-
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-555-///
+/home/wink/data/prgs/rust/tspec/src/all.rs-556-/// With a single package, just prints its comparison table.
+/home/wink/data/prgs/rust/tspec/src/all.rs-557-/// With multiple packages, reprints all per-package tables then an overall OK/FAIL summary.
+src/all.rs:558:pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode {
+/home/wink/data/prgs/rust/tspec/src/all.rs-559-    let has_failure = results.iter().any(|r| !r.op.success);
+/home/wink/data/prgs/rust/tspec/src/all.rs-560-
+/home/wink/data/prgs/rust/tspec/src/all.rs-561-    // Reprint per-package comparison tables together
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-598-    }
+/home/wink/data/prgs/rust/tspec/src/all.rs-599-
+/home/wink/data/prgs/rust/tspec/src/all.rs-600-    if has_failure {
+src/all.rs:601:        ExitCode::from(1)
+/home/wink/data/prgs/rust/tspec/src/all.rs-602-    } else {
+src/all.rs:603:        ExitCode::SUCCESS
+/home/wink/data/prgs/rust/tspec/src/all.rs-604-    }
+/home/wink/data/prgs/rust/tspec/src/all.rs-605-}
+/home/wink/data/prgs/rust/tspec/src/all.rs-606-
+/home/wink/data/prgs/rust/tspec/src/all.rs-607-/// Print a summary for run operations (shows exit codes, not pass/fail)
+src/all.rs:608:pub fn print_run_summary(name: &str, results: &[OpResult]) -> ExitCode {
+/home/wink/data/prgs/rust/tspec/src/all.rs-609-    let mut error_count = 0;
+/home/wink/data/prgs/rust/tspec/src/all.rs-610-
+src/all.rs-611-    let rows: Vec<SummaryRow> = results
+--
+/home/wink/data/prgs/rust/tspec/src/all.rs-635-    print_summary_table(name, "RUN", "Exit", &rows, &footer);
+/home/wink/data/prgs/rust/tspec/src/all.rs-636-
+/home/wink/data/prgs/rust/tspec/src/all.rs-637-    if error_count > 0 {
+src/all.rs:638:        ExitCode::from(1)
+/home/wink/data/prgs/rust/tspec/src/all.rs-639-    } else {
+src/all.rs:640:        ExitCode::SUCCESS
+/home/wink/data/prgs/rust/tspec/src/all.rs-641-    }
+/home/wink/data/prgs/rust/tspec/src/all.rs-642-}
+--
+src/cmd/compare.rs-1-use anyhow::Result;
+src/cmd/compare.rs-2-use clap::Args;
+src/cmd/compare.rs-3-use std::path::Path;
+src/cmd/compare.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-5-
+src/cmd/compare.rs-6-use super::{Execute, current_package_name, resolve_package_arg};
+src/cmd/compare.rs-7-use crate::all::{compare_all, print_compare_summary};
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-31-}
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-32-
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-33-impl Execute for CompareCmd {
+src/cmd/compare.rs:34:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+src/cmd/compare.rs-35-        / Resolve package: --workspace > -p/positional PKG > cwd > all
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-36-        let resolved = if self.workspace {
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-37-            None
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-58-                };
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-59-                let results = compare_specs(&pkg_name, &spec_paths, flags)?;
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-60-                print_comparison(&pkg_name, &results);
+src/cmd/compare.rs:61:                Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-62-            }
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-63-        }
+/home/wink/data/prgs/rust/tspec/src/cmd/compare.rs-64-    }
+--
+src/cmd/mod.rs-23-use anyhow::{Context, Result, bail};
+src/cmd/mod.rs-24-use std::ffi::OsString;
+src/cmd/mod.rs-25-use std::path::Path;
+src/cmd/mod.rs:26:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-27-
+src/cmd/mod.rs-28-use crate::find_paths::{find_package_dir, find_project_root, get_package_name, is_pop};
+src/cmd/mod.rs-29-use crate::types::CargoFlags;
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-30-
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-31-/// Trait for command execution.
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-32-pub trait Execute {
+src/cmd/mod.rs:33:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode>;
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-34-}
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-35-
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-36-/// Resolve a `-p` argument (path or name) to the actual cargo package name.
+--
+src/cmd/mod.rs-51-    args: &[OsString],
+src/cmd/mod.rs-52-    project_root: &Path,
+src/cmd/mod.rs-53-    flags: &CargoFlags,
+src/cmd/mod.rs:54:) -> Result<ExitCode> {
+src/cmd/mod.rs-55-    let mut cmd = std::process::Command::new("cargo");
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-56-    cmd.arg(subcommand);
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-57-    cmd.args(args);
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-58-    flags.apply_to_command(&mut cmd);
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-59-    cmd.current_dir(project_root);
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-60-    let status = cmd
+src/cmd/mod.rs:61:        .status()
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-62-        .with_context(|| format!("failed to run cargo {}", subcommand))?;
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-63-    if status.success() {
+src/cmd/mod.rs:64:        Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-65-    } else {
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-66-        bail!("cargo {} failed", subcommand);
+/home/wink/data/prgs/rust/tspec/src/cmd/mod.rs-67-    }
+--
+src/cmd/version.rs-1-use anyhow::Result;
+src/cmd/version.rs-2-use clap::Args;
+src/cmd/version.rs-3-use std::path::Path;
+src/cmd/version.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-5-
+src/cmd/version.rs-6-use super::Execute;
+src/cmd/version.rs-7-use crate::types::CargoFlags;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-11-pub struct VersionCmd;
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-12-
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-13-impl Execute for VersionCmd {
+src/cmd/version.rs:14:    fn execute(&self, _project_root: &Path, _flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-15-        println!("tspec {}", env!("CARGO_PKG_VERSION"));
+src/cmd/version.rs:16:        Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-17-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/version.rs-18-}
+--
+src/cmd/ts.rs-1-use anyhow::Result;
+src/cmd/ts.rs-2-use clap::{Args, Subcommand};
+src/cmd/ts.rs-3-use std::path::Path;
+src/cmd/ts.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-5-
+src/cmd/ts.rs-6-use super::Execute;
+src/cmd/ts.rs-7-use crate::ts_cmd;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-144-}
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-145-
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-146-impl Execute for TsCmd {
+src/cmd/ts.rs:147:    fn execute(&self, project_root: &Path, _flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-148-        match &self.command {
+src/cmd/ts.rs-149-            TsCommands::List { package, all } => {
+src/cmd/ts.rs-150-                ts_cmd::list_tspecs(project_root, package.as_deref(), *all)?;
+--
+src/cmd/ts.rs-230-                ts_cmd::restore_tspec(project_root, package.as_deref(), tspec)?;
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-231-            }
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-232-        }
+src/cmd/ts.rs:233:        Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-234-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/ts.rs-235-}
+--
+src/cmd/build.rs-1-use anyhow::Result;
+src/cmd/build.rs-2-use clap::Args;
+src/cmd/build.rs-3-use std::path::Path;
+src/cmd/build.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-5-
+src/cmd/build.rs-6-use super::{Execute, current_package_name, resolve_package_arg};
+src/cmd/build.rs-7-use crate::all::{build_all, print_summary};
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-54-}
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-55-
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-56-impl Execute for BuildCmd {
+src/cmd/build.rs:57:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-58-        let cli_profile = self.effective_profile();
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-59-
+src/cmd/build.rs-60-        / Resolve package: --workspace > -p/positional PKG > cwd > all
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-98-                        }
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-99-                    }
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-100-                }
+src/cmd/build.rs:101:                Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-102-            }
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-103-        }
+/home/wink/data/prgs/rust/tspec/src/cmd/build.rs-104-    }
+--
+src/cmd/clean.rs-2-use clap::Args;
+src/cmd/clean.rs-3-use std::ffi::OsString;
+src/cmd/clean.rs-4-use std::path::Path;
+src/cmd/clean.rs:5:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-6-
+src/cmd/clean.rs-7-use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
+src/cmd/clean.rs-8-use crate::types::CargoFlags;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-22-}
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-23-
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-24-impl Execute for CleanCmd {
+src/cmd/clean.rs:25:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+src/cmd/clean.rs-26-        let mut args: Vec<OsString> = Vec::new();
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-27-        let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
+/home/wink/data/prgs/rust/tspec/src/cmd/clean.rs-28-        if let Some(pkg) = pkg_arg
+--
+src/cmd/test.rs-1-use anyhow::{Context, Result};
+src/cmd/test.rs-2-use clap::Args;
+src/cmd/test.rs-3-use std::path::Path;
+src/cmd/test.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-5-
+src/cmd/test.rs-6-use super::{Execute, current_package_name, resolve_package_arg};
+src/cmd/test.rs-7-use crate::all::{print_test_summary, test_all};
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-64-}
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-65-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-66-impl Execute for TestCmd {
+src/cmd/test.rs:67:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-68-        let cli_profile = self.effective_profile();
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-69-
+src/cmd/test.rs-70-        / Resolve package: --workspace > -p/positional PKG > cwd > all
+--
+src/cmd/test.rs-129-                            "No packages contain test targets: {}",
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-130-                            self.test_target.join(", ")
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-131-                        );
+src/cmd/test.rs:132:                        return Ok(ExitCode::from(1));
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-133-                    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-134-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-135-                    for member in &matching {
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-136-                        println!("=== {} ===", member.name);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-137-                        test_package(&member.name, None, cli_profile, &flags)?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-138-                    }
+src/cmd/test.rs:139:                    return Ok(ExitCode::SUCCESS);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-140-                }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-141-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-142-                let results =
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-155-                        test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-156-                    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-157-                }
+src/cmd/test.rs:158:                Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-159-            }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-160-        }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-161-    }
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-195-///
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-196-/// Runs `cargo test --no-run` and parses stderr for "Running tests/..." lines,
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-197-/// extracting the basename (without .rs) as the target name.
+src/cmd/test.rs:198:fn list_target_names(package: Option<&str>, flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-199-    let workspace = find_project_root()?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-200-
+src/cmd/test.rs-201-    let mut cmd = std::process::Command::new("cargo");
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-206-    flags.apply_to_command(&mut cmd);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-207-    cmd.current_dir(&workspace);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-208-
+src/cmd/test.rs:209:    let output = cmd.output().context("failed to run cargo test --no-run")?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-210-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-211-    if !output.status.success() {
+src/cmd/test.rs-212-        let stderr = String::from_utf8_lossy(&output.stderr);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-213-        eprintln!("{}", stderr);
+src/cmd/test.rs:214:        return Ok(ExitCode::from(1));
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-215-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-216-
+src/cmd/test.rs-217-    let stderr = String::from_utf8_lossy(&output.stderr);
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-241-        println!("  (none — no integration test files in tests/)");
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-242-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-243-
+src/cmd/test.rs:244:    Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-245-}
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-246-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-247-/// Run `cargo test -- --list` and format the output.
+--
+src/cmd/test.rs-252-    package: Option<&str>,
+src/cmd/test.rs-253-    name_filter: &[String],
+src/cmd/test.rs-254-    flags: &CargoFlags,
+src/cmd/test.rs:255:) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-256-    let workspace = find_project_root()?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-257-
+src/cmd/test.rs-258-    let mut cmd = std::process::Command::new("cargo");
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-266-    cmd.arg("--list");
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-267-    cmd.current_dir(&workspace);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-268-
+src/cmd/test.rs:269:    let output = cmd.output().context("failed to run cargo test -- --list")?;
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-270-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-271-    if !output.status.success() {
+src/cmd/test.rs-272-        let stderr = String::from_utf8_lossy(&output.stderr);
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-273-        eprintln!("{}", stderr);
+src/cmd/test.rs:274:        return Ok(ExitCode::from(1));
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-275-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-276-
+src/cmd/test.rs-277-    let stderr = String::from_utf8_lossy(&output.stderr);
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-327-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-328-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-329-    println!("{} tests total", total);
+src/cmd/test.rs:330:    Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-331-}
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-332-
+/home/wink/data/prgs/rust/tspec/src/cmd/test.rs-333-#[cfg(test)]
+--
+src/cmd/fmt.rs-2-use clap::Args;
+src/cmd/fmt.rs-3-use std::ffi::OsString;
+src/cmd/fmt.rs-4-use std::path::Path;
+src/cmd/fmt.rs:5:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-6-
+src/cmd/fmt.rs-7-use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
+src/cmd/fmt.rs-8-use crate::types::CargoFlags;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-25-}
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-26-
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-27-impl Execute for FmtCmd {
+src/cmd/fmt.rs:28:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+src/cmd/fmt.rs-29-        let mut args: Vec<OsString> = Vec::new();
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-30-        let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
+/home/wink/data/prgs/rust/tspec/src/cmd/fmt.rs-31-        if let Some(pkg) = pkg_arg
+--
+src/cmd/clippy.rs-2-use clap::Args;
+src/cmd/clippy.rs-3-use std::ffi::OsString;
+src/cmd/clippy.rs-4-use std::path::Path;
+src/cmd/clippy.rs:5:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-6-
+src/cmd/clippy.rs-7-use super::{Execute, execute_cargo_subcommand, resolve_package_arg};
+src/cmd/clippy.rs-8-use crate::types::CargoFlags;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-22-}
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-23-
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-24-impl Execute for ClippyCmd {
+src/cmd/clippy.rs:25:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+src/cmd/clippy.rs-26-        let mut args: Vec<OsString> = Vec::new();
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-27-        let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
+/home/wink/data/prgs/rust/tspec/src/cmd/clippy.rs-28-        if let Some(pkg) = pkg_arg
+--
+src/cmd/run.rs-1-use anyhow::Result;
+src/cmd/run.rs-2-use clap::Args;
+src/cmd/run.rs-3-use std::path::Path;
+src/cmd/run.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-5-
+src/cmd/run.rs-6-use super::{Execute, current_package_name, resolve_package_arg};
+src/cmd/run.rs-7-use crate::all::{print_run_summary, run_all};
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-54-}
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-55-
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-56-impl Execute for RunCmd {
+src/cmd/run.rs:57:    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-58-        let cli_profile = self.effective_profile();
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-59-
+src/cmd/run.rs-60-        / Resolve package: --workspace > -p/positional PKG > cwd > all
+--
+src/cmd/run.rs-98-                            std::process::exit(exit_code);
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-99-                        }
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-100-                    }
+src/cmd/run.rs:101:                    Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-102-                }
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-103-            }
+/home/wink/data/prgs/rust/tspec/src/cmd/run.rs-104-        }
+--
+src/cmd/install.rs-1-use anyhow::{Context, Result, bail};
+src/cmd/install.rs-2-use clap::Args;
+src/cmd/install.rs-3-use std::path::{Path, PathBuf};
+src/cmd/install.rs:4:use std::process::ExitCode;
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-5-
+src/cmd/install.rs-6-use super::Execute;
+src/cmd/install.rs-7-use crate::find_paths::get_package_name;
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-19-}
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-20-
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-21-impl Execute for InstallCmd {
+src/cmd/install.rs:22:    fn execute(&self, _project_root: &Path, flags: &CargoFlags) -> Result<ExitCode> {
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-23-        let resolved = self
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-24-            .path
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-25-            .canonicalize()
+--
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-39-
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-40-        flags.apply_to_command(&mut cmd);
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-41-
+src/cmd/install.rs:42:        let status = cmd.status().context("failed to run cargo install")?;
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-43-        if !status.success() {
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-44-            bail!("cargo install failed");
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-45-        }
+src/cmd/install.rs:46:        Ok(ExitCode::SUCCESS)
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-47-    }
+/home/wink/data/prgs/rust/tspec/src/cmd/install.rs-48-}

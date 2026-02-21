@@ -17,7 +17,7 @@ cargo's `test result:` lines for counts, and surface them:
 
 - Per-package counts in summary: `[PASS]  263 passed`
 - Aggregate footer: `Test: 2 packages, 279 passed, 0 failed`
-- Fail (exit 1) when 0 tests ran across all packages
+- Fail (exit 1) when 0 tests ran in single-package mode
 - Filter "running 0 tests" noise
 
 Infrastructure in a reusable `tee.rs` module so future commands
@@ -28,6 +28,32 @@ Infrastructure in a reusable `tee.rs` module so future commands
 - **dev1:** tee.rs + TestResult + parse_test_result_line + wire into
   run_cargo for test mode. No visible behavior change.
 - **dev2:** Summary counts, 0-test failure, noise filtering.
+- **dev3:** Fail fixtures + failure-path tests.
+
+### Decision: fail fixtures for testing failure paths
+
+Considered external repos vs in-tree fixtures. In-tree is better
+for normal development. Fail fixtures (`pop-fail`, `pows-fail`)
+live in `tests/fixtures/`, workspace-excluded, with actual failing
+tests baked in. Integration tests using them are `#[ignore]`'d —
+skipped during normal `tspec test`, run with `-- --ignored`.
+
+Manual testing: `cd tests/fixtures/pop-fail && tspec test`.
+
+Also add unit tests for `print_test_summary` with synthetic
+OpResult data (pass/fail/mixed with counts, verify exit codes).
+
+### Result
+
+- `tee.rs` — reusable tee_stdout(cmd, filter, suppress) utility
+- `cargo_build.rs` — run_cargo returns raw matched lines for Test
+  mode; noise suppression for "running 0 tests" blocks
+- `cmd/test.rs` — TestResult, parse_test_result_line(),
+  parse_test_results(); 0-test guard for single-package mode
+- `all.rs` — OpResult.test_counts, per-package counts in summary,
+  aggregate footer
+- 0-test guard only in single-package mode (workspace fixtures
+  legitimately have 0 tests)
 
 ## 20260220 - Remove classify_package and PackageKind
 

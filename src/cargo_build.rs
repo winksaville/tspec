@@ -310,8 +310,33 @@ pub fn run_cargo(
 
     // Execute the command — tee stdout for test mode to capture result lines
     let (status, matched_lines) = if mode == CargoMode::Test {
-        let tee = tee_stdout(&mut cmd, |line| line.starts_with("test result:"))
-            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?;
+        // Suppress "running 0 tests" noise and subsequent empty result lines.
+        // Cargo emits: "running 0 tests" → "" → "test result: ok. 0 passed; ..."
+        let mut suppressing_zero_block = false;
+        let tee = tee_stdout(
+            &mut cmd,
+            |line| line.starts_with("test result:"),
+            |line| {
+                if line.trim() == "running 0 tests" {
+                    suppressing_zero_block = true;
+                    return true;
+                }
+                if suppressing_zero_block {
+                    // Keep suppressing blank lines and the empty result line
+                    if line.trim().is_empty() {
+                        return true;
+                    }
+                    if line.starts_with("test result: ok. 0 passed; 0 failed;") {
+                        suppressing_zero_block = false;
+                        return true;
+                    }
+                    // Non-blank, non-result line — stop suppressing
+                    suppressing_zero_block = false;
+                }
+                false
+            },
+        )
+        .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?;
         (tee.status, tee.matched_lines)
     } else {
         let s = cmd

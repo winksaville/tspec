@@ -12,10 +12,12 @@ pub struct TeeResult {
 
 /// Spawn a command with piped stdout (stderr inherited),
 /// print each stdout line live, and collect lines where
-/// `filter(line)` returns true.
-pub fn tee_stdout<F>(cmd: &mut Command, filter: F) -> Result<TeeResult>
+/// `filter(line)` returns true. Lines where `suppress(line)`
+/// returns true are not printed (but still collected by filter).
+pub fn tee_stdout<F, S>(cmd: &mut Command, filter: F, suppress: S) -> Result<TeeResult>
 where
     F: Fn(&str) -> bool,
+    S: FnMut(&str) -> bool,
 {
     let mut child = cmd
         .stdout(Stdio::piped())
@@ -27,13 +29,16 @@ where
     let reader = BufReader::new(stdout);
 
     let mut matched_lines = Vec::new();
+    let mut suppress = suppress;
 
     for line in reader.lines() {
         let line = line.context("failed to read stdout line")?;
         if filter(&line) {
             matched_lines.push(line.clone());
         }
-        println!("{}", line);
+        if !suppress(&line) {
+            println!("{}", line);
+        }
     }
 
     let status = child.wait().context("failed to wait for command")?;

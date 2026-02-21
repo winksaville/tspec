@@ -210,17 +210,23 @@ impl Execute for TestCmd {
                 Ok(print_test_summary(workspace.name(), &results))
             }
             Some(name) => {
+                let mut all_lines = Vec::new();
                 if self.tspec.is_empty() {
-                    let _result_lines = test_package(&name, None, cli_profile, &flags)?;
+                    all_lines = test_package(&name, None, cli_profile, &flags)?;
                 } else {
                     let package_dir = resolve_package_dir(project_root, Some(&name))?;
                     let pkg_name = get_package_name(&package_dir)?;
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        let _result_lines =
-                            test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
+                        let lines = test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
+                        all_lines.extend(lines);
                     }
+                }
+                let counts = parse_test_results(&all_lines);
+                if counts.total_ran() == 0 {
+                    eprintln!("Error: 0 tests ran (filter may not match anything)");
+                    return Ok(ExitCode::from(1));
                 }
                 Ok(ExitCode::SUCCESS)
             }
