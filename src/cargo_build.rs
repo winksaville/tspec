@@ -4,6 +4,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::tee::tee_stdout;
+
 use crate::find_paths::{
     find_package_dir, find_project_root, find_tspec, get_binary_path, get_binary_path_simple,
     get_package_name,
@@ -141,7 +143,7 @@ pub fn run_cargo(
     tspec: Option<&str>,
     cli_profile: Option<&str>,
     flags: &CargoFlags,
-) -> Result<BuildResult> {
+) -> Result<(BuildResult, Vec<String>)> {
     let verbosity = flags.verbosity;
     let workspace = find_project_root()?;
     let pkg_dir = find_package_dir(&workspace, pkg_name)?;
@@ -206,7 +208,7 @@ pub fn run_cargo(
     };
 
     // Apply spec if present, otherwise plain cargo subcommand
-    let status = if let Some(spec) = &spec {
+    let mut cmd = if let Some(spec) = &spec {
         let path = tspec_path.as_ref().unwrap();
         println!("{} {} with spec {}", verb, pkg_name, path.display());
 
@@ -281,8 +283,7 @@ pub fn run_cargo(
         // -v: print command line and env vars
         print_verbose_command(&cmd, verbosity);
 
-        cmd.status()
-            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
+        cmd
     } else {
         println!("{} {} (no tspec)", verb, pkg_name);
         let mut cmd = Command::new("cargo");
@@ -304,8 +305,19 @@ pub fn run_cargo(
         // -v: print command line even without spec
         print_verbose_command(&cmd, verbosity);
 
-        cmd.status()
-            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?
+        cmd
+    };
+
+    // Execute the command — tee stdout for test mode to capture result lines
+    let (status, matched_lines) = if mode == CargoMode::Test {
+        let tee = tee_stdout(&mut cmd, |line| line.starts_with("test result:"))
+            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?;
+        (tee.status, tee.matched_lines)
+    } else {
+        let s = cmd
+            .status()
+            .with_context(|| format!("failed to run cargo {}", mode.subcommand()))?;
+        (s, Vec::new())
     };
 
     // Clean up generated build.rs (only if we created it)
@@ -333,10 +345,13 @@ pub fn run_cargo(
     }
     warn_stale_build_rs(had_stale_build_rs);
     reprint_warnings(&spec_warnings);
-    Ok(BuildResult {
-        binary_path,
-        target_base,
-    })
+    Ok((
+        BuildResult {
+            binary_path,
+            target_base,
+        },
+        matched_lines,
+    ))
 }
 
 /// Build a package with a spec, returns the binary path on success.
@@ -346,18 +361,19 @@ pub fn build_package(
     cli_profile: Option<&str>,
     flags: &CargoFlags,
 ) -> Result<BuildResult> {
-    run_cargo(CargoMode::Build, pkg_name, tspec, cli_profile, flags)
+    let (build_result, _) = run_cargo(CargoMode::Build, pkg_name, tspec, cli_profile, flags)?;
+    Ok(build_result)
 }
 
-/// Test a package with a spec.
+/// Test a package with a spec, returns raw `test result:` lines.
 pub fn test_package(
     pkg_name: &str,
     tspec: Option<&str>,
     cli_profile: Option<&str>,
     flags: &CargoFlags,
-) -> Result<()> {
-    run_cargo(CargoMode::Test, pkg_name, tspec, cli_profile, flags)?;
-    Ok(())
+) -> Result<Vec<String>> {
+    let (_, matched_lines) = run_cargo(CargoMode::Test, pkg_name, tspec, cli_profile, flags)?;
+    Ok(matched_lines)
 }
 
 /// Plain `cargo build --release` with no spec lookup.

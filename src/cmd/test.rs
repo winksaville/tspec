@@ -10,6 +10,72 @@ use crate::find_paths::{find_project_root, find_tspecs, get_package_name, resolv
 use crate::types::CargoFlags;
 use crate::workspace::WorkspaceInfo;
 
+/// Parsed test statistics from cargo test output.
+#[derive(Debug, Default, Clone)]
+pub struct TestResult {
+    pub passed: u32,
+    pub failed: u32,
+    pub ignored: u32,
+    pub filtered: u32,
+}
+
+impl TestResult {
+    /// Aggregate another TestResult into this one.
+    pub fn merge(&mut self, other: &TestResult) {
+        self.passed += other.passed;
+        self.failed += other.failed;
+        self.ignored += other.ignored;
+        self.filtered += other.filtered;
+    }
+
+    /// Total tests that actually ran (passed + failed).
+    pub fn total_ran(&self) -> u32 {
+        self.passed + self.failed
+    }
+}
+
+/// Parse a `test result:` line from cargo test output.
+///
+/// Example: `test result: ok. 263 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s`
+pub fn parse_test_result_line(line: &str) -> Option<TestResult> {
+    let rest = line.strip_prefix("test result:")?;
+    let rest = rest.trim();
+    // Skip the "ok." or "FAILED." prefix
+    let rest = rest
+        .strip_prefix("ok.")
+        .or_else(|| rest.strip_prefix("FAILED."))?;
+    let rest = rest.trim();
+
+    let mut result = TestResult::default();
+    for part in rest.split(';') {
+        let part = part.trim();
+        if let Some((num, label)) = part.split_once(' ') {
+            let Ok(n) = num.parse::<u32>() else {
+                continue;
+            };
+            match label.trim() {
+                "passed" => result.passed = n,
+                "failed" => result.failed = n,
+                "ignored" => result.ignored = n,
+                "filtered" | "filtered out" => result.filtered = n,
+                _ => {} // "measured"
+            }
+        }
+    }
+    Some(result)
+}
+
+/// Parse and aggregate raw `test result:` lines into a single TestResult.
+pub fn parse_test_results(lines: &[String]) -> TestResult {
+    let mut aggregated = TestResult::default();
+    for line in lines {
+        if let Some(parsed) = parse_test_result_line(line) {
+            aggregated.merge(&parsed);
+        }
+    }
+    aggregated
+}
+
 /// Test package(s) with a translation spec
 #[derive(Args)]
 pub struct TestCmd {
@@ -145,14 +211,15 @@ impl Execute for TestCmd {
             }
             Some(name) => {
                 if self.tspec.is_empty() {
-                    test_package(&name, None, cli_profile, &flags)?;
+                    let _result_lines = test_package(&name, None, cli_profile, &flags)?;
                 } else {
                     let package_dir = resolve_package_dir(project_root, Some(&name))?;
                     let pkg_name = get_package_name(&package_dir)?;
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
+                        let _result_lines =
+                            test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
                     }
                 }
                 Ok(ExitCode::SUCCESS)
@@ -533,5 +600,77 @@ mod tests {
     fn format_header_unknown() {
         let h = format_target_header("something_else");
         assert_eq!(h, "something_else");
+    }
+
+    // parse_test_result_line unit tests
+
+    #[test]
+    fn parse_test_result_ok() {
+        let line = "test result: ok. 263 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s";
+        let r = parse_test_result_line(line).unwrap();
+        assert_eq!(r.passed, 263);
+        assert_eq!(r.failed, 0);
+        assert_eq!(r.ignored, 0);
+        assert_eq!(r.filtered, 0);
+    }
+
+    #[test]
+    fn parse_test_result_failed() {
+        let line = "test result: FAILED. 10 passed; 2 failed; 1 ignored; 0 measured; 5 filtered out; finished in 1.23s";
+        let r = parse_test_result_line(line).unwrap();
+        assert_eq!(r.passed, 10);
+        assert_eq!(r.failed, 2);
+        assert_eq!(r.ignored, 1);
+        assert_eq!(r.filtered, 5);
+    }
+
+    #[test]
+    fn parse_test_result_all_zeros() {
+        let line = "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s";
+        let r = parse_test_result_line(line).unwrap();
+        assert_eq!(r.passed, 0);
+        assert_eq!(r.failed, 0);
+        assert_eq!(r.total_ran(), 0);
+    }
+
+    #[test]
+    fn parse_test_result_not_a_result_line() {
+        assert!(parse_test_result_line("running 42 tests").is_none());
+        assert!(parse_test_result_line("test foo::bar ... ok").is_none());
+        assert!(parse_test_result_line("").is_none());
+    }
+
+    #[test]
+    fn test_result_merge() {
+        let mut a = TestResult {
+            passed: 10,
+            failed: 1,
+            ignored: 2,
+            filtered: 3,
+        };
+        let b = TestResult {
+            passed: 5,
+            failed: 0,
+            ignored: 1,
+            filtered: 2,
+        };
+        a.merge(&b);
+        assert_eq!(a.passed, 15);
+        assert_eq!(a.failed, 1);
+        assert_eq!(a.ignored, 3);
+        assert_eq!(a.filtered, 5);
+    }
+
+    #[test]
+    fn parse_test_results_aggregates() {
+        let lines = vec![
+            "test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.1s".to_string(),
+            "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.2s".to_string(),
+        ];
+        let r = parse_test_results(&lines);
+        assert_eq!(r.passed, 15);
+        assert_eq!(r.failed, 0);
+        assert_eq!(r.ignored, 1);
+        assert_eq!(r.filtered, 3);
     }
 }

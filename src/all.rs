@@ -285,7 +285,7 @@ pub fn test_all(
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
             let result = match test_package(&member.name, tspec.as_deref(), cli_profile, flags) {
-                Ok(()) => OpResult {
+                Ok(_result_lines) => OpResult {
                     name: member.name.clone(),
                     spec,
                     success: true,

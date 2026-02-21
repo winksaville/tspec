@@ -16,7 +16,7 @@ pub use compare::CompareCmd;
 pub use fmt::FmtCmd;
 pub use install::InstallCmd;
 pub use run::RunCmd;
-pub use test::TestCmd;
+pub use test::{TestCmd, TestResult, parse_test_results};
 pub use ts::TsCmd;
 pub use version::VersionCmd;
 
