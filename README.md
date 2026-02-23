@@ -57,6 +57,9 @@ tspec compare -p myapp -t *.ts.toml        # Compare using shell-expanded glob
 tspec compare                              # Compare all packages (workspace mode)
 tspec compare -w                           # Force workspace mode from inside a package
 tspec compare -w -f                        # Workspace mode, stop on first failure
+tspec build --mp /path/to/project           # Build from anywhere (manifest-path)
+tspec build --mp /path/to/project -p myapp # Target specific package remotely
+tspec test --mp ../other-project           # Test with relative path
 tspec -v build .                           # Verbose: show cargo command/env + cargo -v
 tspec -vv build .                          # Debug: also show spec details + cargo -vv
 tspec -j4 build .                          # Limit cargo to 4 parallel jobs
@@ -66,7 +69,7 @@ The `-p` flag or positional argument specifies a package by name or path (defaul
 Use `-w, --workspace` to force all-packages mode even when inside a package directory.
 The `-t` flag selects a tspec file; if omitted and `tspec.ts.toml` exists, it's used automatically. In workspace mode (no `-p`, or with `-w`), `-t` patterns are resolved per-package — each sub-package is searched for matching specs, and packages with no matches are skipped.
 
-**Global flags** apply to all commands and are passed through to cargo: `-v` (cargo `-v`, shows rustc invocations), `-vv` (cargo `-vv`, full command details), and `-j N` (parallel jobs). tspec's own verbose output (command line, env vars, spec resolution) is also controlled by `-v`/`-vv`.
+**Global flags** apply to all commands: `--manifest-path`/`--mp` (operate on a project without cd'ing into it — accepts a directory or Cargo.toml path), `-v` (cargo `-v`, shows rustc invocations), `-vv` (cargo `-vv`, full command details), and `-j N` (parallel jobs). tspec's own verbose output (command line, env vars, spec resolution) is also controlled by `-v`/`-vv`.
 
 **Important: quote glob patterns with `-t`.** The shell expands unquoted globs *before* tspec sees them. At a workspace root, `tspec build -t tspec*` may expand to literal filenames from the root directory (or worse, match `target/`), rather than being matched per-package. Always quote: `-t 'tspec*'`. tspec will warn if it detects shell-expanded non-tspec arguments.
 
@@ -372,6 +375,7 @@ tspec/                  # Workspace root (also the main tspec package)
       pop-ws/           # POP with embedded workspace
       pows/             # Pure Old Workspace (no root package)
       pop-fail/         # POP with failing tests
+      popws-3p/         # POWS with 3 packages (bin, lib, multi-target)
       pows-fail/        # POWS with failing tests (mixed pass/fail)
     integration_test.rs # Integration tests (fail-fixture tests are #[ignore]'d)
     tspec_test.rs       # Spec loading tests

@@ -33,7 +33,7 @@ Commands implement the `Execute` trait:
 
 ```rust
 pub trait Execute {
-    fn execute(&self, project_root: &Path) -> Result<ExitCode>;
+    fn execute(&self, project_root: &Path, flags: &CargoFlags) -> Result<ExitCode>;
 }
 
 // Helper for simple cargo passthroughs
@@ -91,7 +91,7 @@ Specs are TOML files (`*.ts.toml`) with top-level fields and two sections:
 - **Commit style:** Conventional commits (feat:, docs:, refactor:). Follow the 50/72 rule: subject line under 50 chars, body wrapped at 72 (that's the limit, not a target — don't wrap prematurely). Append `, vX.Y.Z` to the subject only on release commits — e.g. `feat: Add glob support for -t, v0.11.3`. No version tags on intermediate `-devN` commits.
 - **Naming:** POP (Plain Old Package) refers to single-package projects (no workspace); tspec treats them as trivial workspaces
 - **Granularity:** tspec operates at the Cargo package level, not the crate level. "Package" = directory with Cargo.toml. A package may contain multiple crates (targets), but they all share one tspec.
-- **Package argument pattern:** All commands accept both `-p <name-or-path>` and a positional `<PACKAGE>` argument. Paths (like `.`) are resolved to the actual cargo package name via `resolve_package_arg()`. At a pure workspace root (no `[package]`), `.` resolves to None (all-packages mode). Resolution order: positional > `-p` > current directory > all packages.
+- **Package argument pattern:** All commands accept both `-p <name-or-path>` and a positional `<PACKAGE>` argument. Paths (like `.`) are resolved to the actual cargo package name via `resolve_package_arg()`. At a pure workspace root (no `[package]`), `.` resolves to None (all-packages mode). Resolution order: positional > `-p` > current directory > all packages. Use `--manifest-path`/`--mp` (global flag) to operate on a project without cd'ing into it.
 - **`cmd` vs `cmd .` for passthroughs:** For passthrough commands (clean, clippy, fmt), `tspec cmd` passes no `-p` to cargo (operates on everything), but `tspec cmd .` resolves to `cargo cmd -p <name>` (package-specific). The difference is most visible with `clean`: `cargo clean` removes all of target/ while `cargo clean -p <name>` leaves shared metadata. This matches cargo's own behavior. Use `tspec clean` or `tspec clean -w` for a full clean.
 - **Markdown refs:** Multiple references use `[1],[2]` not `[1,2]` or `[1][2]` (both break in markdown)
 

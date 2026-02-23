@@ -131,9 +131,16 @@ then wire `--manifest-path` into `main.rs` to override
   Add `resolve_manifest_path()` to `find_paths.rs`. Wire into
   `main.rs` to override `find_project_root()`.
 
-### Status
+### Result
 
-In progress.
+- dev1: Refactored `resolve_package_arg()`, `current_package_name()`,
+  `WorkspaceInfo::discover()` to accept `project_root`
+- dev2: Added `--manifest-path`/`--mp` global flag, threaded
+  `project_root` through `cargo_build.rs`, `compare.rs`, `all.rs`
+- Added `resolve_manifest_path()` with canonicalize for relative paths
+- Added `popws-3p` fixture (bin + lib + multi-target, 7 tests)
+- 5 unit tests for `resolve_manifest_path`, 10 integration tests
+  for `--mp` and `popws-3p`
 
 ## 20260219 - Test infrastructure: fixture workspaces and test args
 

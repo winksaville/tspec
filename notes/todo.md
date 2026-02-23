@@ -1,7 +1,6 @@
 # Todo
 
 ## In Progress
-- Add `--manifest-path` flag with `--mp` alias [42]
 
 ## Todo
 - Add benchmark support, especially cold-start vs hot-start build timing
@@ -13,6 +12,7 @@
 
 See older [done.md](done.md)
 
+- Add `--manifest-path` / `--mp` flag; popws-3p fixture with tests [42]
 - Parse cargo test output: per-package counts in summary, 0-test guard, noise filtering, fail fixtures [41]
 - Remove `classify_package`/`PackageKind` and `is_build_tool`; simplify workspace to just members [40]
 - Add test fixtures (POP, POP+WS, POWS) and integration tests; add --test/trailing args to tspec test [38]
