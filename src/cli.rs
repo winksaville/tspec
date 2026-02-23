@@ -3,6 +3,7 @@ use crate::cmd::{
     VersionCmd,
 };
 use clap::{ArgAction, Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "tspec", version, about = "Translation spec based build system")]
@@ -14,6 +15,14 @@ pub struct Cli {
     /// Number of parallel jobs to pass to cargo
     #[arg(short = 'j', long = "jobs", global = true)]
     pub jobs: Option<u16>,
+    /// Path to Cargo.toml or directory containing one
+    #[arg(
+        long = "manifest-path",
+        visible_alias = "mp",
+        global = true,
+        value_name = "PATH"
+    )]
+    pub manifest_path: Option<PathBuf>,
     #[command(subcommand)]
     pub command: Commands,
 }

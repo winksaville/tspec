@@ -78,6 +78,58 @@ pub fn find_project_root() -> Result<PathBuf> {
     }
 }
 
+/// Resolve a `--manifest-path` argument to a project root.
+/// Accepts a path to a Cargo.toml file or a directory containing one.
+/// Walks up from the resolved directory to find the workspace root,
+/// reusing the same logic as `find_project_root()`.
+pub fn resolve_manifest_path(path: &Path) -> Result<PathBuf> {
+    // Canonicalize so walk-up works on relative paths
+    let canon = path
+        .canonicalize()
+        .with_context(|| format!("path not found: {}", path.display()))?;
+    let start_dir = if canon.is_file() {
+        canon
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("invalid manifest path: {}", path.display()))?
+            .to_path_buf()
+    } else {
+        canon
+    };
+
+    // Verify Cargo.toml exists at the starting directory
+    if !start_dir.join("Cargo.toml").exists() {
+        bail!("no Cargo.toml found at {}", start_dir.display());
+    }
+
+    // Walk up to find workspace root, same logic as find_project_root()
+    let mut dir = start_dir.clone();
+    let mut package_root: Option<PathBuf> = None;
+
+    loop {
+        let cargo_toml = dir.join("Cargo.toml");
+        if cargo_toml.exists() {
+            let content = std::fs::read_to_string(&cargo_toml)?;
+            if has_toml_section_exact(&content, "workspace") {
+                if let Some(ref pkg_root) = package_root
+                    && is_excluded_from_workspace(&content, &dir, pkg_root)
+                {
+                    return Ok(pkg_root.clone());
+                }
+                return Ok(dir);
+            }
+            if package_root.is_none() && has_toml_section_exact(&content, "package") {
+                package_root = Some(dir.clone());
+            }
+        }
+        if !dir.pop() {
+            if let Some(root) = package_root {
+                return Ok(root);
+            }
+            bail!("no project root found from {}", start_dir.display());
+        }
+    }
+}
+
 /// Check if a package directory is excluded from a workspace.
 /// `ws_content` is the workspace Cargo.toml content, `ws_dir` is the workspace root,
 /// and `pkg_dir` is the package directory to check.
@@ -990,5 +1042,46 @@ members = ["crates/foo"]
         let ws_dir = Path::new("/project");
         let pkg_dir = Path::new("/project/crates/foo");
         assert!(!is_excluded_from_workspace(ws_content, ws_dir, pkg_dir));
+    }
+
+    // ==================== resolve_manifest_path tests ====================
+
+    fn fixture_path(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name)
+    }
+
+    #[test]
+    fn resolve_mp_workspace_dir() {
+        let root = resolve_manifest_path(&fixture_path("popws-3p")).unwrap();
+        assert_eq!(root, fixture_path("popws-3p").canonicalize().unwrap());
+    }
+
+    #[test]
+    fn resolve_mp_subpackage_dir() {
+        let path = fixture_path("popws-3p/app-a");
+        let root = resolve_manifest_path(&path).unwrap();
+        // Should resolve to workspace root, not the sub-package
+        assert_eq!(root, fixture_path("popws-3p").canonicalize().unwrap());
+    }
+
+    #[test]
+    fn resolve_mp_subpackage_cargo_toml() {
+        let path = fixture_path("popws-3p/lib-b/Cargo.toml");
+        let root = resolve_manifest_path(&path).unwrap();
+        assert_eq!(root, fixture_path("popws-3p").canonicalize().unwrap());
+    }
+
+    #[test]
+    fn resolve_mp_pop_fixture() {
+        let root = resolve_manifest_path(&fixture_path("pop")).unwrap();
+        assert_eq!(root, fixture_path("pop").canonicalize().unwrap());
+    }
+
+    #[test]
+    fn resolve_mp_nonexistent_path() {
+        let result = resolve_manifest_path(Path::new("/no/such/path"));
+        assert!(result.is_err());
     }
 }

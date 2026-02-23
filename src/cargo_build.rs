@@ -7,8 +7,7 @@ use std::process::Command;
 use crate::tee::tee_stdout;
 
 use crate::find_paths::{
-    find_package_dir, find_project_root, find_tspec, get_binary_path, get_binary_path_simple,
-    get_package_name,
+    find_package_dir, find_tspec, get_binary_path, get_binary_path_simple, get_package_name,
 };
 use crate::tspec::{expand_target_dir, load_spec, spec_name_from_path};
 use crate::types::{CargoFlags, Spec, Verbosity, flatten_config};
@@ -142,11 +141,11 @@ pub fn run_cargo(
     pkg_name: &str,
     tspec: Option<&str>,
     cli_profile: Option<&str>,
+    project_root: &Path,
     flags: &CargoFlags,
 ) -> Result<(BuildResult, Vec<String>)> {
     let verbosity = flags.verbosity;
-    let workspace = find_project_root()?;
-    let pkg_dir = find_package_dir(&workspace, pkg_name)?;
+    let pkg_dir = find_package_dir(project_root, pkg_name)?;
     let tspec_path = find_tspec(&pkg_dir, tspec)?;
 
     // Resolve actual package name from Cargo.toml (needed when pkg_name is a path)
@@ -171,19 +170,19 @@ pub fn run_cargo(
 
     // Compute paths
     let target_base = match &expanded_td {
-        Some(td) => workspace.join("target").join(td),
-        None => workspace.join("target"),
+        Some(td) => project_root.join("target").join(td),
+        None => project_root.join("target"),
     };
     let binary_path = if let Some(spec) = &spec {
         get_binary_path(
-            &workspace,
+            project_root,
             &pkg_name,
             spec,
             cli_profile,
             expanded_td.as_deref(),
         )
     } else {
-        get_binary_path_simple(&workspace, &pkg_name, cli_profile)
+        get_binary_path_simple(project_root, &pkg_name, cli_profile)
     };
 
     // Validate the effective profile exists before invoking cargo
@@ -192,7 +191,7 @@ pub fn run_cargo(
         .and_then(|s| s.cargo.profile.as_deref())
         .or(cli_profile);
     if let Some(profile) = effective_profile {
-        validate_profile(profile, &workspace)?;
+        validate_profile(profile, project_root)?;
     }
 
     // Check for misconfigurations before running cargo
@@ -214,7 +213,7 @@ pub fn run_cargo(
 
         // -vv: print spec resolution details
         if verbosity >= Verbosity::Debug {
-            let rel_path = path.strip_prefix(&workspace).unwrap_or(path);
+            let rel_path = path.strip_prefix(project_root).unwrap_or(path);
             println!("[debug] spec: {}", rel_path.display());
             let tc = if let Some(tc) = &spec.toolchain {
                 format!("{} (from spec)", tc)
@@ -248,7 +247,7 @@ pub fn run_cargo(
         let mut cmd = build_cargo_command(spec, mode)?;
         cmd.arg(mode.subcommand());
         cmd.arg("-p").arg(&pkg_name);
-        cmd.current_dir(&workspace);
+        cmd.current_dir(project_root);
 
         // Set spec path for tspec-build library to read in build.rs
         cmd.env("TSPEC_SPEC_FILE", path.as_os_str());
@@ -256,7 +255,7 @@ pub fn run_cargo(
         apply_spec_to_command(
             &mut cmd,
             spec,
-            &workspace,
+            project_root,
             cli_profile,
             expanded_td.as_deref(),
         )?;
@@ -289,7 +288,7 @@ pub fn run_cargo(
         let mut cmd = Command::new("cargo");
         cmd.arg(mode.subcommand());
         cmd.arg("-p").arg(&pkg_name);
-        cmd.current_dir(&workspace);
+        cmd.current_dir(project_root);
         if let Some(p) = cli_profile {
             match p {
                 "debug" | "dev" => {}
@@ -353,7 +352,7 @@ pub fn run_cargo(
     if !status.success() {
         match &tspec_path {
             Some(path) => {
-                let display_path = path.strip_prefix(&workspace).unwrap_or(path).display();
+                let display_path = path.strip_prefix(project_root).unwrap_or(path).display();
                 bail!(
                     "cargo {} failed for `{}` with spec {}",
                     mode.subcommand(),
@@ -384,9 +383,17 @@ pub fn build_package(
     pkg_name: &str,
     tspec: Option<&str>,
     cli_profile: Option<&str>,
+    project_root: &Path,
     flags: &CargoFlags,
 ) -> Result<BuildResult> {
-    let (build_result, _) = run_cargo(CargoMode::Build, pkg_name, tspec, cli_profile, flags)?;
+    let (build_result, _) = run_cargo(
+        CargoMode::Build,
+        pkg_name,
+        tspec,
+        cli_profile,
+        project_root,
+        flags,
+    )?;
     Ok(build_result)
 }
 
@@ -395,16 +402,28 @@ pub fn test_package(
     pkg_name: &str,
     tspec: Option<&str>,
     cli_profile: Option<&str>,
+    project_root: &Path,
     flags: &CargoFlags,
 ) -> Result<Vec<String>> {
-    let (_, matched_lines) = run_cargo(CargoMode::Test, pkg_name, tspec, cli_profile, flags)?;
+    let (_, matched_lines) = run_cargo(
+        CargoMode::Test,
+        pkg_name,
+        tspec,
+        cli_profile,
+        project_root,
+        flags,
+    )?;
     Ok(matched_lines)
 }
 
 /// Plain `cargo build --release` with no spec lookup.
 /// Used by compare to produce a baseline build.
-pub fn plain_cargo_build_release(pkg_name: &str, flags: &CargoFlags) -> Result<BuildResult> {
-    build_package(pkg_name, None, Some("release"), flags)
+pub fn plain_cargo_build_release(
+    pkg_name: &str,
+    project_root: &Path,
+    flags: &CargoFlags,
+) -> Result<BuildResult> {
+    build_package(pkg_name, None, Some("release"), project_root, flags)
 }
 
 /// Generate a temporary build.rs with scoped linker flags from tspec.toml

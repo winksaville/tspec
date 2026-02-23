@@ -56,7 +56,7 @@ impl Execute for CompareCmd {
                 } else {
                     find_tspecs(&package_dir, &self.tspec)?
                 };
-                let results = compare_specs(&pkg_name, &spec_paths, flags)?;
+                let results = compare_specs(&pkg_name, &spec_paths, project_root, flags)?;
                 print_comparison(&pkg_name, &results);
                 Ok(ExitCode::SUCCESS)
             }

@@ -132,7 +132,13 @@ pub fn build_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match build_package(&member.name, tspec.as_deref(), cli_profile, flags) {
+            let result = match build_package(
+                &member.name,
+                tspec.as_deref(),
+                cli_profile,
+                &workspace.root,
+                flags,
+            ) {
                 Ok(build_result) => {
                     if strip
                         && member.has_binary
@@ -211,7 +217,13 @@ pub fn run_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match build_package(&member.name, tspec.as_deref(), cli_profile, flags) {
+            let result = match build_package(
+                &member.name,
+                tspec.as_deref(),
+                cli_profile,
+                &workspace.root,
+                flags,
+            ) {
                 Ok(build_result) => {
                     if strip && let Err(e) = strip_binary(&build_result.binary_path) {
                         eprintln!("  warning: strip failed: {}", e);
@@ -291,7 +303,13 @@ pub fn test_all(
 
         for tspec in &tspec_list {
             let spec = spec_label(tspec);
-            let result = match test_package(&member.name, tspec.as_deref(), cli_profile, flags) {
+            let result = match test_package(
+                &member.name,
+                tspec.as_deref(),
+                cli_profile,
+                &workspace.root,
+                flags,
+            ) {
                 Ok(result_lines) => {
                     let counts = parse_test_results(&result_lines);
                     OpResult {
@@ -540,7 +558,7 @@ pub fn compare_all(
 
         println!("=== {} ===", member.name);
 
-        let (op, specs) = match compare_specs(&member.name, &spec_paths, flags) {
+        let (op, specs) = match compare_specs(&member.name, &spec_paths, &workspace.root, flags) {
             Ok(spec_results) => (
                 OpResult {
                     name: member.name.clone(),

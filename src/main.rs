@@ -3,7 +3,7 @@ use std::process::ExitCode;
 
 use tspec::cli::{Cli, Commands};
 use tspec::cmd::Execute;
-use tspec::find_paths::find_project_root;
+use tspec::find_paths::{find_project_root, resolve_manifest_path};
 use tspec::types::{CargoFlags, Verbosity};
 
 fn main() -> Result<ExitCode, anyhow::Error> {
@@ -14,36 +14,41 @@ fn main() -> Result<ExitCode, anyhow::Error> {
         extra_args: Vec::new(),
     };
 
+    let project_root = match cli.manifest_path {
+        Some(ref path) => resolve_manifest_path(path)?,
+        None => find_project_root()?,
+    };
+
     match cli.command {
         Commands::Build(cmd) => {
-            return cmd.execute(&find_project_root()?, &flags);
+            return cmd.execute(&project_root, &flags);
         }
         Commands::Run(cmd) => {
-            return cmd.execute(&find_project_root()?, &flags);
+            return cmd.execute(&project_root, &flags);
         }
         Commands::Test(cmd) => {
-            return cmd.execute(&find_project_root()?, &flags);
+            return cmd.execute(&project_root, &flags);
         }
         Commands::Clean(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Clippy(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Fmt(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Compare(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Ts(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Version(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
         Commands::Install(cmd) => {
-            cmd.execute(&find_project_root()?, &flags)?;
+            cmd.execute(&project_root, &flags)?;
         }
     }
 

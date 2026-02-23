@@ -77,7 +77,7 @@ impl Execute for RunCmd {
             Some(name) => {
                 if self.tspec.is_empty() {
                     // Build, optionally strip, then run
-                    let result = build_package(&name, None, cli_profile, flags)?;
+                    let result = build_package(&name, None, cli_profile, project_root, flags)?;
                     if self.strip {
                         strip_binary(&result.binary_path)?;
                     }
@@ -89,7 +89,13 @@ impl Execute for RunCmd {
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        let result = build_package(&pkg_name, Some(&spec_str), cli_profile, flags)?;
+                        let result = build_package(
+                            &pkg_name,
+                            Some(&spec_str),
+                            cli_profile,
+                            project_root,
+                            flags,
+                        )?;
                         if self.strip {
                             strip_binary(&result.binary_path)?;
                         }

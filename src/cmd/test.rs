@@ -207,7 +207,7 @@ impl Execute for TestCmd {
 
                     for member in &matching {
                         println!("=== {} ===", member.name);
-                        test_package(&member.name, None, cli_profile, &flags)?;
+                        test_package(&member.name, None, cli_profile, project_root, &flags)?;
                     }
                     return Ok(ExitCode::SUCCESS);
                 }
@@ -219,14 +219,20 @@ impl Execute for TestCmd {
             Some(name) => {
                 let mut all_lines = Vec::new();
                 if self.tspec.is_empty() {
-                    all_lines = test_package(&name, None, cli_profile, &flags)?;
+                    all_lines = test_package(&name, None, cli_profile, project_root, &flags)?;
                 } else {
                     let package_dir = resolve_package_dir(project_root, Some(&name))?;
                     let pkg_name = get_package_name(&package_dir)?;
                     let spec_paths = find_tspecs(&package_dir, &self.tspec)?;
                     for spec_path in &spec_paths {
                         let spec_str = spec_path.to_string_lossy();
-                        let lines = test_package(&pkg_name, Some(&spec_str), cli_profile, &flags)?;
+                        let lines = test_package(
+                            &pkg_name,
+                            Some(&spec_str),
+                            cli_profile,
+                            project_root,
+                            &flags,
+                        )?;
                         all_lines.extend(lines);
                     }
                 }

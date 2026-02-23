@@ -384,3 +384,189 @@ fn pows_fail_test_summary_shows_mixed_results() {
         stdout
     );
 }
+
+// ---------------------------------------------------------------------------
+// POPWS-3P fixture tests (workspace with 3 packages, mixed targets)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn popws3p_build_all() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["build"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec build (all) failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("app-a"), "missing app-a in output");
+    assert!(stdout.contains("lib-b"), "missing lib-b in output");
+    assert!(stdout.contains("multi-c"), "missing multi-c in output");
+}
+
+#[test]
+fn popws3p_build_single_package() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "-p", "app-a"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build -p app-a");
+
+    assert!(
+        output.status.success(),
+        "tspec build -p app-a failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn popws3p_test_all() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["test"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec test (all) failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("app-a"), "missing app-a in output");
+    assert!(stdout.contains("lib-b"), "missing lib-b in output");
+    assert!(stdout.contains("multi-c"), "missing multi-c in output");
+    assert!(stdout.contains("7 passed"), "expected 7 passed:\n{stdout}");
+    assert!(stdout.contains("0 failed"), "expected 0 failed:\n{stdout}");
+}
+
+// ---------------------------------------------------------------------------
+// --manifest-path / --mp tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mp_build_workspace_dir() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "--mp", project.to_str().unwrap()])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec build --mp");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec build --mp failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("app-a"), "missing app-a");
+    assert!(stdout.contains("multi-c"), "missing multi-c");
+}
+
+#[test]
+fn mp_build_single_package() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "--mp", project.to_str().unwrap(), "-p", "app-a"])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec build --mp -p app-a");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec build --mp -p app-a failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("app-a"), "missing app-a");
+}
+
+#[test]
+fn mp_build_subpackage_dir() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+    let app_a_dir = project.join("app-a");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "--mp", app_a_dir.to_str().unwrap()])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec build --mp app-a/");
+
+    // Should resolve to workspace root and build all
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec build --mp app-a/ failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("app-a"), "missing app-a");
+    assert!(stdout.contains("multi-c"), "missing multi-c");
+}
+
+#[test]
+fn mp_build_cargo_toml_path() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+    let cargo_toml = project.join("lib-b").join("Cargo.toml");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "--mp", cargo_toml.to_str().unwrap()])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec build --mp Cargo.toml");
+
+    // Should resolve to workspace root and build all
+    assert!(
+        output.status.success(),
+        "tspec build --mp Cargo.toml failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn mp_test_workspace() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["test", "--mp", project.to_str().unwrap()])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec test --mp");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec test --mp failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout.contains("TEST SUMMARY"), "missing summary");
+    assert!(stdout.contains("7 passed"), "expected 7 passed:\n{stdout}");
+}
+
+#[test]
+fn mp_pop_fixture() {
+    let (_tmp, project) = fixture::copy_fixture("pop");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "--mp", project.to_str().unwrap()])
+        .current_dir(std::env::temp_dir())
+        .output()
+        .expect("failed to run tspec build --mp pop");
+
+    assert!(
+        output.status.success(),
+        "tspec build --mp pop failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

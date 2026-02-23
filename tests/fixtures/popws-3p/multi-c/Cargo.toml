@@ -1,0 +1,15 @@
+[package]
+name = "multi-c"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "multi_c"
+
+[[bin]]
+name = "mc-alpha"
+path = "src/bin/mc_alpha.rs"
+
+[[bin]]
+name = "mc-beta"
+path = "src/bin/mc_beta.rs"
