@@ -1,9 +1,9 @@
 # Todo
 
 ## In Progress
+- Add `--manifest-path` flag with `--mp` alias [42]
 
 ## Todo
-- Add `--manifest-path` / `--path` flag so tspec can operate on a project without cd'ing into it [39]
 - Add benchmark support, especially cold-start vs hot-start build timing
 - Add database for collecting build data over time (could store tspecs, possibly replace backup/restore)
 - Investigate `-static` vs `dynamic-linking=false` size difference (partially explained); note: glibc + `-static` segfaults (glibc not designed for static linking), consider musl for static builds [11]
@@ -44,4 +44,5 @@ See older [done.md](done.md)
 [40]: chores-6.md#20260220---remove-classify_package-and-packagekind
 [38]: chores-6.md#20260219---test-infrastructure-fixture-workspaces-and-test-args
 [39]: chores-6.md#future-manifest-path--path-flag
+[42]: chores-6.md#20260223---add---manifest-path-flag-with---mp-alias
 [41]: chores-6.md#20260220---parse-cargo-test-output-for-counts-and-filtering

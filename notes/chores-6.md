@@ -99,6 +99,42 @@ layout opinions should be baked into tspec.
 - `runnable_members()` returns any member with a binary (no exclusions)
 - Integration tests run by default (no `-- --ignored` needed)
 
+## 20260223 - Add --manifest-path flag with --mp alias
+
+### Problem
+
+tspec currently requires `cd`ing into a project to operate on it.
+Adding `--manifest-path` (with `visible_alias = "mp"`) lets users run
+`tspec build --mp /path/to/project` from anywhere, matching cargo's
+own `--manifest-path` convention but with a shorter alias.
+
+### Approach: thread project_root through internal APIs
+
+The core insight: `project_root` is already computed in `main.rs` and
+passed to every command's `execute()`. But three helpers re-derive it
+from cwd:
+
+- `resolve_package_arg()` calls `find_project_root()` internally
+- `current_package_name()` uses `std::env::current_dir()`
+- `WorkspaceInfo::discover()` runs `cargo metadata` from cwd
+
+Fix: refactor these three to accept `project_root` as a parameter,
+then wire `--manifest-path` into `main.rs` to override
+`find_project_root()`.
+
+### Plan (multi-step)
+
+- **dev1:** Refactor `resolve_package_arg()`, `current_package_name()`,
+  and `WorkspaceInfo::discover()` to accept `project_root`. Update all
+  callers. No behavior change.
+- **dev2:** Add `--manifest-path` / `--mp` global flag to CLI.
+  Add `resolve_manifest_path()` to `find_paths.rs`. Wire into
+  `main.rs` to override `find_project_root()`.
+
+### Status
+
+In progress.
+
 ## 20260219 - Test infrastructure: fixture workspaces and test args
 
 ### Context
