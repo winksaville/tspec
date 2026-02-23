@@ -25,7 +25,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use crate::find_paths::{find_package_dir, find_project_root, get_package_name, is_pop};
+use crate::find_paths::{find_package_dir, get_package_name, is_pop};
 use crate::types::CargoFlags;
 
 /// Trait for command execution.
@@ -36,9 +36,8 @@ pub trait Execute {
 /// Resolve a `-p` argument (path or name) to the actual cargo package name.
 /// Returns Some(name) for a package, None if it resolves to a workspace root
 /// with no `[package]` section (meaning "operate on all packages").
-pub(crate) fn resolve_package_arg(pkg: &str) -> Result<Option<String>> {
-    let workspace = find_project_root()?;
-    let pkg_dir = find_package_dir(&workspace, pkg)?;
+pub(crate) fn resolve_package_arg(pkg: &str, project_root: &Path) -> Result<Option<String>> {
+    let pkg_dir = find_package_dir(project_root, pkg)?;
     match get_package_name(&pkg_dir) {
         Ok(name) => Ok(Some(name)),
         Err(_) => Ok(None),
@@ -69,8 +68,13 @@ pub fn execute_cargo_subcommand(
 
 /// Check if current directory is a package (has Cargo.toml with [package]).
 /// Returns None at a workspace root so that commands default to all-packages mode.
-pub(crate) fn current_package_name() -> Option<String> {
+/// Returns None if cwd is outside project_root (e.g., --manifest-path used).
+pub(crate) fn current_package_name(project_root: &Path) -> Option<String> {
     let cwd = std::env::current_dir().ok()?;
+    // If cwd is outside project_root, fall back to all-packages mode
+    if !cwd.starts_with(project_root) {
+        return None;
+    }
     // At a workspace root, don't treat it as a single package
     if cwd.join("Cargo.toml").exists() && !is_pop(&cwd) {
         return None;

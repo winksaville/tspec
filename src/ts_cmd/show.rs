@@ -30,7 +30,7 @@ pub fn show_tspec(
         show_package_tspecs(&package_dir, name, tspec)?;
     } else if show_all {
         // Show all packages
-        let info = crate::workspace::WorkspaceInfo::discover()?;
+        let info = crate::workspace::WorkspaceInfo::discover(project_root)?;
         for (i, member) in info.members.iter().enumerate() {
             if i > 0 {
                 println!();

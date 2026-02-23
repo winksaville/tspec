@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result};
 use cargo_metadata::MetadataCommand;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Information about a workspace package
 #[derive(Debug, Clone)]
@@ -30,8 +30,9 @@ impl WorkspaceInfo {
     }
 
     /// Discover workspace using cargo metadata
-    pub fn discover() -> Result<Self> {
+    pub fn discover(project_root: &Path) -> Result<Self> {
         let metadata = MetadataCommand::new()
+            .manifest_path(project_root.join("Cargo.toml"))
             .no_deps()
             .exec()
             .context("failed to run cargo metadata")?;
@@ -79,7 +80,8 @@ mod tests {
     #[test]
     fn discover_works() {
         // This test works for both workspaces and POPs
-        let info = WorkspaceInfo::discover();
+        let root = crate::find_paths::find_project_root().unwrap();
+        let info = WorkspaceInfo::discover(&root);
         if let Ok(info) = info {
             assert!(!info.members.is_empty());
 

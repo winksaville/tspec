@@ -31,7 +31,7 @@ pub fn hash_tspec(
         hash_package_tspecs(&package_dir, name, tspec)?;
     } else if hash_all {
         // Hash all packages
-        let info = crate::workspace::WorkspaceInfo::discover()?;
+        let info = crate::workspace::WorkspaceInfo::discover(project_root)?;
         for member in &info.members {
             hash_package_tspecs(&member.path, &member.name, tspec)?;
         }

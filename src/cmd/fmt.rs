@@ -29,7 +29,7 @@ impl Execute for FmtCmd {
         let mut args: Vec<OsString> = Vec::new();
         let pkg_arg = self.positional.as_ref().or(self.package.as_ref());
         if let Some(pkg) = pkg_arg
-            && let Some(name) = resolve_package_arg(pkg)?
+            && let Some(name) = resolve_package_arg(pkg, project_root)?
         {
             args.push("-p".into());
             args.push(name.into());

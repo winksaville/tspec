@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{print_test_summary, test_all};
 use crate::cargo_build::test_package;
-use crate::find_paths::{find_project_root, find_tspecs, get_package_name, resolve_package_dir};
+use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
 use crate::types::CargoFlags;
 use crate::workspace::WorkspaceInfo;
 
@@ -141,17 +141,17 @@ impl Execute for TestCmd {
             None
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
-                Some(pkg) => resolve_package_arg(pkg)?,
-                None => current_package_name(),
+                Some(pkg) => resolve_package_arg(pkg, project_root)?,
+                None => current_package_name(project_root),
             }
         };
 
         if self.target_names {
-            return list_target_names(resolved.as_deref(), flags);
+            return list_target_names(resolved.as_deref(), project_root, flags);
         }
 
         if self.list {
-            return list_tests(resolved.as_deref(), &self.name_filter, flags);
+            return list_tests(resolved.as_deref(), &self.name_filter, project_root, flags);
         }
 
         // Build extra_args from --names, --test, --all-tests, and trailing args
@@ -182,7 +182,7 @@ impl Execute for TestCmd {
 
         match resolved {
             None => {
-                let workspace = WorkspaceInfo::discover()?;
+                let workspace = WorkspaceInfo::discover(project_root)?;
 
                 // When --test targets are specified in workspace mode, only test
                 // packages that actually have matching files in tests/
@@ -275,16 +275,18 @@ fn format_target_header(raw: &str) -> String {
 ///
 /// Runs `cargo test --no-run` and parses stderr for "Running tests/..." lines,
 /// extracting the basename (without .rs) as the target name.
-fn list_target_names(package: Option<&str>, flags: &CargoFlags) -> Result<ExitCode> {
-    let workspace = find_project_root()?;
-
+fn list_target_names(
+    package: Option<&str>,
+    project_root: &Path,
+    flags: &CargoFlags,
+) -> Result<ExitCode> {
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg("test").arg("--no-run");
     if let Some(pkg) = package {
         cmd.arg("-p").arg(pkg);
     }
     flags.apply_to_command(&mut cmd);
-    cmd.current_dir(&workspace);
+    cmd.current_dir(project_root);
 
     let output = cmd.output().context("failed to run cargo test --no-run")?;
 
@@ -331,10 +333,9 @@ fn list_target_names(package: Option<&str>, flags: &CargoFlags) -> Result<ExitCo
 fn list_tests(
     package: Option<&str>,
     name_filter: &[String],
+    project_root: &Path,
     flags: &CargoFlags,
 ) -> Result<ExitCode> {
-    let workspace = find_project_root()?;
-
     let mut cmd = std::process::Command::new("cargo");
     cmd.arg("test");
     if let Some(pkg) = package {
@@ -344,7 +345,7 @@ fn list_tests(
     cmd.arg("--");
     cmd.args(name_filter);
     cmd.arg("--list");
-    cmd.current_dir(&workspace);
+    cmd.current_dir(project_root);
 
     let output = cmd.output().context("failed to run cargo test -- --list")?;
 

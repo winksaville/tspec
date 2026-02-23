@@ -62,15 +62,15 @@ impl Execute for RunCmd {
             None
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
-                Some(pkg) => resolve_package_arg(pkg)?,
-                None => current_package_name(),
+                Some(pkg) => resolve_package_arg(pkg, project_root)?,
+                None => current_package_name(project_root),
             }
         };
 
         match resolved {
             None => {
                 // Run all apps (args not supported for --workspace)
-                let workspace = WorkspaceInfo::discover()?;
+                let workspace = WorkspaceInfo::discover(project_root)?;
                 let results = run_all(&workspace, &self.tspec, cli_profile, self.strip, flags);
                 Ok(print_run_summary(workspace.name(), &results))
             }

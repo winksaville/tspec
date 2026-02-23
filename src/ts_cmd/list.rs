@@ -25,7 +25,7 @@ pub fn list_tspecs(project_root: &Path, package: Option<&str>, all: bool) -> Res
         print_package_tspecs(name, &package_dir, &tspecs);
     } else if list_all {
         // List all packages
-        let info = WorkspaceInfo::discover()?;
+        let info = WorkspaceInfo::discover(project_root)?;
         let mut found_any = false;
 
         for member in &info.members {

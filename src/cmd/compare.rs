@@ -37,14 +37,14 @@ impl Execute for CompareCmd {
             None
         } else {
             match self.positional.as_deref().or(self.package.as_deref()) {
-                Some(pkg) => resolve_package_arg(pkg)?,
-                None => current_package_name(),
+                Some(pkg) => resolve_package_arg(pkg, project_root)?,
+                None => current_package_name(project_root),
             }
         };
 
         match resolved {
             None => {
-                let workspace = WorkspaceInfo::discover()?;
+                let workspace = WorkspaceInfo::discover(project_root)?;
                 let results = compare_all(&workspace, &self.tspec, self.fail_fast, flags);
                 Ok(print_compare_summary(workspace.name(), &results))
             }
