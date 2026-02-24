@@ -214,7 +214,7 @@ impl Execute for TestCmd {
 
                 let results =
                     test_all(&workspace, &self.tspec, cli_profile, self.fail_fast, &flags);
-                Ok(print_test_summary(workspace.name(), &results))
+                Ok(print_test_summary(&workspace.name_versioned(), &results))
             }
             Some(name) => {
                 let mut all_lines = Vec::new();

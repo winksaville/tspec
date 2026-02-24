@@ -319,16 +319,16 @@ tspec test -p tspec -n flatten --list      # List functions matching a name filt
 **Test summary** (workspace mode) shows per-package counts and an aggregate footer. Note the difference — without `--all-tests`, `#[ignore]`'d tests are skipped:
 
 ```
-$ tspec test                                          $ tspec test --all-tests
-==============================================        ============================================
-              tspec TEST SUMMARY                                   tspec TEST SUMMARY
-==============================================        ============================================
-  Package      Status                                   Package      Status
-  tspec-build  [PASS]  10 passed                        tspec-build  [PASS]  10 passed
-  tspec        [PASS]  313 passed (4 ignored)           tspec        [PASS]  317 passed
+$ tspec test                                                    $ tspec test --all-tests
+============================================                    ============================================
+         tspec v0.15.5 TEST SUMMARY                                      tspec v0.15.5 TEST SUMMARY
+============================================                    ============================================
+  Package             Status                                      Package             Status
+  tspec-build v0.1.0  [PASS]  10 passed                          tspec-build v0.1.0  [PASS]  10 passed
+  tspec v0.15.5       [PASS]  324 passed (4 ignored)              tspec v0.15.5       [PASS]  328 passed
 
-  Test: 2 packages, 323 passed, 0 failed (4 ignored)   Test: 2 packages, 327 passed, 0 failed
-==============================================        ============================================
+  Test: 2 packages, 334 passed, 0 failed (4 ignored)             Test: 2 packages, 338 passed, 0 failed
+============================================                    ============================================
 ```
 
 In single-package mode, tspec fails (exit 1) when 0 tests ran — this catches filter typos that silently pass. "Running 0 tests" noise blocks are suppressed from output.

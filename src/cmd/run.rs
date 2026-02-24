@@ -72,7 +72,7 @@ impl Execute for RunCmd {
                 // Run all apps (args not supported for --workspace)
                 let workspace = WorkspaceInfo::discover(project_root)?;
                 let results = run_all(&workspace, &self.tspec, cli_profile, self.strip, flags);
-                Ok(print_run_summary(workspace.name(), &results))
+                Ok(print_run_summary(&workspace.name_versioned(), &results))
             }
             Some(name) => {
                 if self.tspec.is_empty() {

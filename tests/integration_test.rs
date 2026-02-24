@@ -570,3 +570,124 @@ fn mp_pop_fixture() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+// ---------------------------------------------------------------------------
+// Version in SUMMARY tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn pop_ws_build_summary_shows_versions() {
+    let (_tmp, project) = fixture::copy_fixture("pop-ws");
+
+    let output = Command::new(tspec_bin())
+        .args(["build", "-w"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec build -w");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec build -w failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // Header should include root package version
+    assert!(
+        stdout.contains("pop-ws v0.3.0 BUILD SUMMARY"),
+        "missing versioned header in:\n{stdout}"
+    );
+    // Rows should show per-package versions
+    assert!(
+        stdout.contains("pop-ws-app v0.3.0"),
+        "missing pop-ws-app version in:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("mylib v0.2.0"),
+        "missing mylib version in:\n{stdout}"
+    );
+}
+
+#[test]
+fn popws3p_test_summary_shows_versions() {
+    let (_tmp, project) = fixture::copy_fixture("popws-3p");
+
+    let output = Command::new(tspec_bin())
+        .args(["test"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec test");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec test failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // Virtual workspace — header should NOT have a version
+    assert!(
+        stdout.contains("popws-3p TEST SUMMARY"),
+        "missing header in:\n{stdout}"
+    );
+    // Rows should show per-package versions
+    assert!(
+        stdout.contains("app-a v0.4.0"),
+        "missing app-a version in:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("lib-b v0.5.0"),
+        "missing lib-b version in:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("multi-c v0.6.0"),
+        "missing multi-c version in:\n{stdout}"
+    );
+}
+
+#[test]
+fn pop_ws_run_summary_shows_versions() {
+    let (_tmp, project) = fixture::copy_fixture("pop-ws");
+
+    let output = Command::new(tspec_bin())
+        .args(["run", "-w"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec run -w");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec run -w failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("pop-ws v0.3.0 RUN SUMMARY"),
+        "missing versioned header in:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("pop-ws-app v0.3.0"),
+        "missing pop-ws-app version in:\n{stdout}"
+    );
+}
+
+#[test]
+fn pop_ws_compare_summary_shows_versions() {
+    let (_tmp, project) = fixture::copy_fixture("pop-ws");
+
+    let output = Command::new(tspec_bin())
+        .args(["compare", "-w"])
+        .current_dir(&project)
+        .output()
+        .expect("failed to run tspec compare -w");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "tspec compare -w failed:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // Single binary package — should show per-package compare header with version
+    assert!(
+        stdout.contains("pop-ws-app v0.3.0 COMPARE SUMMARY"),
+        "missing versioned compare header in:\n{stdout}"
+    );
+}

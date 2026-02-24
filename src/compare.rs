@@ -4,6 +4,7 @@ use anyhow::Result;
 
 use crate::binary::{binary_size, strip_binary};
 use crate::cargo_build::{build_package, plain_cargo_build_release};
+use crate::tspec::{hash_spec, load_spec};
 use crate::types::CargoFlags;
 use crate::{print_header, print_hline};
 
@@ -44,10 +45,14 @@ pub fn compare_specs(
 
     for spec_path in spec_paths {
         let spec_path = spec_path.as_ref();
-        let name = spec_path
+        let filename = spec_path
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| spec_path.display().to_string());
+        let name = match load_spec(spec_path).and_then(|s| hash_spec(&s)) {
+            Ok(hash) => format!("{filename} [{hash}]"),
+            Err(_) => filename,
+        };
 
         let size = build_spec(pkg_name, spec_path, project_root, flags)?;
         results.push(SpecResult { name, size });

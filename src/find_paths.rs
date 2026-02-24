@@ -42,6 +42,35 @@ pub fn get_package_name(crate_dir: &Path) -> Result<String> {
     bail!("could not find package name in {}", cargo_toml.display());
 }
 
+/// Read the version from a Cargo.toml [package] section.
+pub fn get_package_version(crate_dir: &Path) -> Result<String> {
+    let cargo_toml = crate_dir.join("Cargo.toml");
+    let content = std::fs::read_to_string(&cargo_toml)
+        .with_context(|| format!("failed to read {}", cargo_toml.display()))?;
+
+    let mut in_package = false;
+    for line in content.lines() {
+        let line = line.trim();
+        if line == "[package]" {
+            in_package = true;
+            continue;
+        }
+        if line.starts_with('[') {
+            in_package = false;
+            continue;
+        }
+        if in_package
+            && line.starts_with("version")
+            && let Some(eq_pos) = line.find('=')
+        {
+            let value = line[eq_pos + 1..].trim();
+            let value = value.trim_matches('"').trim_matches('\'');
+            return Ok(value.to_string());
+        }
+    }
+    bail!("could not find package version in {}", cargo_toml.display());
+}
+
 /// Find the project root by looking for Cargo.toml with [workspace] or [package]
 /// For workspaces, returns the directory containing the workspace Cargo.toml
 /// For POPs (Plain Old Packages), returns the directory containing the package Cargo.toml
@@ -448,6 +477,53 @@ version = "0.1.0"
 
         let name = get_package_name(tmp.path()).unwrap();
         assert_eq!(name, "single-quoted");
+    }
+
+    #[test]
+    fn get_package_version_valid() {
+        let tmp = TempDir::new().unwrap();
+        let cargo_toml = tmp.path().join("Cargo.toml");
+        fs::write(
+            &cargo_toml,
+            r#"[package]
+name = "my-test-crate"
+version = "1.2.3"
+"#,
+        )
+        .unwrap();
+
+        let ver = get_package_version(tmp.path()).unwrap();
+        assert_eq!(ver, "1.2.3");
+    }
+
+    #[test]
+    fn get_package_version_missing() {
+        let tmp = TempDir::new().unwrap();
+        let cargo_toml = tmp.path().join("Cargo.toml");
+        fs::write(&cargo_toml, "[package]\nname = \"foo\"\n").unwrap();
+
+        let result = get_package_version(tmp.path());
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("could not find package version")
+        );
+    }
+
+    #[test]
+    fn get_package_version_ignores_other_sections() {
+        let tmp = TempDir::new().unwrap();
+        let cargo_toml = tmp.path().join("Cargo.toml");
+        fs::write(
+            &cargo_toml,
+            "[dependencies]\nversion = \"999\"\n\n[package]\nname = \"x\"\nversion = \"0.5.0\"\n",
+        )
+        .unwrap();
+
+        let ver = get_package_version(tmp.path()).unwrap();
+        assert_eq!(ver, "0.5.0");
     }
 
     #[test]

@@ -12,7 +12,7 @@ use crate::cmd::{TestResult, parse_test_results};
 use crate::compare::{SpecResult, compare_specs, print_comparison};
 use crate::find_paths::find_tspecs;
 use crate::run::run_binary;
-use crate::tspec::spec_name_from_path;
+use crate::tspec::{hash_spec, load_spec, spec_name_from_path};
 use crate::types::CargoFlags;
 use crate::workspace::WorkspaceInfo;
 use crate::{print_header, print_hline};
@@ -75,9 +75,17 @@ fn resolve_specs_for_member(member_path: &Path, patterns: &[String]) -> Vec<Path
 }
 
 /// Extract a short spec label from an optional tspec path.
+///
+/// Includes the spec hash when the file can be loaded, e.g. `"tspec [c5f653a9]"`.
 fn spec_label(tspec: &Option<String>) -> String {
     match tspec {
-        Some(path) => spec_name_from_path(Path::new(path)),
+        Some(path) => {
+            let name = spec_name_from_path(Path::new(path));
+            match load_spec(Path::new(path)).and_then(|s| hash_spec(&s)) {
+                Ok(hash) => format!("{name} [{hash}]"),
+                Err(_) => name,
+            }
+        }
         None => String::new(),
     }
 }
@@ -85,6 +93,7 @@ fn spec_label(tspec: &Option<String>) -> String {
 /// Result of a batch operation on a single package
 pub struct OpResult {
     pub name: String,
+    pub version: String,
     pub spec: String,
     pub success: bool,
     pub message: String,
@@ -149,6 +158,7 @@ pub fn build_all(
                     let size = binary_size(&build_result.binary_path).ok();
                     OpResult {
                         name: member.name.clone(),
+                        version: member.version.clone(),
                         spec,
                         success: true,
                         message: format!("{}", build_result.binary_path.display()),
@@ -158,6 +168,7 @@ pub fn build_all(
                 }
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    version: member.version.clone(),
                     spec,
                     success: false,
                     message: e.to_string(),
@@ -231,6 +242,7 @@ pub fn run_all(
                     match run_binary(&build_result.binary_path, &[]) {
                         Ok(exit_code) => OpResult {
                             name: member.name.clone(),
+                            version: member.version.clone(),
                             spec: spec.clone(),
                             success: true,
                             message: format!("exit code: {}", exit_code),
@@ -239,6 +251,7 @@ pub fn run_all(
                         },
                         Err(e) => OpResult {
                             name: member.name.clone(),
+                            version: member.version.clone(),
                             spec: spec.clone(),
                             success: false,
                             message: format!("run failed: {}", e),
@@ -249,6 +262,7 @@ pub fn run_all(
                 }
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    version: member.version.clone(),
                     spec,
                     success: false,
                     message: format!("build failed: {}", e),
@@ -314,6 +328,7 @@ pub fn test_all(
                     let counts = parse_test_results(&result_lines);
                     OpResult {
                         name: member.name.clone(),
+                        version: member.version.clone(),
                         spec,
                         success: true,
                         message: "ok".to_string(),
@@ -323,6 +338,7 @@ pub fn test_all(
                 }
                 Err(e) => OpResult {
                     name: member.name.clone(),
+                    version: member.version.clone(),
                     spec,
                     success: false,
                     message: e.to_string(),
@@ -343,11 +359,23 @@ pub fn test_all(
     results
 }
 
-/// A row for the summary table: package name, spec, and pre-formatted detail string.
+/// A row for the summary table: package name, version, spec, and pre-formatted detail string.
 struct SummaryRow {
     name: String,
+    version: String,
     spec: String,
     detail: String,
+}
+
+impl SummaryRow {
+    /// Name with version appended, e.g. "tspec v0.15.5"
+    fn name_versioned(&self) -> String {
+        if self.version.is_empty() {
+            self.name.clone()
+        } else {
+            format!("{} v{}", self.name, self.version)
+        }
+    }
 }
 
 /// Print a summary table with consistent formatting across all operations.
@@ -364,7 +392,14 @@ fn print_summary_table(
     rows: &[SummaryRow],
     footer: &str,
 ) {
-    let max_name_len = rows.iter().map(|r| r.name.len()).max().unwrap_or(7).max(7);
+    // Use versioned names for display
+    let versioned_names: Vec<String> = rows.iter().map(|r| r.name_versioned()).collect();
+    let max_name_len = versioned_names
+        .iter()
+        .map(|n| n.len())
+        .max()
+        .unwrap_or(7)
+        .max(7);
     let has_spec = rows.iter().any(|r| !r.spec.is_empty());
     let max_spec_len = if has_spec {
         rows.iter().map(|r| r.spec.len()).max().unwrap_or(4).max(4)
@@ -390,23 +425,18 @@ fn print_summary_table(
         );
     }
 
-    for row in rows {
+    for (row, vname) in rows.iter().zip(versioned_names.iter()) {
         if has_spec {
             println!(
                 "  {:nw$}  {:sw$}  {}",
-                row.name,
+                vname,
                 row.spec,
                 row.detail,
                 nw = max_name_len,
                 sw = max_spec_len
             );
         } else {
-            println!(
-                "  {:width$}  {}",
-                row.name,
-                row.detail,
-                width = max_name_len
-            );
+            println!("  {:width$}  {}", vname, row.detail, width = max_name_len);
         }
     }
 
@@ -460,6 +490,7 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
             };
             SummaryRow {
                 name: r.name.clone(),
+                version: r.version.clone(),
                 spec: r.spec.clone(),
                 detail,
             }
@@ -506,6 +537,7 @@ pub fn print_summary(name: &str, results: &[OpResult]) -> ExitCode {
             let size_str = r.size.map(format_size).unwrap_or_else(|| "--".to_string());
             SummaryRow {
                 name: r.name.clone(),
+                version: r.version.clone(),
                 spec: r.spec.clone(),
                 detail: format!("{status}  {size_str:>6}"),
             }
@@ -583,6 +615,7 @@ pub fn compare_all(
             Ok(spec_results) => (
                 OpResult {
                     name: member.name.clone(),
+                    version: member.version.clone(),
                     spec: String::new(),
                     success: true,
                     message: "ok".to_string(),
@@ -594,6 +627,7 @@ pub fn compare_all(
             Err(e) => (
                 OpResult {
                     name: member.name.clone(),
+                    version: member.version.clone(),
                     spec: String::new(),
                     success: false,
                     message: e.to_string(),
@@ -625,7 +659,12 @@ pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode 
     // Reprint per-package comparison tables together
     for result in results {
         if !result.specs.is_empty() {
-            print_comparison(&result.op.name, &result.specs);
+            let versioned = if result.op.version.is_empty() {
+                result.op.name.clone()
+            } else {
+                format!("{} v{}", result.op.name, result.op.version)
+            };
+            print_comparison(&versioned, &result.specs);
         }
     }
 
@@ -646,6 +685,7 @@ pub fn print_compare_summary(name: &str, results: &[CompareResult]) -> ExitCode 
                 };
                 SummaryRow {
                     name: r.op.name.clone(),
+                    version: r.op.version.clone(),
                     spec: r.op.spec.clone(),
                     detail,
                 }
@@ -684,6 +724,7 @@ pub fn print_run_summary(name: &str, results: &[OpResult]) -> ExitCode {
             };
             SummaryRow {
                 name: r.name.clone(),
+                version: r.version.clone(),
                 spec: r.spec.clone(),
                 detail,
             }
@@ -713,6 +754,7 @@ mod tests {
     fn make_op(name: &str, success: bool, counts: Option<TestResult>) -> OpResult {
         OpResult {
             name: name.to_string(),
+            version: String::new(),
             spec: String::new(),
             success,
             message: if success {

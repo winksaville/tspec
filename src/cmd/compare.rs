@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use super::{Execute, current_package_name, resolve_package_arg};
 use crate::all::{compare_all, print_compare_summary};
 use crate::compare::{compare_specs, print_comparison};
-use crate::find_paths::{find_tspecs, get_package_name, resolve_package_dir};
+use crate::find_paths::{find_tspecs, get_package_name, get_package_version, resolve_package_dir};
 use crate::types::CargoFlags;
 use crate::workspace::WorkspaceInfo;
 
@@ -46,7 +46,7 @@ impl Execute for CompareCmd {
             None => {
                 let workspace = WorkspaceInfo::discover(project_root)?;
                 let results = compare_all(&workspace, &self.tspec, self.fail_fast, flags);
-                Ok(print_compare_summary(workspace.name(), &results))
+                Ok(print_compare_summary(&workspace.name_versioned(), &results))
             }
             Some(pkg_name) => {
                 let package_dir = resolve_package_dir(project_root, Some(&pkg_name))?;
@@ -57,7 +57,11 @@ impl Execute for CompareCmd {
                     find_tspecs(&package_dir, &self.tspec)?
                 };
                 let results = compare_specs(&pkg_name, &spec_paths, project_root, flags)?;
-                print_comparison(&pkg_name, &results);
+                let versioned = match get_package_version(&package_dir) {
+                    Ok(ver) => format!("{pkg_name} v{ver}"),
+                    Err(_) => pkg_name.clone(),
+                };
+                print_comparison(&versioned, &results);
                 Ok(ExitCode::SUCCESS)
             }
         }
