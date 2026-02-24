@@ -431,7 +431,14 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
                 pkg_passed += 1;
                 if let Some(counts) = &r.test_counts {
                     total.merge(counts);
-                    format!("[PASS]  {} passed", counts.passed)
+                    if counts.ignored > 0 {
+                        format!(
+                            "[PASS]  {} passed ({} ignored)",
+                            counts.passed, counts.ignored
+                        )
+                    } else {
+                        format!("[PASS]  {} passed", counts.passed)
+                    }
                 } else {
                     "[PASS]".to_string()
                 }
@@ -439,7 +446,14 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
                 pkg_failed += 1;
                 if let Some(counts) = &r.test_counts {
                     total.merge(counts);
-                    format!("[FAIL]  {} failed", counts.failed)
+                    if counts.ignored > 0 {
+                        format!(
+                            "[FAIL]  {} failed ({} ignored)",
+                            counts.failed, counts.ignored
+                        )
+                    } else {
+                        format!("[FAIL]  {} failed", counts.failed)
+                    }
                 } else {
                     "[FAIL]".to_string()
                 }
@@ -453,10 +467,17 @@ pub fn print_test_summary(name: &str, results: &[OpResult]) -> ExitCode {
         .collect();
 
     let pkg_count = pkg_passed + pkg_failed;
-    let footer = format!(
-        "Test: {} packages, {} passed, {} failed",
-        pkg_count, total.passed, total.failed
-    );
+    let footer = if total.ignored > 0 {
+        format!(
+            "Test: {} packages, {} passed, {} failed ({} ignored)",
+            pkg_count, total.passed, total.failed, total.ignored
+        )
+    } else {
+        format!(
+            "Test: {} packages, {} passed, {} failed",
+            pkg_count, total.passed, total.failed
+        )
+    };
 
     print_summary_table(name, "TEST", "Status", &rows, &footer);
 
@@ -766,5 +787,35 @@ mod tests {
         let results = vec![make_op("pkg-a", false, None)];
         let code = print_test_summary("test", &results);
         assert_eq!(code, ExitCode::from(1));
+    }
+
+    #[test]
+    fn test_summary_with_ignored() {
+        let results = vec![
+            make_op(
+                "pkg-a",
+                true,
+                Some(TestResult {
+                    passed: 10,
+                    failed: 0,
+                    ignored: 3,
+                    filtered: 0,
+                }),
+            ),
+            make_op(
+                "pkg-b",
+                true,
+                Some(TestResult {
+                    passed: 5,
+                    failed: 0,
+                    ignored: 0,
+                    filtered: 0,
+                }),
+            ),
+        ];
+        let code = print_test_summary("test", &results);
+        assert_eq!(code, ExitCode::SUCCESS);
+        // pkg-a row shows "(3 ignored)", pkg-b does not;
+        // footer shows "(3 ignored)" in totals
     }
 }
